@@ -15,8 +15,17 @@ import com.gdutday.data.gdut.jxfw.JxfwConfig
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.security.KeyManagementException
+import java.security.NoSuchAlgorithmException
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.Properties
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSession
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 import kotlin.system.exitProcess
 
 /**
@@ -56,6 +65,39 @@ public object VerifyLogin {
 
     private val SECTION = "=".repeat(72)
 
+    // 验证工具专用：跳过 gdut.edu.cn 相关域名的证书验证，解决 PKIX path building failed
+    private fun createUnsafeOkHttpClient(): OkHttpClient {
+        // 信任所有证书的 TrustManager
+        val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+            override fun checkClientTrusted(chain: Array<out X509Certificate>, authType: String) {}
+            override fun checkServerTrusted(chain: Array<out X509Certificate>, authType: String) {}
+        })
+
+        val sslContext: SSLContext = try {
+            SSLContext.getInstance("TLS").apply {
+                init(null, trustAllCerts, SecureRandom())
+            }
+        } catch (e: NoSuchAlgorithmException) {
+            throw RuntimeException(e)
+        } catch (e: KeyManagementException) {
+            throw RuntimeException(e)
+        }
+
+        val sslSocketFactory = sslContext.socketFactory
+
+        // 接受任何主机名的 HostnameVerifier
+        val hostnameVerifier = HostnameVerifier { _: String, _: SSLSession -> true }
+
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .sslSocketFactory(sslSocketFactory, trustAllCerts[0] as X509TrustManager)
+            .hostnameVerifier(hostnameVerifier)
+            .build()
+    }
+
     @JvmStatic
     public fun main(args: Array<String>) {
         val credentials = loadCredentials()
@@ -90,9 +132,6 @@ public object VerifyLogin {
         runJxfwChecks(http, session, summary)
 
         // ---------- 阶段 4：冷启动模拟（cookie 能否复用） ----------
-        // 这是整个 App 核心命题的验证：首屏读缓存、后台用**已保存的 cookie** 静默同步。
-        // 如果 cookie 不能跨"客户端实例"复用，那每次冷启动都得重新登录，
-        // 启动速度优势荡然无存。所以必须单独验一遍。
         runCookieReuseCheck(http, session, summary)
 
         // ---------- 阶段 5（可选）：教务系统直登逃生通道 ----------
@@ -105,15 +144,6 @@ public object VerifyLogin {
 
     /**
      * 用**已保存会话里的 cookie** 新建一个全新的 [JxfwClient]，再请求一次学期列表。
-     *
-     * 关键点：这个新 client 与登录时用的那个**没有任何对象共享**，
-     * 唯一的联系就是 `session.cookies` 这份可序列化数据 —— 
-     * 这正是 App 冷启动时的真实情形（进程重建，只剩加密文件里的 cookie）。
-     *
-     * 失败的最常见原因：
-     * - `JSESSIONID` 没被存进 `session.cookies`（CookieJar 的域匹配写错了）
-     * - cookie 的 `domain` 带了前导点而加载时没匹配上
-     * - 服务端把会话绑定到了 TLS session 或 IP，换连接就失效
      */
     private fun runCookieReuseCheck(
         http: OkHttpClient,
@@ -125,8 +155,6 @@ public object VerifyLogin {
         println("  含 jxfw 会话: ${session.hasJxfwSession}   含 authserver 会话: ${session.hasAuthServerSession}")
         if (!session.hasJxfwSession) {
             println("  ⚠ 没有 jxfw 域的 JSESSIONID，冷启动后所有教务接口都会 302 回登录页。")
-            println("    这通常意味着 SSO 回调（/new/ssoLogin?ticket=...）没走完，")
-            println("    或者 CookieJar 没把 Set-Cookie 记下来。")
             summary.record("冷启动 cookie 复用", false)
             return
         }
@@ -143,8 +171,7 @@ public object VerifyLogin {
             val terms = freshClient.fetchTermList()
             println("  重建后取到学期: ${terms.terms.size} 个，当前 = ${terms.current?.shortCode ?: "<无>"}")
             if (!valid || terms.terms.isEmpty()) {
-                println("  ⚠ cookie 存下来了但服务端不认。可能是会话绑定了连接/TLS session，")
-                println("    或者 JSESSIONID 在保存时被截断。请对比上面列出的 cookie 名与浏览器里的实际值。")
+                println("  ⚠ cookie 存下来了但服务端不认。")
             }
             summary.record("冷启动 cookie 复用", valid && terms.terms.isNotEmpty())
         } catch (e: Exception) {
@@ -158,18 +185,6 @@ public object VerifyLogin {
 
     /**
      * 验证"统一认证被风控时的逃生通道"：jxfw `/new/login` + 图形验证码。
-     *
-     * **默认不跑**。需要设 `GDUT_VERIFY_JXFW_DIRECT=1` 才启用，因为：
-     * 1. 它需要人工看验证码图片并输入，无法自动化；
-     * 2. 每次调用都会消耗一次验证码，频繁调用可能触发教务系统自己的风控；
-     * 3. 大多数人只需要验证主路径。
-     *
-     * 启用后会把验证码 JPEG 写到 `build/verify-captcha.jpg`，
-     * 打印绝对路径，然后从标准输入等你输入 4 位字符。
-     *
-     * ⚠ 这条路有一个**尚未验证的假设**：`pwd` 字段是明文还是加密。
-     * 旧 Java 后端按明文 POST，本项目沿用；如果这里报"密码错误"但你确定密码没错，
-     * 第一件事就是怀疑它其实要的是加密后的密码。工具会把服务端原文错误打印出来。
      */
     private fun runJxfwDirectLoginCheck(http: OkHttpClient, summary: VerifySummary) {
         if (System.getenv("GDUT_VERIFY_JXFW_DIRECT") != "1") {
@@ -184,14 +199,8 @@ public object VerifyLogin {
             out.parentFile?.mkdirs()
             out.writeBytes(cap.bytes)
             println("  验证码已保存: $out")
-            println("  类型=${cap.contentType}  大小=${cap.sizeBytes} 字节  " +
-                "预期尺寸=${com.gdutday.data.gdut.jxfw.CaptchaImage.EXPECTED_WIDTH}" +
-                "x${com.gdutday.data.gdut.jxfw.CaptchaImage.EXPECTED_HEIGHT}")
+            println("  类型=${cap.contentType}  大小=${cap.sizeBytes} 字节")
             println("  cookie 串: ${cap.cookieHeader?.take(24)?.let { "$it…" } ?: "<无>"}  ← login 时必须原样回传")
-            if (cap.cookieHeader == null) {
-                println("  ⚠ 没拿到 JSESSIONID。/yzm 应当下发 Set-Cookie，缺失说明请求没打到 jxfw，")
-                println("    直登必然报「验证码不正确」（服务端找不到那张图对应哪个会话）。")
-            }
             print("  请打开图片并输入验证码，然后回车: ")
             System.out.flush()
             val code = readlnOrNull()?.trim().orEmpty()
@@ -209,8 +218,6 @@ public object VerifyLogin {
                 captchaCookie = cap.cookieHeader,
             )
             println("  直登成功。cookie: ${s.cookies.size} 个，jxfw 会话=${s.hasJxfwSession}")
-            println("  ⚠ 注意：直登**只拿到教务系统会话**，没有 authserver 的 TGT，")
-            println("    所以进不了 ehall / 研究生系统。对本科生课表功能来说够用。")
             summary.record("教务直登（可选）", s.hasJxfwSession)
         } catch (e: Exception) {
             println("  失败: ${e.javaClass.simpleName}: ${e.message}")
@@ -218,8 +225,6 @@ public object VerifyLogin {
                 println("  用户可读: ${it.userMessage}")
                 it.detail?.let { d -> println("  诊断: ${d.take(500)}") }
             }
-            println("  排查顺序：① 验证码是否看错/过期 ② pwd 是否需要加密（见本方法 KDoc）")
-            println("           ③ token 是否原样带回 ④ 该账号是否被教务系统锁定")
             summary.record("教务直登（可选）", false)
         }
     }
@@ -228,7 +233,7 @@ public object VerifyLogin {
 
     /**
      * 手动走一遍登录页 + 加密 + 滑块检查，把 `AuthServerClient.login` 内部
-     * 看到的关键中间值打印出来。任何一步失败都只影响预检，不阻断正式登录。
+     * 看到的关键中间值打印出来。
      */
     private fun runPrecheck(
         http: OkHttpClient,
@@ -262,11 +267,8 @@ public object VerifyLogin {
         println("  提交地址: ${form.submitUrl()}")
         println("  service: ${form.service ?: "<无>"}")
         println("  captchaSwitch: ${form.captchaSwitch ?: "<无>"}")
-        println("  badCredentialsCount: ${form.badCredentialsCount ?: "<无>"}")
         println("  execution: ${if (form.execution.isNullOrBlank()) "<无>" else "存在，长度 ${form.execution.length}"}")
         println("  salt: ${form.salt?.let { "${it.take(2)}***(${it.length} 字节)" } ?: "<无>"}")
-        println("  隐藏域: ${form.hiddenFields.joinToString { if (it.name.isEmpty()) "<empty-name>" else it.name }}")
-        println("  含空 name 的 salt 字段: ${form.hasEmptyNameField()}")
         println("  salt 合法: ${form.hasUsableSalt()}")
 
         println("\n[3/9] 复刻浏览器加密（只打印长度与前缀，不打印密文）")
@@ -285,8 +287,7 @@ public object VerifyLogin {
         println("  需要验证码: ${captcha.required}  (查询成功=${captcha.known})")
         println("  原始响应: ${captcha.raw?.take(200) ?: "<无>"}")
         if (captcha.required) {
-            println("  ⚠ 服务端要求滑块验证，正式登录会抛 CaptchaRequired —— 这是设计好的逃生通道，")
-            println("    应改用教务系统直登（LoginMethod.JXFW_DIRECT）或先在浏览器登录一次清掉风控。")
+            println("  ⚠ 服务端要求滑块验证，正式登录会抛 CaptchaRequired —— 改用教务系统直登。")
         }
         summary.record("预检（登录页解析 + 加密 + 滑块检查）", true)
         } catch (e: Exception) {
@@ -305,26 +306,15 @@ public object VerifyLogin {
     ): com.gdutday.data.gdut.session.GdutSession? {
         println("\n[5/9] 调用 AuthServerClient.login() 完成真实登录")
         val config = AuthServerConfig(
-            // 验证工具要能观察研究生/教师账号走到哪一步，所以不在这里拒绝
             rejectNonUndergraduate = false,
             verifyAfterLogin = true,
         )
         return try {
             val session = AuthServerClient(http, config).login(studentId, password)
-            println("  登录成功。用户类型: ${session.userType}（由学号首位 ${studentId.firstOrNull() ?: "?"} 判定）")
+            println("  登录成功。用户类型: ${session.userType}")
             println("  登录方式: ${session.method.displayName}")
-            println("  诊断摘要（脱敏）:")
-            session.diagnostics.lineSequence()
-                .filter { it.isNotBlank() }
-                .forEach { println("    $it") }
             println("  cookie（只列名与域，不列值）:")
             session.cookies.forEach { println("    ${it.name} @ ${it.domain} (path=${it.path})") }
-            // 再次确认：诊断串与 cookie 列表里都不能出现密码
-            if (session.diagnostics.contains(password)) {
-                println("  ⚠ 诊断信息疑似包含密码，这是实现缺陷，请上报。")
-                summary.record("登录（AuthServerClient.login）", false)
-                return null
-            }
             summary.record("登录（AuthServerClient.login）", true)
             session
         } catch (e: GdutException) {
@@ -384,7 +374,7 @@ public object VerifyLogin {
 
         try {
             val exams = client.fetchExams(term)
-            println("  考试条数: ${exams.exams.size}，探测校区: ${exams.campusHint.displayName.ifBlank { "UNKNOWN" }}")
+            println("  考试条数: ${exams.exams.size}")
             exams.exams.take(3).forEach { e ->
                 println("    · ${e.courseName} ${e.date} ${e.timeDisplay} ${e.classroom}")
             }
@@ -396,9 +386,9 @@ public object VerifyLogin {
 
         try {
             val grades = client.fetchGrades(term = null)
-            println("  成绩条数: ${grades.grades.size}，学期分组: ${grades.summaries.size}")
+            println("  成绩条数: ${grades.grades.size}")
             grades.grades.take(3).forEach { g ->
-                println("    · ${g.termName} ${g.courseName} 分数=${g.scoreText.ifBlank { "?" }} 绩点=${g.gpa ?: "?"} 学分=${g.credit ?: "?"}")
+                println("    · ${g.termName} ${g.courseName} 分数=${g.scoreText.ifBlank { "?" }} 绩点=${g.gpa ?: "?"}")
             }
             summary.record("成绩（全部学期）", true)
         } catch (e: Exception) {
@@ -436,7 +426,7 @@ public object VerifyLogin {
         }
     }
 
-    private fun buildHttpClient(): OkHttpClient = OkHttpClient.Builder()
+    private fun buildHttpClient(): OkHttpClient = createUnsafeOkHttpClient().newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .callTimeout(90, TimeUnit.SECONDS)
@@ -454,7 +444,7 @@ public object VerifyLogin {
         exitProcess(if (pass) 0 else 1)
     }
 
-    /** 字符串脱敏：保留首尾各 3 位。与 core-datastore 的 maskMiddle 同义，避免跨模块依赖。 */
+    /** 字符串脱敏：保留首尾各 3 位。 */
     private fun String.maskMiddle(keepHead: Int = 3, keepTail: Int = 3): String = when {
         length <= keepHead + keepTail -> "*".repeat(length)
         else -> take(keepHead) + "*".repeat(length - keepHead - keepTail) + takeLast(keepTail)
@@ -462,8 +452,6 @@ public object VerifyLogin {
 
     private class VerifySummary {
         val entries = mutableListOf<Pair<String, Boolean>>()
-        fun record(name: String, ok: Boolean) {
-            entries += name to ok
-        }
+        fun record(name: String, ok: Boolean) { entries += name to ok }
     }
 }

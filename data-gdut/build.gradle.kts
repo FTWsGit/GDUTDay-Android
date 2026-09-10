@@ -67,5 +67,5 @@ tasks.register<JavaExec>("verifyLogin") {
     workingDir = rootProject.projectDir
     // Windows 控制台默认是 GBK，中文输出会变乱码。强制子进程与 Gradle 都用 UTF-8。
     defaultCharacterEncoding = "UTF-8"
-    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Djavax.net.ssl.trustStoreType=Windows-ROOT")
 }
