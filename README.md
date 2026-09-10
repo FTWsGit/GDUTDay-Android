@@ -26,9 +26,8 @@
 - 课表以周网格 / 日列表展示，支持并排冲突、按分钟定位、隐私打码、自动配色。
 - 两个 Glance 桌面插件（今日课程 / 下节课倒计时）。
 - 测试以纯 JVM 单元测试为主，共约 **375 个**（见 [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md)）。
-- **尚未完成 / 已知问题**：release 签名未配置；设置页仍是占位；
+- **尚未完成 / 已知问题**：设置页仍是占位；
   研究生账号不支持；`KnownSemesterStarts` 只有一条记录；
-  `app` 模块当前有一个资源构建错误；`core-model` 有一个测试失败；
   同步后未接线刷新插件；androidTest 为零。
   完整清单与验收标准见 [`docs/05-agent-task-list.md`](docs/05-agent-task-list.md)。
 

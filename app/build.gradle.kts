@@ -42,9 +42,21 @@ android {
 
     signingConfigs {
         // debug 签名用 AGP 内置的，不额外配置。
-        // release 签名**不要**写进这个文件（会进版本库）。
+        // release 签名不要写进这个文件（会进版本库）。
         // 正确做法：在 ~/.gradle/gradle.properties 里配 GDUTDAY_STORE_FILE 等属性，
         // 或者用 CI 的 secret。见 docs/00-architecture.md 的"发布"章节。
+        create("release") {
+            val storeFile = findProperty("GDUTDAY_STORE_FILE")?.let { file(it) }
+            val storePassword = findProperty("GDUTDAY_STORE_PASSWORD")
+            val keyAlias = findProperty("GDUTDAY_KEY_ALIAS")
+            val keyPassword = findProperty("GDUTDAY_KEY_PASSWORD")
+            if (storeFile != null && storePassword != null && keyAlias != null && keyPassword != null) {
+                this.storeFile = storeFile
+                this.storePassword = storePassword as String
+                this.keyAlias = keyAlias as String
+                this.keyPassword = keyPassword as String
+            }
+        }
     }
 
     buildTypes {
@@ -63,8 +75,18 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // 签名配置留空：未配置 signingConfig 时 assembleRelease 产出的是 unsigned apk。
-            // 这是有意的 —— 强制发布走显式配置，避免误用 debug 签名发布。
+            // 签名配置：signingConfig 绑定在上面 signingConfigs.create("release")，
+            // 其属性来自 ~/.gradle/gradle.properties。属性缺失时 signingConfig 保持空，
+            // assembleRelease 产出 unsigned apk —— 强制发布走显式配置，避免误用 debug 签名发布。
+            signingConfig = signingConfigs.getByName("release")
+            // 属性没配齐时产物仍是 unsigned：签名块内四个属性任一为 null 就不写入 signingConfig
+            if (findProperty("GDUTDAY_STORE_FILE") == null ||
+                findProperty("GDUTDAY_STORE_PASSWORD") == null ||
+                findProperty("GDUTDAY_KEY_ALIAS") == null ||
+                findProperty("GDUTDAY_KEY_PASSWORD") == null
+            ) {
+                signingConfig = null
+            }
         }
     }
 
