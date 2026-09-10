@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AndroidManifest。
+
+  ## 权限：只声明真正需要的
+
+  旧小程序的 manifest.json 里列了一长串 Android 权限（相机、录音、定位、通讯录、
+  短信、日历读写、外部存储读写……），那是 uni-app 打包模板的默认值，
+  绝大多数**根本用不到**，只会让用户在应用商店看到一排红色警告。
+
+  本项目按实际功能逐个核对，最终只保留 INTERNET 和 ACCESS_NETWORK_STATE。
+  每加一个权限都要在这里写清楚"哪个功能需要它"。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 访问 authserver.gdut.edu.cn 与 jxfw.gdut.edu.cn。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- NetworkMonitor 判断当前是否有网，用于在同步前给出准确提示。 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      刻意**不**声明的权限，以及原因（改动前请先读这里）：
+
+      - WRITE/READ_EXTERNAL_STORAGE、READ_MEDIA_IMAGES：
+        课表背景图用 Photo Picker（ACTION_PICK_IMAGES）+ 持久化 URI 授权，
+        不需要任何存储权限。
+      - CAMERA：图书馆入馆二维码是**本地用 zxing 生成**的（LibraryQr），
+        不需要扫码，也就不需要相机。
+      - READ/WRITE_CALENDAR：不做"课程写入系统日历"功能（产品决策，见 docs/00）。
+      - POST_NOTIFICATIONS / SCHEDULE_EXACT_ALARM：不做上课提醒（产品决策，见 docs/00）。
+      - RECEIVE_BOOT_COMPLETED：周期同步交给 WorkManager，它自己会处理重启恢复。
+    -->
+
+    <application
+        android:name=".GdutDayApplication"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.GdutDay"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="34">
+
+        <!--
+          allowBackup=false 是**有意为之**：
+          备份里会包含 Keystore 加密的会话文件，而 Keystore 密钥不随备份迁移，
+          恢复后必然解密失败。与其让用户遇到"恢复备份后一直闪退"，
+          不如直接关掉备份（登录一次的成本远低于排查闪退）。
+
+          supportsRtl=false：界面全是中文，没有 RTL 语言需求，
+          关掉可以省掉一半的 layout 镜像适配工作。
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.GdutDay">
+
+            <!--
+              configChanges 里声明 orientation 等，是为了让旋转屏幕时
+              **不重建 Activity**。
+
+              Compose 本身能正确处理配置变更，但重建 Activity 意味着
+              重新走一遍 onCreate → 重新读 DataStore → 重新构建对象图，
+              课表页会明显闪一下。声明 configChanges 后只触发重组，几毫秒完成。
+
+              代价：需要在 Composable 里自己响应尺寸变化。Compose 的
+              BoxWithConstraints / WindowSizeClass 天然就是这么做的，所以没有额外成本。
+            -->
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ============================================================ 桌面插件 -->
+
+        <!--
+          今日课程 Widget。
+
+          android:exported="true" 是**必须**的 —— launcher 要能绑定它，
+          否则插件不会出现在系统的插件选择列表里。
+
+          RESOURCE 指向 widget 模块的 @xml/today_schedule_widget_info。
+        -->
+        <receiver
+            android:name="com.gdutday.widget.TodayScheduleWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_today_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_schedule_widget_info" />
+        </receiver>
+
+        <!-- 下节课倒计时 Widget。 -->
+        <receiver
+            android:name="com.gdutday.widget.NextClassWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_next_class_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/next_class_widget_info" />
+        </receiver>
+
+        <!--
+          WorkManager 用 androidx.startup 自动初始化，不需要手写 ContentProvider。
+          但我们**要禁用它的默认初始化**，改成在 Application 里手动配置
+          （见 GdutDayApplication），这样才能注入自己的 CoroutineDispatcher
+          和 Executor —— 默认实现会新建一个线程池，与协程的调度器重复。
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+    </application>
+
+</manifest>

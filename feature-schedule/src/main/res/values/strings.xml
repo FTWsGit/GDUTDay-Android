@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  课表页的文案。
+
+  与 app 模块 strings.xml 里的同名文案保持一致（那里是全局视图，这里是模块内
+  编译期可用的副本）。库模块无法直接引用 app 的 R，所以在 feature-schedule 内
+  维护一份；app 的同名资源在合并时会覆盖这里，运行时以 app 为准。
+-->
+<resources>
+    <string name="schedule_term_unknown">未知学期</string>
+    <string name="schedule_back_to_current_week">回到本周</string>
+    <string name="schedule_more">更多</string>
+    <string name="schedule_switch_to_day">切换到日视图</string>
+    <string name="schedule_switch_to_week">切换到周视图</string>
+    <string name="schedule_menu_sync">同步课表</string>
+    <string name="schedule_menu_settings">设置</string>
+
+    <string name="schedule_not_logged_in_title">还没有登录</string>
+    <string name="schedule_not_logged_in_subtitle">登录后即可同步课表</string>
+    <string name="schedule_no_data_title">本学期暂无课表</string>
+    <string name="schedule_no_data_subtitle">下拉可手动同步</string>
+    <string name="schedule_today_empty_title">今天没有课</string>
+    <string name="schedule_today_empty_subtitle">好好休息一下</string>
+    <string name="schedule_loading">正在加载课表…</string>
+
+    <string name="schedule_sync_in_progress">正在同步课表…</string>
+    <string name="schedule_semester_start_guessed">开学日期是推测的，周次可能不准，点此校准</string>
+    <string name="schedule_campus_unknown">未设置校区，作息时间可能不准</string>
+    <string name="schedule_campus_unknown_action">去设置</string>
+    <string name="schedule_calibrate">校准</string>
+    <string name="schedule_calibrate_title">校准开学日期</string>
+    <string name="schedule_privacy_hint">已开启课表打码</string>
+    <string name="schedule_dismiss">关闭</string>
+    <string name="schedule_confirm">确定</string>
+    <string name="schedule_cancel">取消</string>
+
+    <string name="schedule_badge_exam">考试</string>
+    <string name="schedule_badge_custom">自定义</string>
+    <string name="schedule_detail_teacher">老师</string>
+    <string name="schedule_detail_classroom">教室</string>
+    <string name="schedule_detail_time">时间</string>
+    <string name="schedule_detail_weeks">周次</string>
+    <string name="schedule_detail_teaching_class">教学班</string>
+    <string name="schedule_detail_course_code">课程编号</string>
+    <string name="schedule_detail_content">教学内容</string>
+    <string name="schedule_detail_color">课程颜色</string>
+    <string name="schedule_detail_delete">删除课程</string>
+</resources>

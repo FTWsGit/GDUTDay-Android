@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 的数据提取规则。
+
+  allowBackup 已在 manifest 里设为 false（Keystore 密钥不随备份迁移，
+  恢复后必然解密失败）。这里再显式排除敏感文件作为第二道防线 ——
+  万一将来有人把 allowBackup 改回 true，会话文件仍然不会被备份出去。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="gdutday_session.enc" />
+        <exclude domain="file" path="gdutday_credentials.enc" />
+        <exclude domain="database" path="gdutday.db" />
+        <exclude domain="database" path="gdutday.db-wal" />
+        <exclude domain="database" path="gdutday.db-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="gdutday_session.enc" />
+        <exclude domain="file" path="gdutday_credentials.enc" />
+        <exclude domain="database" path="gdutday.db" />
+    </device-transfer>
+</data-extraction-rules>

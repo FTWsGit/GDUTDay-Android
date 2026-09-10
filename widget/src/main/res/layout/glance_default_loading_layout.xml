@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Glance 在 Compose 内容就绪前显示的占位布局。
+
+  ⚠ 文件名是 **Glance 的约定**：GlanceAppWidget 默认查找
+  @layout/glance_default_loading_layout。名字写错会在运行时抛
+  Resources.NotFoundException，而且是插件**第一次被添加到桌面时**才炸，
+  编译期和单元测试都发现不了。
+
+  内容刻意做得接近最终 UI（同样的圆角背景），避免"闪一下白块"。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="@string/widget_loading"
+        android:textColor="#66000000"
+        android:textSize="12sp" />
+</FrameLayout>

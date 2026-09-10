@@ -1,0 +1,51 @@
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "gdutday-android"
+
+// ---- 纯 JVM 模块：无 Android 依赖，可直接跑 JVM 单元测试 ----
+// 学校协议逆向层（登录加密 / 课表解析）全部在这里，是整个项目风险最高、
+// 也最容易被验证的部分，所以刻意做成纯 JVM 模块，测试不需要模拟器。
+include(":core-model")
+include(":core-common")
+include(":data-gdut")
+
+// ---- Android 基础模块 ----
+include(":core-network")
+include(":core-database")
+include(":core-datastore")
+include(":core-ui")
+
+// ---- 数据聚合 ----
+include(":data-repository")
+
+// ---- 功能模块 ----
+include(":feature-auth")
+include(":feature-schedule")
+include(":feature-grade")
+include(":feature-settings")
+
+// ---- 桌面插件 ----
+include(":widget")
+
+// ---- 应用壳 ----
+include(":app")

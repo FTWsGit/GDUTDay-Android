@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      继承**框架**主题 android:Theme.Material.Light.NoActionBar，
+      而不是 Theme.Material3.DayNight.NoActionBar。
+
+      ## 为什么不用 Material3 的 XML 主题
+
+      那需要引入 `com.google.android.material:material`（View 体系的一整套组件，1MB+），
+      而这个项目**一个 View 都不用** —— 全部界面是 Compose Material3。
+      XML 主题在这里只负责两件事：
+        1. windowBackground：冷启动第一帧的颜色
+        2. 去掉系统 ActionBar（Compose 自己画 TopBar）
+      框架主题足够，且零额外依赖。与"包体积 / 启动速度"的目标一致。
+
+      ## 深色模式怎么办
+
+      靠 `values-night/` 目录切换（那里有同名 style 的深色版本），
+      不需要 DayNight 主题 —— DayNight 同样来自 material 库。
+      Compose 侧的深浅色由 `GdutDayTheme` 里的 `isSystemInDarkTheme()` 独立处理，
+      两者都跟随系统 uiMode，不会不同步。
+
+      ## windowBackground 必须与 Compose 背景色一致
+
+      见 colors.xml（浅色 #FFFBFC / 深色 #171214），对应
+      `core-ui/Theme.kt` 的 LightColors.background / DarkColors.background。
+      冷启动第一帧显示的就是 windowBackground，颜色不对会有一次明显的白闪 ——
+      这一条对启动体验的影响比任何代码优化都直接。改主题色时**三处要同步改**。
+    -->
+    <style name="Theme.GdutDay" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

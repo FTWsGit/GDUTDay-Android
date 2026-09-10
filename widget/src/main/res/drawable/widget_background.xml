@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  插件背景。
+
+  必须显式提供，不能依赖系统默认：
+  - Android 12 之前没有统一的圆角处理，各厂商 launcher 表现不一；
+  - 半透明底色能让插件在深浅色壁纸上都看得清。
+  深色版本在 drawable-night/ 下。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <solid android:color="#F2FFFFFF" />
+</shape>

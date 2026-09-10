@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  登录页文案。
+
+  库模块无法引用 app 模块的 R，所以与 app/src/main/res/values/strings.xml 同名的
+  文案在这里维护一份；打包时以 app 的同名资源为准（app 会覆盖库）。
+-->
+<resources>
+    <string name="login_title">统一身份认证登录</string>
+    <string name="login_hint_student_id">学号（10 位，以 3 开头）</string>
+    <string name="login_hint_password">初始密码为身份证后六位</string>
+    <string name="login_password_label">密码</string>
+    <string name="login_use_jxfw">改用教务系统登录</string>
+    <string name="login_use_authserver">改用统一身份认证登录</string>
+    <string name="login_captcha_required">账号触发了滑块验证，请改用教务系统登录，或先在浏览器登录一次教务系统</string>
+    <string name="login_unsupported_graduate">当前版本暂不支持研究生课表</string>
+    <string name="login_unsupported_teacher">当前版本暂不支持教师账号</string>
+    <string name="login_remember_password">记住密码（加密保存在本机）</string>
+    <string name="login_remember_password_warning">密码将用系统密钥加密后存在本机，仅用于会话过期时自动重登。若担心风险请勿勾选。</string>
+
+    <string name="login_tab_unified">统一身份认证</string>
+    <string name="login_tab_jxfw">教务系统登录</string>
+    <string name="login_student_id_invalid">学号格式不正确：应为 10 位纯数字且以 3 开头</string>
+    <string name="login_captcha_label">验证码</string>
+    <string name="login_captcha_hint">看不清？点击左侧图片换一张</string>
+    <string name="login_captcha_loading">验证码加载中</string>
+    <string name="login_captcha_tap_retry">点击图片重试</string>
+    <string name="login_action">登录</string>
+    <string name="login_action_busy">登录中…</string>
+</resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  "下节课" 插件。4x1 格：一行课程名+地点，一行倒计时。
+
+  ## 倒计时的刷新策略（省电关键）
+  倒计时**不走秒** —— 每秒刷新一次 RemoteViews 会让 launcher 进程持续占用 CPU，
+  是插件被用户卸载的头号原因。
+
+  改为分钟粒度的静态文本，并且**分级刷新**：
+  - 距下节课 > 60 分钟：每小时刷新一次
+  - 距下节课 ≤ 60 分钟：每分钟刷新一次
+  - 正在上课：每分钟刷新一次（要更新"还剩 X 分钟下课"）
+  - 今天已无课：不刷新，直到明天 0 点
+
+  由 WorkManager 按上述间隔自我调度（每次执行完根据新的距离重新 enqueue），
+  而不是用固定的周期任务。实现见 NextClassWidget 的 KDoc。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewLayout="@layout/widget_next_class_preview"
+    android:description="@string/widget_next_class_description"
+    android:resizeMode="horizontal"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

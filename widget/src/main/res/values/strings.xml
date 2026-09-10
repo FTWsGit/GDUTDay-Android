@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_label">今日课程</string>
+    <string name="widget_today_description">显示今天的课程安排，点击打开课表</string>
+    <string name="widget_next_class_label">下节课</string>
+    <string name="widget_next_class_description">显示下一节课的名称、地点与倒计时</string>
+
+    <string name="widget_empty_no_class">今天没有课</string>
+    <string name="widget_empty_not_logged_in">未登录</string>
+    <string name="widget_empty_no_more_class">今天课程已结束</string>
+    <string name="widget_loading">加载中…</string>
+</resources>

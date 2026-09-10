@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      深色版本。用 values-night/ 目录切换而不是 DayNight 主题，
+      理由见 values/themes.xml 的注释（避免为了一个主题名引入整个 View 体系 material 库）。
+
+      与浅色版的唯一差异：parent 换成 Dark，windowLightStatusBar 换成 false
+      （深色背景上要浅色状态栏图标）。
+      windowBackground 引用同一个 @color/window_background，
+      它在 values-night/colors.xml 里被覆盖成 #171214。
+    -->
+    <style name="Theme.GdutDay" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

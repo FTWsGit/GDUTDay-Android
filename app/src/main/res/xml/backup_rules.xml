@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 及以下的旧版备份规则，语义同 data_extraction_rules.xml -->
+<full-backup-content>
+    <exclude domain="file" path="gdutday_session.enc" />
+    <exclude domain="file" path="gdutday_credentials.enc" />
+    <exclude domain="database" path="gdutday.db" />
+</full-backup-content>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  data-repository 的 Manifest。
+
+  这里**只**做一件事：把 WorkManager 的默认初始化从 `androidx.startup` 里移除。
+
+  ## 为什么放在库模块里也要声明
+  app 模块的 manifest 已经删过一遍。重复声明不是冗余：库模块是 WorkManager 的
+  直接使用方，把"谁用谁负责初始化"这件事写在库自己的 manifest 里，将来 app
+  模块的 manifest 被重构、或本库被别的壳复用时，初始化链路依然完整。
+
+  ## 移除之后由谁初始化
+  由 `DefaultAppContainer` 在第一次访问 `syncScheduler` 时显式调用
+  `WorkManager.initialize(...)`，配置里装上 `GdutWorkerFactory` 以注入依赖。
+  如果这里不移除、容器又显式初始化，`WorkManager.initialize` 会抛
+  "already initialized"；反过来如果移除了却没人初始化，则第一次
+  `getInstance()` 会抛 "not initialized properly"。两边必须成对出现，
+  改动任一侧都要先读 `DefaultAppContainer` 的类注释。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+    </application>
+
+</manifest>

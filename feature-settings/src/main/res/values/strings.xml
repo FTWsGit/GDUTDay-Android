@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  设置页文案。库模块无法引用 app 的 R，与 app 同名的资源在此维护一份，
+  打包时以 app 为准。
+-->
+<resources>
+    <string name="settings_title">设置</string>
+    <string name="settings_back">返回</string>
+    <string name="settings_confirm">确定</string>
+    <string name="settings_cancel">取消</string>
+
+    <!-- 学期与校区 -->
+    <string name="settings_section_term_campus">学期与校区</string>
+    <string name="settings_campus">校区</string>
+    <string name="settings_campus_auto">自动探测</string>
+    <string name="settings_campus_panyu_warning">番禺校区第 10~12 节作息数据未经核实（三节时间完全相同），建议在下方自定义作息表。</string>
+    <string name="settings_semester_start">学期开始日期</string>
+    <string name="settings_semester_start_value">%1$s（来源：%2$s）</string>
+    <string name="settings_calibrate">校准</string>
+    <string name="settings_semester_start_guessed">开学日期是推测的，周次可能全部偏差，请务必校准</string>
+    <string name="settings_source_user">手动设置</string>
+    <string name="settings_source_derived">课表反推</string>
+    <string name="settings_source_known">内置日期表</string>
+    <string name="settings_source_guessed">粗略推测</string>
+
+    <!-- 课表外观 -->
+    <string name="settings_section_appearance">课表外观</string>
+    <string name="settings_view_mode">视图模式</string>
+    <string name="settings_dim_finished">已上课程置灰</string>
+    <string name="settings_text_color">课程块字体颜色</string>
+    <string name="settings_alpha">课程块透明度</string>
+    <string name="settings_background_image">背景图</string>
+    <string name="settings_background_none">未设置，使用纯色背景</string>
+    <string name="settings_background_pick">选择</string>
+    <string name="settings_background_clear">清除</string>
+    <string name="settings_background_blur">模糊半径：%1$d dp</string>
+    <string name="settings_show_teacher">显示老师</string>
+    <string name="settings_show_classroom">显示教室</string>
+    <string name="settings_show_extra_sections">显示第 13-14 节</string>
+    <string name="settings_show_weekend">显示周末</string>
+
+    <!-- 作息表 -->
+    <string name="settings_section_timetable">作息表</string>
+    <string name="settings_custom_timetable">使用自定义作息表</string>
+    <string name="settings_custom_timetable_hint">学校临时调整作息时可自行覆盖</string>
+    <string name="settings_section_number">第 %1$d 节</string>
+    <string name="settings_timetable_restore">恢复该校区默认</string>
+    <string name="settings_timetable_save">保存</string>
+    <string name="settings_timetable_saved">作息表已保存</string>
+    <string name="settings_timetable_invalid_size">保存失败：需要 12 节的起止时间，共 24 项</string>
+    <string name="settings_timetable_invalid_format">保存失败：时间格式错误，应为 HH:mm</string>
+    <string name="settings_timetable_invalid_reversed">保存失败：存在结束时刻早于或等于开始时刻的节次</string>
+
+    <!-- 数据 -->
+    <string name="settings_section_data">数据</string>
+    <string name="settings_fetch_strategy">课表数据源</string>
+    <string name="settings_auto_sync">启动时自动同步</string>
+    <string name="settings_auto_sync_hint">关闭可省流量并加快冷启动</string>
+    <string name="settings_auto_sync_interval">自动同步间隔</string>
+    <string name="settings_interval_hours">每 %1$d 小时</string>
+    <string name="settings_manual_sync">手动同步</string>
+    <string name="settings_never_synced">从未同步</string>
+    <string name="settings_sync_now">立即同步</string>
+    <string name="settings_syncing">同步中…</string>
+    <string name="settings_reset_colors">重置配色</string>
+    <string name="settings_reset_colors_hint">清除自动分配的课程颜色（手选的保留）</string>
+    <string name="settings_reset_colors_confirm">确定要重置自动配色吗？</string>
+    <string name="settings_clear_custom_courses">清空自定义课程</string>
+    <string name="settings_clear_custom_courses_hint">只删除手动添加的课程，教务课表保留</string>
+    <string name="settings_clear_custom_courses_confirm">确定要清空全部自定义课程吗？此操作不可撤销。</string>
+    <string name="settings_clear_all">清空全部本地数据</string>
+    <string name="settings_clear_all_hint">删除课表、成绩与登录态，等同于注销</string>
+    <string name="settings_clear_all_confirm">确定要清空全部本地数据吗？包括课表、成绩和登录状态，且不可撤销。</string>
+    <string name="settings_colors_reset">配色已重置</string>
+    <string name="settings_custom_cleared">自定义课程已清空</string>
+    <string name="settings_all_cleared">本地数据已清空</string>
+
+    <!-- 隐私 -->
+    <string name="settings_section_privacy">隐私</string>
+    <string name="settings_privacy_blur">课表打码</string>
+    <string name="settings_privacy_blur_widget">桌面插件同步打码</string>
+    <string name="settings_remember_password">记住密码</string>
+    <string name="settings_remember_password_on">已记住 %1$s 的密码（加密保存在本机）</string>
+    <string name="settings_remember_password_off">未记住；如需会话过期后自动重登，请在登录页勾选</string>
+    <string name="settings_remember_password_risk">密码用系统密钥加密后存在本机，仅用于会话过期时自动重登。关闭此开关会立即擦除。</string>
+
+    <!-- 关于 / 诊断 -->
+    <string name="settings_section_about">关于</string>
+    <string name="settings_version">版本号</string>
+    <string name="settings_licenses">开源许可</string>
+    <string name="settings_licenses_body">本应用使用了 AndroidX、Jetpack Compose、OkHttp、jsoup、Room、WorkManager、DataStore、ZXing 等开源组件，均遵循 Apache License 2.0 或相应开源许可协议。</string>
+    <string name="settings_diagnostics">诊断信息</string>
+    <string name="settings_diagnostics_hint">提交问题时请附上这里的内容</string>
+    <string name="settings_diagnostics_copy">复制</string>
+    <string name="settings_diagnostics_copied">已复制到剪贴板</string>
+
+    <!-- 退出登录 -->
+    <string name="settings_logout">退出登录</string>
+    <string name="settings_logout_confirm">确定要退出登录吗？课表缓存会保留。</string>
+    <string name="settings_logout_clear_data">同时清空本地数据</string>
+</resources>

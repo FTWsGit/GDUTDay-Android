@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android / IDE
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+
+# 本地凭据（永远不要提交）
+# 登录验证脚本从这里读取账号密码，见 docs/07-verify-login.md
+secrets.properties
+credentials.local.properties
+*.local.properties

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  "今日课程" 插件配置。
+
+  ## 尺寸
+  4x2 格（约 250x110dp）。这是能同时显示 "日期 + 3~4 条课程" 的最小尺寸，
+  再小就只能显示 1 条，失去意义。
+
+  targetCellWidth/Height（API 31+）显式声明 4x2，让支持网格的 launcher 直接按格子摆放，
+  而不是用 minWidth 反推 —— 反推结果在不同 launcher 上不一致（有的算 4x2，有的算 3x2）。
+
+  ## updatePeriodMillis = 0（刻意禁用系统周期刷新）
+  - 系统周期刷新最小间隔 30 分钟，且会**唤醒设备**，是明确的耗电源；
+  - 课表数据一天最多变一次，靠它刷新毫无意义；
+  - 真正需要刷新的两个时机由更精确的机制覆盖：
+      「跨天了」→ WorkManager 每天 0 点后触发一次 updateAll
+      「数据库变了」→ Room 的 Flow 驱动（GlanceStateDefinition）
+  两条路都比系统周期刷新精确且省电。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeWidth="530dp"
+    android:maxResizeHeight="400dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewLayout="@layout/widget_today_preview"
+    android:description="@string/widget_today_description"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

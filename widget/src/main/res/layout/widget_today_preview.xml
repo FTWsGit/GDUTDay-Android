@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  插件选择器里的预览图（API 31+ 的 android:previewLayout）。
+
+  用真实布局而不是截图 PNG：
+  - 截图在不同主题/字体缩放下失真，且每次改 UI 都要重截；
+  - 布局预览由系统渲染，永远与实际外观一致；
+  - 省掉一张 PNG。
+  数据是写死的假数据，不连数据库。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_background">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="9月10日 周三 · 第2周"
+        android:textColor="#FF1A1A1A"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="08:30  高等数学 · 教5-301"
+        android:textColor="#FF333333"
+        android:textSize="12sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:text="10:25  数据结构 · 教3-204"
+        android:textColor="#FF333333"
+        android:textSize="12sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:text="15:30  大学英语 · 文科楼202"
+        android:textColor="#FF333333"
+        android:textSize="12sp" />
+</LinearLayout>

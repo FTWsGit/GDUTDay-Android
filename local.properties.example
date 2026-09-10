@@ -1,0 +1,7 @@
+# 复制为 local.properties 并按本机情况修改（local.properties 已被 gitignore）。
+#
+# ⚠ Windows 路径分隔符请用正斜杠 `/`。
+#   AGP 9 的 SdkLocator 对反斜杠转义形式（sdk.dir=C\:\\Users\\...）会抛
+#   "java.io.IOException: The filename, directory name, or volume label syntax is incorrect"，
+#   正斜杠形式实测正常。
+sdk.dir=C:/Users/Administrator/AppData/Local/Android/Sdk
