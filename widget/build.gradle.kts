@@ -49,9 +49,7 @@ kotlin {
 dependencies {
     implementation(project(":core-model"))
     implementation(project(":core-common"))
-    implementation(project(":core-database"))
     implementation(project(":core-datastore"))
-    implementation(project(":core-ui"))
     implementation(project(":data-repository"))
 
     api(libs.androidx.glance.appwidget)
@@ -62,6 +60,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    // FlowDataStore.kt 直接实现 androidx.datastore.core.DataStore，
+    // 显式声明而不是靠 glance-material3 的传递依赖（m13）。
+    implementation("androidx.datastore:datastore-core-okio:1.1.7")
 
     // 纯 JVM 单测：尺寸映射、打码、倒计时分级刷新都是与 Android 无关的纯函数，
     // 用普通 JUnit4 + Truth 即可，不需要 Robolectric，跑得快也稳定。

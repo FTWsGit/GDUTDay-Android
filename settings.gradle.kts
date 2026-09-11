@@ -30,6 +30,13 @@ pluginManagement {
         }
         maven("https://maven.aliyun.com/repository/gradle-plugin") {
             name = "aliyunGradlePlugin"
+            content {
+                // gradle-plugin 仓主要供插件标记解析；组过滤与同文件 google() 一致，
+                // 避免慢速镜像被无关组扫库。
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("org\\.jetbrains.*")
+                includeGroupByRegex("com\\.google.*")
+            }
         }
         google {
             content {
@@ -56,6 +63,13 @@ dependencyResolutionManagement {
         }
         maven("https://maven.aliyun.com/repository/public") {
             name = "aliyunPublic"
+            content {
+                // 与同文件 aliyunGoogle 的过滤原则一致：镜像只解析已知组，
+                // 未覆盖的组落到 google()/mavenCentral() 官方源。
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+                includeGroupByRegex("org\\.jetbrains.*")
+            }
         }
         google()
         mavenCentral()

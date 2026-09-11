@@ -27,5 +27,4 @@
     android:previewLayout="@layout/widget_next_class_preview"
     android:description="@string/widget_next_class_description"
     android:resizeMode="horizontal"
-    android:widgetCategory="home_screen"
-    android:widgetFeatures="reconfigurable|configuration_optional" />
+    android:widgetCategory="home_screen" />

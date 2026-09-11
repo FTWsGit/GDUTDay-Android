@@ -31,5 +31,4 @@
     android:previewLayout="@layout/widget_today_preview"
     android:description="@string/widget_today_description"
     android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen"
-    android:widgetFeatures="reconfigurable|configuration_optional" />
+    android:widgetCategory="home_screen" />
