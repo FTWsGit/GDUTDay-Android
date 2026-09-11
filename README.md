@@ -52,7 +52,7 @@ Gradle 输出里的 `Launcher JVM` / `Daemon JVM` 都应该是 21。
 
 | 组件 | 版本 | 说明 |
 |---|---|---|
-| Gradle | 9.6.1 | 本机二进制在 `C:\Users\ADMINI~1\AppData\Local\Temp\opencode\gradle-9.6.1\bin\gradle` |
+| Gradle | 9.6.1 | 本机在 `C:\tools\gradle-9.6.1`（`bin` 已入用户 PATH，`GRADLE_HOME` 已设）；`./gradlew.bat` 亦可用，发行包已缓存 |
 | AGP | 9.4.0 | **自带 Kotlin 2.2.10** |
 | Kotlin | 2.2.10 | 与 AGP 内置版本对齐（纯 JVM 模块显式声明） |
 | KSP | 2.2.10-2.0.2 | 前缀必须等于 Kotlin 版本 |
@@ -109,39 +109,43 @@ sdk.dir=C:/Users/Administrator/AppData/Local/Android/Sdk
 
 ### 6. Gradle 下载慢用腾讯云镜像
 
-Gradle 发行包可以从
-`https://mirrors.cloud.tencent.com/gradle/` 下载对应版本（`gradle-9.6.1-bin.zip`），
-解压后直接用 `bin/gradle`，不必改 `gradle-wrapper.properties`。
+`gradle-wrapper.properties` 的 `distributionUrl` 已指向腾讯镜像
+`https://mirrors.cloud.tencent.com/gradle/gradle-9.6.1-bin.zip`（官方源在国内极慢，
+且曾导致 wrapper 下载中断留下 `.part` 残片）。发行包已解压缓存到
+`~/.gradle/wrapper/dists`，`./gradlew.bat` 可离线使用。
+如需其它版本，从 `https://mirrors.cloud.tencent.com/gradle/` 下载对应 zip 即可。
 
 ---
 
 ## 怎么构建 / 跑测试 / 跑登录验证
 
-以下命令假设：
+环境已持久化（2026-09-11 整理）：
+
+- `JAVA_HOME` = `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot`（用户级环境变量，已 setx）
+- `GRADLE_HOME` = `C:\tools\gradle-9.6.1`，其 `bin` 已加入用户 `PATH`（新终端里直接敲 `gradle` 即可）
+- Gradle Wrapper 已修好：`distributionUrl` 指向腾讯镜像，发行包已缓存在
+  `~/.gradle/wrapper/dists`，`./gradlew.bat` 可离线使用
+- **旧 shell 里没有这些变量**（setx 只对新进程生效），必要时手动：
+  `export JAVA_HOME="C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot"`
+
+以下用 `./gradlew.bat`（等价于 `gradle`，二选一）：
 
 ```bash
-export JAVA_HOME="C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot"
-GRADLE=/c/Users/ADMINI~1/AppData/Local/Temp/opencode/gradle-9.6.1/bin/gradle
 cd "C:/Users/Administrator/Desktop/GDUTDay/gdutday-android"
 ```
 
 ### 构建
 
 ```bash
-$GRADLE :app:assembleDebug
+./gradlew.bat :app:assembleDebug
+./gradlew.bat :app:assembleRelease   # 已验证可出 APK（app/build/outputs/apk/release/）
 ```
-
-> ⚠ 当前 `app` 有一个资源链接错误（`Theme.Material3.DayNight.NoActionBar` 找不到），
-> 见 [`docs/05-agent-task-list.md`](docs/05-agent-task-list.md) 的 T0.1。
 
 ### 跑测试
 
 ```bash
-# 全部模块（注意：当前会被 :app 的构建错误带崩，见 T0.1）
-$GRADLE test
-
-# 只跑纯 JVM 模块（推荐，快且不受 app 影响）
-$GRADLE :core-model:test :core-common:test :data-gdut:test \
+# 全部纯 JVM 模块（推荐，快；instrumentedTest 需真机/模拟器）
+./gradlew.bat :core-model:test :core-common:test :data-gdut:test \
         :core-datastore:test :data-repository:test :widget:test :core-ui:test \
         :feature-schedule:test :feature-auth:test :feature-grade:test :feature-settings:test
 ```
@@ -156,12 +160,12 @@ $GRADLE :core-model:test :core-common:test :data-gdut:test \
 # 方式一：环境变量
 export GDUT_STUDENT_ID="3120xxxxxx"
 export GDUT_PASSWORD="你的密码"
-$GRADLE :data-gdut:verifyLogin
+./gradlew.bat :data-gdut:verifyLogin
 
 # 方式二：项目根目录 secrets.properties（已被 .gitignore）
 cp secrets.properties.example secrets.properties
 # 编辑 secrets.properties 后：
-$GRADLE :data-gdut:verifyLogin
+./gradlew.bat :data-gdut:verifyLogin
 ```
 
 它会逐步打印登录页解析、密文长度、跳转链、cookie 名与域、学期/课表/考试/成绩条数，

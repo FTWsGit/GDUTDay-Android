@@ -51,11 +51,11 @@ gdut_password=你的密码
 ## 2. 怎么跑
 
 ```bash
-export JAVA_HOME="C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot"
-GRADLE=/c/Users/ADMINI~1/AppData/Local/Temp/opencode/gradle-9.6.1/bin/gradle
 cd "C:/Users/Administrator/Desktop/GDUTDay/gdutday-android"
+# JAVA_HOME 已持久化到用户环境变量；旧 shell 里若没有则手动：
+# export JAVA_HOME="C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot"
 
-$GRADLE :data-gdut:verifyLogin
+./gradlew.bat :data-gdut:verifyLogin
 ```
 
 工具按 9 个阶段输出：

@@ -21,3 +21,6 @@ captures/
 secrets.properties
 credentials.local.properties
 *.local.properties
+
+# Agent Stuff
+temp/
