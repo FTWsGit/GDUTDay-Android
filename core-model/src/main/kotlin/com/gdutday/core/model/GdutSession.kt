@@ -88,9 +88,11 @@ public data class GdutSession(
     public val studentId: String get() = profile.studentId
     public val userType: UserType get() = profile.userType
 
-    /** 会话已保持的天数。 */
-    public fun ageInDays(nowMillis: Long = System.currentTimeMillis()): Long =
-        ((nowMillis - obtainedAtMillis) / 86_400_000L).coerceAtLeast(0)
+    /** 会话已保持的天数。[obtainedAtMillis] 未知（0L，损坏/旧版文件回退值）时返回 -1。 */
+    public fun ageInDays(nowMillis: Long = System.currentTimeMillis()): Long {
+        if (obtainedAtMillis <= 0L) return -1L
+        return ((nowMillis - obtainedAtMillis) / 86_400_000L).coerceAtLeast(0)
+    }
 
     /** 脱敏后的摘要，可安全写日志。 */
     public fun toSafeString(): String = buildString {
@@ -101,7 +103,8 @@ public data class GdutSession(
         append(", cookies=").append(cookies.size)
         append(", jxfw=").append(hasJxfwSession)
         append(", authserver=").append(hasAuthServerSession)
-        append(", ageDays=").append(ageInDays())
+        val age = ageInDays()
+        append(", ageDays=").append(if (age >= 0) age.toString() else "未知")
         append(')')
     }
 }

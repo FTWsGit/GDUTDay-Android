@@ -93,6 +93,14 @@ class JxfwParserTest {
         assertThat(JxfwTermParser.parseCurrentOnly(termListHtml)).isEqualTo(Term(2025, 1))
     }
 
+    @Test
+    fun `parseCurrentOnly 遇到登录页时向上抛 SessionExpired 而不是吞掉`() {
+        // 会话失效必须走统一的重登流程，静默返回 null 会伪装成"解析不到学期"。
+        assertThrows(GdutException.SessionExpired::class.java) {
+            JxfwTermParser.parseCurrentOnly("<html><body><input id='pwdEncryptSalt'></body></html>")
+        }
+    }
+
     // ================================================================== 考试安排
 
     private val examJson = """

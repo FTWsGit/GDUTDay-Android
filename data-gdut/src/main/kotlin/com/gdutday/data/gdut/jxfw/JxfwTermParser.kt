@@ -104,9 +104,17 @@ public object JxfwTermParser {
      * 用于那些顺带返回了学期下拉框的页面（考试安排页本身就是），
      * 省一次专门请求 [com.gdutday.data.gdut.GdutEndpoints.JXFW_TERM_LIST]。
      *
-     * @return 找不到返回 null，**不抛异常** —— 这是个可选的优化路径。
+     * 只吞 [GdutException.Parse]（结构不认识 → 可选优化路径失败，返回 null）；
+     * [GdutException.SessionExpired] 等其它异常**向上抛** —— 会话失效必须让
+     * 上层走统一的重登流程，静默吞掉会伪装成"解析不到学期"。
+     *
+     * @return 解析失败返回 null；会话失效抛异常。
      */
-    public fun parseCurrentOnly(html: String): Term? = runCatching { parse(html).current }.getOrNull()
+    public fun parseCurrentOnly(html: String): Term? = try {
+        parse(html).current
+    } catch (e: GdutException.Parse) {
+        null
+    }
 
     private fun looksLikeAuthPage(html: String): Boolean =
         html.contains("pwdEncryptSalt", ignoreCase = true) ||

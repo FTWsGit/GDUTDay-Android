@@ -27,7 +27,7 @@ public sealed class GdutException(
     /** 用于排查的技术细节，只在日志/关于页的"诊断信息"里展示。 */
     public val detail: String? = null,
     cause: Throwable? = null,
-) : Exception(buildMessage(userMessage, detail), cause) {
+) : Exception(userMessage, cause) {
 
     /** 是否值得自动重试（网络抖动类）。 */
     public open val recoverable: Boolean get() = false
@@ -196,7 +196,8 @@ public sealed class GdutException(
     ) : GdutException(message, detail, cause)
 
     public companion object {
-        private fun buildMessage(userMessage: String, detail: String?): String =
-            if (detail.isNullOrBlank()) userMessage else "$userMessage  [detail: $detail]"
+        // 注意：message 不拼 detail。Parse 的 detail 是服务端响应片段（≤500 字符，
+        // 可能含登录页 HTML 里的 token/隐藏字段），toString() 进 logcat / crash 上报
+        // 即泄漏。要看 detail 请显式打印 `e.detail`，让泄露点在代码里可见。
     }
 }

@@ -92,8 +92,10 @@ internal object SessionJson : FileCodec<GdutSession> {
                     ),
                     method = enumByName<LoginMethod>(root["method"]?.jsonPrimitive?.contentOrNull)
                         ?: LoginMethod.UNIFIED_AUTH,
-                    obtainedAtMillis = root["obtainedAtMillis"]?.jsonPrimitive?.longOrNull
-                        ?: System.currentTimeMillis(),
+                    // 缺失时回退 0L 而不是当前时刻：损坏/旧版文件会把"获取时间"
+                    // 伪装成现在，误导诊断页的"登录态已保持 N 天"。消费方（诊断页）
+                    // 对 0L 显示"未知"。
+                    obtainedAtMillis = root["obtainedAtMillis"]?.jsonPrimitive?.longOrNull ?: 0L,
                     diagnostics = root["diagnostics"]?.jsonPrimitive?.contentOrNull.orEmpty(),
                     hosts = decodeHosts(root["hosts"]?.jsonObject),
                 )

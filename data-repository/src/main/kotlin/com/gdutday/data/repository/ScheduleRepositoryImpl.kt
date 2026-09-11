@@ -334,7 +334,9 @@ public class ScheduleRepositoryImpl(
                 (prev ?: SyncStateEntity()).copy(
                     lastSyncAt = Instant.now(),
                     lastSuccess = false,
-                    lastError = message,
+                    // 成绩与课表共用 sync_state 单行，并发时 lastError 后写胜：
+                    // 带上来源前缀，避免错误信息张冠李戴（诊断页能看到是谁失败的）。
+                    lastError = "课表同步失败：$message",
                 ),
             )
         }

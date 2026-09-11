@@ -47,5 +47,7 @@ public data class CaptchaImage(
     }
 
     override fun toString(): String =
-        "CaptchaImage(${bytes.size} bytes, $contentType, cookie=${cookieHeader?.take(24)}…)"
+        // 只打 cookieHeader 的长度，绝不打值：直登路径里它就是 JSESSIONID 本体，
+        // 截 24 位也已泄露大量会话熵。
+        "CaptchaImage(${bytes.size} bytes, $contentType, cookieHeader=${cookieHeader?.let { "len=${it.length}" } ?: "null"})"
 }
