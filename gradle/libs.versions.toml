@@ -12,9 +12,9 @@
 agp = "9.4.0"
 kotlin = "2.2.10"              # 必须与 AGP 9.4.0 内置的 Kotlin 一致
 ksp = "2.2.10-2.0.2"           # 前缀必须等于 kotlin 版本
-compileSdk = "36"
+compileSdk = "37"
 minSdk = "26"                  # java.time 原生可用的最低版本，无需 desugaring
-targetSdk = "36"
+targetSdk = "37"
 
 composeBom = "2025.09.00"
 activityCompose = "1.11.0"
