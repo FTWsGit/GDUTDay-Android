@@ -49,11 +49,39 @@ public data class Grade(
      * 等级制成绩（优秀/良好/合格/不合格）不参与绩点计算，`cjjd` 通常为空。
      */
     public val countsTowardsGpa: Boolean
-        get() = score != null && gpa != null && (credit ?: 0.0) > 0.0
+        get() {
+            val s = score ?: return false
+            return s >= 60.0 && gpa != null && (credit ?: 0.0) > 0.0
+        }
+
+    /**
+     * 是否通过（学分是否计入总学分）。
+     *
+     * 数值成绩以 60 分为线；等级制成绩按"通过类"词判定；
+     * 「缓考」既不算通过也不算挂科（成绩尚未确定）。
+     */
+    public val isPassed: Boolean
+        get() {
+            val s = score
+            return if (s != null) s >= 60.0 else scoreText in PASS_WORDS
+        }
+
+    /** 是否挂科。数值成绩 < 60，或等级制为「不合格 / 不通过 / 缺考」。 */
+    public val isFailed: Boolean
+        get() {
+            val s = score
+            return if (s != null) s < 60.0 else scoreText in FAIL_WORDS
+        }
 
     public companion object {
         /** 等级制成绩 → 是否通过。用于过滤"不合格"的课。 */
         private val GRADE_WORDS = setOf("优秀", "良好", "中等", "及格", "合格", "通过", "不合格", "不通过", "缺考", "缓考")
+
+        /** 等级制里表示"通过"的词。 */
+        private val PASS_WORDS = setOf("优秀", "良好", "中等", "及格", "合格", "通过")
+
+        /** 等级制里表示"未通过"的词。「缓考」不在其中（成绩未定）。 */
+        private val FAIL_WORDS = setOf("不合格", "不通过", "缺考")
 
         /**
          * 把 `zcj` 解析成数值。
@@ -92,9 +120,9 @@ public data class TermGradeSummary(
         }
 
     public val totalCredit: Double
-        get() = grades.filter { it.score != null && it.score >= 60.0 }
+        get() = grades.filter { it.isPassed }
             .sumOf { it.credit ?: 0.0 }
 
     public val failedCount: Int
-        get() = grades.count { it.score != null && it.score < 60.0 }
+        get() = grades.count { it.isFailed }
 }

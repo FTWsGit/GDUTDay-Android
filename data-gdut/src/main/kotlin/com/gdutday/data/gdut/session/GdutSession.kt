@@ -94,7 +94,8 @@ public data class GdutSession(
 
     /** 脱敏后的摘要，可安全写日志。 */
     public fun toSafeString(): String = buildString {
-        append("GdutSession(studentId=").append(studentId)
+        // 学号是 PII，必须打码：诊断信息会被用户一键复制到公开 issue。
+        append("GdutSession(studentId=").append(studentId.maskStudentId())
         append(", userType=").append(userType.name)
         append(", method=").append(method.name)
         append(", cookies=").append(cookies.size)
@@ -104,3 +105,11 @@ public data class GdutSession(
         append(')')
     }
 }
+
+/** 学号脱敏：保留前 3 后 3，中间打码（`3120001234` → `312****234`）。 */
+private fun String.maskStudentId(keepHead: Int = 3, keepTail: Int = 3): String =
+    if (length <= keepHead + keepTail) {
+        "*".repeat(length)
+    } else {
+        take(keepHead) + "*".repeat(length - keepHead - keepTail) + takeLast(keepTail)
+    }

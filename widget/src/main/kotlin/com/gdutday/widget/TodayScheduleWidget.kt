@@ -74,6 +74,17 @@ public class TodayScheduleWidget : GlanceAppWidget() {
 /** Manifest 里声明的类名必须与这个完全一致（见 app/src/main/AndroidManifest.xml）。 */
 public class TodayScheduleWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = TodayScheduleWidget()
+
+    // 今日课程也要参与刷新链的生命周期：用户可能只放这个插件（M18）。
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        WidgetRefreshLifecycle.onEnabled(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        WidgetRefreshLifecycle.onDisabled(context)
+    }
 }
 
 // ---------------------------------------------------------------------------- UI

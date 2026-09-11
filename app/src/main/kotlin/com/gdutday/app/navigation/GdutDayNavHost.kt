@@ -102,6 +102,8 @@ fun GdutDayNavHost(
             isLoggedIn && currentDestination?.route == Routes.LOGIN -> {
                 navController.navigate(Routes.SCHEDULE) {
                     popUpTo(Routes.LOGIN) { inclusive = true }
+                    // 双保险：万一同帧内还有别的导航路径触发，也不会叠出第二个 SCHEDULE。
+                    launchSingleTop = true
                 }
             }
         }
@@ -168,14 +170,10 @@ fun GdutDayNavHost(
                 )
             }
             composable(Routes.LOGIN) {
-                LoginScreen(
-                    container = container,
-                    onLoggedIn = {
-                        navController.navigate(Routes.SCHEDULE) {
-                            popUpTo(Routes.LOGIN) { inclusive = true }
-                        }
-                    },
-                )
+                // 不传 onLoggedIn：登录成功后的导航**只由上面 isLoggedIn 的 LaunchedEffect 负责**。
+                // 若这里再导航一次，两次几乎同时执行，回退栈会叠出两个 SCHEDULE，
+                // 用户按返回键会落到另一个 SCHEDULE 而不是退出 App。
+                LoginScreen(container = container)
             }
         }
     }

@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -116,7 +116,11 @@ public fun DayScheduleView(
                 modifier = Modifier.padding(bottom = 4.dp),
             )
         }
-        items(blocks, key = { it.course.id.toString() + it.startMinute }) { block ->
+        // 不显式指定 key：默认用列表下标，天然唯一。
+        // 原来的 `course.id + startMinute` 在"同一天两场同时开始的考试"下会重复
+        // （考试块 course.id == 0），Compose 抛 "Multiple instances...same key" 直接崩溃。
+        // 考试块的 naturalKey 也不含课程名，无法区分并行考试，所以这里交给下标。
+        itemsIndexed(blocks) { _, block ->
             DayBlockRow(block = block, settings = settings, onClick = { onBlockClick(block) })
         }
     }

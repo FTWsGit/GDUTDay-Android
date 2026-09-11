@@ -26,7 +26,8 @@ import java.util.concurrent.TimeUnit
  *   课表数据必须新鲜，而且我们有 Room 做本地缓存，再叠一层 HTTP 缓存
  *   只会在冷启动时多一次磁盘 I/O，纯属负担。
  * @property logHttp 是否打印请求日志。发布版必须为 false ——
- *   日志里会出现 cookie 和加密后的密码字段，不该落到 logcat。
+ *   cookie / Set-Cookie / 请求体敏感字段（如密码）都会被过滤，但 URL 与 Location
+ *   里可能带一次性票据（`?ticket=ST-xxx`，可换取 jxfw 会话），不该落到 logcat。
  */
 public data class HttpConfig(
     public val connectTimeout: Duration = Duration.ofSeconds(10),

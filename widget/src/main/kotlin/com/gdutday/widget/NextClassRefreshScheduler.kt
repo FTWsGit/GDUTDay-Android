@@ -87,6 +87,12 @@ public object NextClassRefreshScheduler {
      * 万一别处已经初始化过，`runCatching` 会把它吞掉，随后 `getInstance` 仍能拿到实例。
      */
     private fun ensureWorkManager(context: Context) {
-        runCatching { context.widgetContainer().syncScheduler }
+        try {
+            context.widgetContainer().syncScheduler
+        } catch (e: IllegalStateException) {
+            // 容器未安装（例如 instrumentation / 未走正常 Application 启动的进程）：
+            // 这是预期情况，静默即可。若这里连真正的初始化异常也一并吞掉，
+            // 后续 `getInstance` 会抛出另一个脱节的异常，反而更难定位。
+        }
     }
 }

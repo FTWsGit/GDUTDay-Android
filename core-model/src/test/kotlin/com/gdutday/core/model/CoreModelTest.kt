@@ -451,15 +451,40 @@ class SnapshotAndGradeTest {
     }
 
     @Test
-    fun `countsTowardsGpa 要求同时有分数-绩点-学分`() {
+    fun `countsTowardsGpa 要求分数至少 60-绩点-学分`() {
         fun g(score: Double?, gpa: Double?, credit: Double?) = Grade(
             termName = "T", courseName = "C", score = score, gpa = gpa, credit = credit,
         )
         assertThat(g(87.0, 3.7, 5.0).countsTowardsGpa).isTrue()
+        assertThat(g(60.0, 1.0, 3.0).countsTowardsGpa).isTrue()     // 60 分及格
+        assertThat(g(59.0, 0.0, 3.0).countsTowardsGpa).isFalse()    // 挂科不计入绩点
         assertThat(g(null, null, 1.0).countsTowardsGpa).isFalse()   // 等级制
         assertThat(g(87.0, null, 5.0).countsTowardsGpa).isFalse()   // 没给绩点
         assertThat(g(87.0, 3.7, 0.0).countsTowardsGpa).isFalse()    // 零学分
         assertThat(g(87.0, 3.7, null).countsTowardsGpa).isFalse()
+    }
+
+    @Test
+    fun `isPassed 与 isFailed 同时覆盖数值和等级制`() {
+        fun g(score: Double? = null, text: String = "") =
+            Grade(termName = "T", courseName = "C", score = score, scoreText = text)
+        // 数值
+        assertThat(g(score = 60.0).isPassed).isTrue()
+        assertThat(g(score = 60.0).isFailed).isFalse()
+        assertThat(g(score = 59.0).isFailed).isTrue()
+        assertThat(g(score = 59.0).isPassed).isFalse()
+        // 等级制
+        for (word in listOf("优秀", "良好", "中等", "及格", "合格", "通过")) {
+            assertThat(g(text = word).isPassed).isTrue()
+            assertThat(g(text = word).isFailed).isFalse()
+        }
+        for (word in listOf("不合格", "不通过", "缺考")) {
+            assertThat(g(text = word).isFailed).isTrue()
+            assertThat(g(text = word).isPassed).isFalse()
+        }
+        // 缓考既不算过也不算挂
+        assertThat(g(text = "缓考").isPassed).isFalse()
+        assertThat(g(text = "缓考").isFailed).isFalse()
     }
 
     @Test
@@ -472,10 +497,27 @@ class SnapshotAndGradeTest {
                 Grade(termName = "T", courseName = "等级制", scoreText = "优秀", credit = 2.0),
             ),
         )
-        // (4.0*5 + 2.0*1) / (5+1) = 22/6 = 3.6667
+        // (4.0*5 + 2.0*1) / (5+1) = 22/6 = 3.6667（等级制不计绩点，但计入总学分）
         assertThat(summary.weightedGpa!!).isWithin(0.001).of(3.6667)
-        assertThat(summary.totalCredit).isWithin(0.001).of(6.0)   // 只有 A、B 有数值成绩且 >= 60
+        assertThat(summary.totalCredit).isWithin(0.001).of(8.0)   // A、B + 等级制「优秀」的 2 学分
         assertThat(summary.failedCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `totalCredit 与 failedCount 覆盖等级制-挂科-缓考`() {
+        val summary = TermGradeSummary(
+            termName = "T",
+            grades = listOf(
+                Grade(termName = "T", courseName = "A", score = 90.0, credit = 3.0),
+                Grade(termName = "T", courseName = "B", score = 55.0, credit = 2.0), // 挂科
+                Grade(termName = "T", courseName = "C", scoreText = "合格", credit = 1.0),
+                Grade(termName = "T", courseName = "D", scoreText = "不合格", credit = 1.0), // 挂科
+                Grade(termName = "T", courseName = "E", scoreText = "缺考", credit = 1.0),   // 挂科
+                Grade(termName = "T", courseName = "F", scoreText = "缓考", credit = 1.0),   // 未定
+            ),
+        )
+        assertThat(summary.totalCredit).isWithin(0.001).of(4.0)   // A + C
+        assertThat(summary.failedCount).isEqualTo(3)              // B + D + E
     }
 
     @Test
@@ -485,6 +527,7 @@ class SnapshotAndGradeTest {
             grades = listOf(Grade(termName = "T", courseName = "A", scoreText = "合格", credit = 1.0)),
         )
         assertThat(summary.weightedGpa).isNull()
+        assertThat(summary.totalCredit).isWithin(0.001).of(1.0)
         assertThat(summary.failedCount).isEqualTo(0)
     }
 }

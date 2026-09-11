@@ -217,7 +217,8 @@ class JxfwParserTest {
         assertThat(summary.term).isEqualTo(Term(2024, 1))
         // 只有数值成绩且有绩点的两门课参与：(3.7*5 + 2.5*4) / (5+4) = 28.5/9 = 3.1666…
         assertThat(summary.weightedGpa).isWithin(0.001).of(3.1667)
-        assertThat(summary.totalCredit).isWithin(0.001).of(9.0)   // 87 和 75 都 ≥60
+        // 总学分含等级制通过的课：高数 5 + 英语 4 + 体育「优秀」1 = 10（劳动教育缺成绩不计）
+        assertThat(summary.totalCredit).isWithin(0.001).of(10.0)
         assertThat(summary.failedCount).isEqualTo(0)
     }
 
@@ -309,7 +310,8 @@ class JxfwParserTest {
           {"kcmc":"缺考","xnxqmc":"T","xnxqdm":"202401","zcj":"缺考","cjjd":"","xf":"2"}
         ]}"""
         val summary = JxfwGradeParser.parse(json).summaries.single()
-        assertThat(summary.failedCount).isEqualTo(1)
+        // 挂科 = 数值 59 + 等级制「缺考」；60 分那门及格
+        assertThat(summary.failedCount).isEqualTo(2)
         assertThat(summary.totalCredit).isWithin(0.001).of(2.0)   // 只有 60 分那门
     }
 }

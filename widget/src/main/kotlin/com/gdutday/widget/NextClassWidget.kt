@@ -65,13 +65,13 @@ public class NextClassWidgetReceiver : GlanceAppWidgetReceiver() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        // 此时还没有可信的"下一节课"，先立即跑一次，让 worker 自己算出正确间隔。
-        NextClassRefreshScheduler.refreshNow(context)
+        WidgetRefreshLifecycle.onEnabled(context)
     }
 
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
-        NextClassRefreshScheduler.cancel(context)
+        // 移除本插件时，只有"今日课程"也不在了才取消刷新链（两个插件共用一条链）。
+        WidgetRefreshLifecycle.onDisabled(context)
     }
 }
 

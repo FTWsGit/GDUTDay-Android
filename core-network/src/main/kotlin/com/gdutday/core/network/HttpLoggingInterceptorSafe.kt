@@ -43,7 +43,7 @@ internal object HttpLoggingInterceptorSafe : Interceptor {
 
         android.util.Log.d(
             TAG,
-            "--> ${request.method} ${request.url}" +
+            "--> ${request.method} ${redactTicket(request.url.toString())}" +
                 " headers=${request.headers.names().filter { it.lowercase() in PRINTABLE_HEADERS }}" +
                 " body=${redactBody(request)}",
         )
@@ -52,20 +52,37 @@ internal object HttpLoggingInterceptorSafe : Interceptor {
             chain.proceed(request)
         } catch (e: java.io.IOException) {
             val ms = (System.nanoTime() - started) / 1_000_000
-            android.util.Log.w(TAG, "<-- ${request.url} FAILED in ${ms}ms: ${e.javaClass.simpleName}: ${e.message}")
+            android.util.Log.w(
+                TAG,
+                "<-- ${redactTicket(request.url.toString())} FAILED in ${ms}ms: ${e.javaClass.simpleName}: ${e.message}",
+            )
             throw e
         }
 
         val ms = (System.nanoTime() - started) / 1_000_000
         // 只打印状态、耗时、长度和 Location。Set-Cookie 一律不打印。
+        // Location 与 URL 都要先剥掉一次性票据：拿到 `?ticket=ST-xxx` 可直接换取 jxfw 会话。
         android.util.Log.d(
             TAG,
-            "<-- ${response.code} ${request.url} in ${ms}ms" +
+            "<-- ${response.code} ${redactTicket(request.url.toString())} in ${ms}ms" +
                 " len=${response.header("Content-Length") ?: "?"}" +
-                (response.header("Location")?.let { " location=$it" } ?: ""),
+                (response.header("Location")?.let { " location=${redactTicket(it)}" } ?: ""),
         )
         return response
     }
+
+    /** 匹配 URL query 里的 `ticket=...`（大小写不敏感），保留参数名、丢弃值。 */
+    private val TICKET_PARAM = Regex("(?i)([?&])ticket=[^&\\s]*")
+
+    /**
+     * 把一次性票据从 URL / Location 中剥掉再打印。
+     *
+     * CAS 登录成功后的回调 URL 长这样：`...login?ticket=ST-xxx`，
+     * 这个 ticket 可直接换取 jxfw 会话。cookie 已被整体过滤，但 ticket 曾原样落 logcat，
+     * 校园共享设备/模拟器上任何能看日志的人都能劫持会话。
+     */
+    private fun redactTicket(url: String): String =
+        url.replace(TICKET_PARAM, "$1ticket=***")
 
     /**
      * 把请求体转成脱敏后的可读形式。

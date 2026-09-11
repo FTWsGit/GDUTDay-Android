@@ -37,9 +37,11 @@ public class NextClassRefreshWorker(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // 刷新失败（数据库瞬时锁、进程被杀等）绝不能把倒计时永久停摆：
-            // 先按"今天已无课"排到次日 0 点兜底，再让 WorkManager 退避重试。
-            reschedule(null)
+            // 刷新失败（数据库瞬时锁、进程被杀等）绝不能把倒计时永久停摆。
+            // 只交给 WorkManager 带退避地重试，**不要**再 `reschedule(null)`：
+            // 那会用 REPLACE 取消/覆盖刚排的任务，与重试互相打架，语义混乱。
+            // WorkManager 的 retry 会持续退避重试直到成功，不会永久停摆。
+            android.util.Log.w("NextClassRefreshWorker", "插件刷新失败，将退避重试", e)
             Result.retry()
         }
     }

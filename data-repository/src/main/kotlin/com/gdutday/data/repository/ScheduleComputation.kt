@@ -110,7 +110,10 @@ internal fun buildScheduleUiState(input: ScheduleInputs): ScheduleUiState {
 
     return ScheduleUiState(
         isSyncing = input.isSyncing,
-        isInitialLoad = input.courses.isEmpty() && availableTerms.isEmpty() && !input.isSyncing,
+        // 注意：这里**不能**包含 `!isSyncing`。UI 的首屏 loading 分支是
+        // `isInitialLoad && grid == null && isSyncing`，若 isInitialLoad 在同步时恒为 false，
+        // 该分支永远不可达，首启（无数据 + 正在同步）会错误地显示"无数据"。
+        isInitialLoad = input.courses.isEmpty() && availableTerms.isEmpty(),
         term = term,
         availableTerms = availableTerms,
         currentTerm = currentTerm,

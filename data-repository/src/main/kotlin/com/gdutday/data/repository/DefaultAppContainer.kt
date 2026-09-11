@@ -54,7 +54,7 @@ import okhttp3.OkHttpClient
  *
  * @param destructiveMigrationFallback 仅 debug 传 true：迁移失败时重建数据库。
  *   release 传 true 会在一次 schema 变更后静默清空用户整学期数据。
- * @param logHttp 仅 debug 传 true：HTTP 日志里会带 cookie，发布版绝不能开。
+ * @param logHttp 仅 debug 传 true：cookie 已过滤，但 URL/Location 里可能有一次性票据，发布版绝不能开。
  */
 public class DefaultAppContainer(
     context: Context,
