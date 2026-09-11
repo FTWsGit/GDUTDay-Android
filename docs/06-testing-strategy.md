@@ -8,23 +8,23 @@
 ## 1. 当前测试覆盖情况
 
 数字由 `gradle <module>:test` 生成，从各模块 `build/test-results/*/TEST-*.xml`
-的 `tests` 属性统计。统计时刻 **2026-09-10**。
+的 `tests` 属性统计。统计时刻 **2026-09-11**。
 
 | 模块 | 测试数 | 测试类 | 类型 |
 |---|---:|---|---|
-| `core-model` | **47** | `CampusTest` `CourseTest` `ExamTest` `GdutExceptionTest` `SnapshotAndGradeTest` `StudentProfileTest` `TermTest` | 纯 JVM |
-| `core-common` | **67** | `CampusTimetableTest` `CourseColorsTest` `ScheduleGridBuilderTest` `SectionRunSplitterTest` `TermCalendarTest` | 纯 JVM |
-| `data-gdut` | **139** | `AuthLoginPageParserTest` `AuthServerClientTest` `AuthServerCryptoTest` `FormFieldsTest` `RedirectFollowerTest` `JxfwParserTest` `JxfwScheduleParserTest` `GdutHostsTest` | 纯 JVM（含 MockWebServer） |
+| `core-model` | **47** | `CoreModelTest` | 纯 JVM |
+| `core-common` | **68** | `CoreCommonTest` | 纯 JVM |
+| `data-gdut` | **148** | `AuthLoginPageParserTest` `AuthServerClientTest` `AuthServerCryptoTest` `GdutHostsTest` `FormFieldsTest` `RedirectFollowerTest` `SessionCookieJarTest` `JxfwParserTest` `JxfwScheduleParserTest` | 纯 JVM（含 MockWebServer） |
 | `core-database` | **6** | `SyncStateDaoContractTest` | 纯 JVM（常量一致性 + 映射往返） |
 | `core-datastore` | **40** | `AesGcmCipherTest` `DataStoreSettingsStoreTest` `MaskMiddleTest` `SecureFileTest` `SessionJsonTest` | JVM 单元（用假 KeyProvider/内存后端） |
 | `core-ui` | **12** | `ColorContrastTest` `PrivacyMaskTest` | 纯 JVM（纯函数） |
 | `data-repository` | **21** | `ScheduleComputationTest` `ScheduleUiStateBuilderTest` `SemesterStartResolverTest` | JVM 单元（`flowOf` 假数据） |
 | `widget` | **26** | `NextClassRefreshPolicyTest` `TodayScheduleMapperTest` `WidgetSizingTest` `WidgetTextTest` | 纯 JVM（映射/策略与 Android 解耦） |
-| `feature-schedule` | **7** | `ScheduleGridMathTest` | 纯 JVM（几何纯函数） |
+| `feature-schedule` | **10** | `ScheduleGridMathTest` | 纯 JVM（几何纯函数） |
 | `feature-auth` | **9** | `LoginLogicTest` | 纯 JVM |
 | `feature-grade` | **9** | `GradeLogicTest` | 纯 JVM |
 | `feature-settings` | **7** | `SettingsLogicTest` | 纯 JVM |
-| **合计** | **391** | | **0 失败** |
+| **合计** | **403** | | **0 失败** |
 
 **`core-database` 没有任何测试** —— DAO 的 `@Query` SQL 只能在真实 Room + SQLite 上验证，
 目前没有 Robolectric/androidTest，所以 SQL 写错不会被任何测试发现。
@@ -39,7 +39,7 @@ JAVA_HOME="C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot" \
 ```
 
 然后读各 `build/test-results/**/TEST-*.xml` 的 `tests` 属性求和。
-（不要跑 `:app:test`，它当前会被 `processDebugResources` 的构建错误带崩，见 T0.1。）
+（T0.1 已修复，`:app:test` 现在可以直接跑，只是 `app` 本身没有单测，是 `NO-SOURCE`。）
 
 ---
 

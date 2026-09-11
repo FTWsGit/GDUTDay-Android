@@ -54,18 +54,11 @@
 
 ## P0 · 阻断项
 
-### T0.1 `app` 模块资源链接失败：`Theme.Material3.DayNight.NoActionBar` 不存在
+### T0.1 ~~`app` 模块资源链接失败：`Theme.Material3.DayNight.NoActionBar` 不存在~~ ✅ 已修复
 
-- **现状**：`gradle :app:processDebugResources` 报
-  `AAPT: error: resource style/Theme.Material3.DayNight.NoActionBar not found`。
-  `app/src/main/res/values/themes.xml` 里 `Theme.GdutDay` 继承该 style，
-  但 `app` 只依赖 Compose 的 `androidx.compose.material3`，没有依赖 View 体系的
-  `com.google.android.material:material`。整个 `app` 无法构建，`gradle test` 也会被它带崩。
-- **可选修复**：
-  1. 在 `libs.versions.toml` 加 `com.google.android.material:material` 并让 `app` 依赖它；或
-  2. 把父主题改成平台自带的 `android:Theme.Material.Light.NoActionBar` /
-     `Theme.AppCompat` 之类；或
-  3. 改成一个不依赖 Material Components 的纯 `android:Theme.Material.*`。
+- **已修复**：`app/src/main/res/values/themes.xml` 的 `Theme.GdutDay` 改为继承框架主题
+  `android:Theme.Material.Light.NoActionBar`（深色版由 `values-night/` 覆盖），
+  `windowBackground` 与 Compose 背景色保持一致，零额外依赖。
 - **验收**：`gradle :app:assembleDebug` 成功；`gradle test` 不再因 `:app:processDebugResources` 失败。
 
 ### T0.2 `core-model` 单元测试失败
@@ -79,13 +72,13 @@
 - **验收**：`gradle :core-model:test` 全绿；若新增枚举值，同步诊断信息的映射
   （`scheduleSourceFromName`）也要同步处理。
 
-### T0.3 Release 签名配置未设置
+### T0.3 ~~Release 签名配置未设置~~ ✅ 已修复
 
-- **现状**：`app/build.gradle.kts` 的 `signingConfigs {}` 为空，release 不绑定 `signingConfig`，
-  `assembleRelease` 只能产出 unsigned apk。
-- **要求**：从 `~/.gradle/gradle.properties` 或 CI secret 读取
-  `GDUTDAY_STORE_FILE` / `GDUTDAY_STORE_PASSWORD` / `GDUTDAY_KEY_ALIAS` / `GDUTDAY_KEY_PASSWORD`，
-  在项目里**不提交**任何密钥。`*.keystore` 已在 `.gitignore`。
+- **已修复**：`app/build.gradle.kts` 的 `signingConfigs.create("release")` 从
+  `~/.gradle/gradle.properties`（或 CI secret）读取
+  `GDUTDAY_STORE_FILE` / `GDUTDAY_STORE_PASSWORD` / `GDUTDAY_KEY_ALIAS` / `GDUTDAY_KEY_PASSWORD`；
+  四个属性任一缺失时不绑定 `signingConfig`（产物回落为 unsigned，避免误用半配置签名）。
+  项目里**不提交**任何密钥，`*.keystore` 已在 `.gitignore`。
 - **验收**：本机配好属性后 `gradle :app:assembleRelease` 产出已签名的 apk，
   且 `git status` 里没有任何密钥文件。
 
@@ -156,12 +149,11 @@
   每学期开学后都需要补一行。
 - **测试**：`CoreCommonTest` 已覆盖"内置表收录了 2026-2027 第一学期"。
 
-### T1.7 设置页是占位实现
+### T1.7 ~~设置页是占位实现~~ ✅ 已完成
 
-- **现状**：`feature-settings/SettingsScreen.kt` 只显示校区/视图三行文字；
-  完整的设置项在 KDoc 里已列出（见 [UI 规格 §7](./03-ui-spec.md)）。
-- **要求**：按 KDoc 分组实现：学期与校区、课表外观、作息表、数据、隐私、关于/诊断。
-  记住密码关闭时必须真的 `CredentialStore.clear()`。
+- **已完成**：`feature-settings/SettingsScreen.kt` 已按六分组完整实现
+  ——学期与校区、课表外观、作息表、数据与同步、隐私、关于/诊断。
+  记住密码关闭时会调用 `CredentialStore.clear()`（见 tasks-04）。
 - **验收**：每一项都能读写 `UserSettings` 并即时生效；自定义作息非法输入被拒绝并有提示；
   诊断信息可一键复制且不含密码/cookie 值。
 

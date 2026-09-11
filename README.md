@@ -25,10 +25,10 @@
 - 登录（统一认证 + 教务直登）、课表、考试、成绩、学期切换、图书馆二维码都有实现。
 - 课表以周网格 / 日列表展示，支持并排冲突、按分钟定位、隐私打码、自动配色。
 - 两个 Glance 桌面插件（今日课程 / 下节课倒计时）。
-- 测试以纯 JVM 单元测试为主，共约 **375 个**（见 [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md)）。
-- **尚未完成 / 已知问题**：设置页仍是占位；
-  研究生账号不支持；`KnownSemesterStarts` 只有一条记录；
-  同步后未接线刷新插件；androidTest 为零。
+- 设置页六个分组（学期与校区、课表外观、作息表、数据与同步、隐私、关于/诊断）已完整实现。
+- 测试以纯 JVM 单元测试为主，共约 **403 个**（见 [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md)）。
+- **尚未完成 / 已知问题**：研究生账号不支持；androidTest 为零；
+  jxfw 真实 fixture 待用一次真实抓包替换；教务直登 `pwd` 加密形态未验证。
   完整清单与验收标准见 [`docs/05-agent-task-list.md`](docs/05-agent-task-list.md)。
 
 ---
@@ -56,7 +56,7 @@ Gradle 输出里的 `Launcher JVM` / `Daemon JVM` 都应该是 21。
 | AGP | 9.4.0 | **自带 Kotlin 2.2.10** |
 | Kotlin | 2.2.10 | 与 AGP 内置版本对齐（纯 JVM 模块显式声明） |
 | KSP | 2.2.10-2.0.2 | 前缀必须等于 Kotlin 版本 |
-| compileSdk / targetSdk | 36 | |
+| compileSdk / targetSdk | 37 | |
 | minSdk | 26 | `java.time` 原生可用，无需 desugaring |
 
 ### 3. ⚠ AGP 9 自带 Kotlin：Android 模块**不能**再 apply `org.jetbrains.kotlin.android`

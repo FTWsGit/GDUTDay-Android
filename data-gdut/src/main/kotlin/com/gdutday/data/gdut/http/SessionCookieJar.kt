@@ -34,7 +34,7 @@ public data class StoredCookie(
     public fun toOkHttpCookie(): Cookie = Cookie.Builder()
         .name(name)
         .value(value)
-        .path(path)
+        .path(normalizePath(path))
         .apply {
             if (hostOnly) hostOnlyDomain(domain) else domain(domain)
             if (secure) secure()
@@ -50,12 +50,36 @@ public data class StoredCookie(
             name = cookie.name,
             value = cookie.value,
             domain = cookie.domain,
-            path = cookie.path,
+            path = normalizePath(cookie.path),
             expiresAtMillis = if (cookie.persistent) cookie.expiresAt else Long.MAX_VALUE,
             secure = cookie.secure,
             httpOnly = cookie.httpOnly,
             hostOnly = cookie.hostOnly,
         )
+
+        /**
+         * 按 RFC 6265 语义规范化 [Cookie] 的 path，使 [Cookie.matches] 的前缀匹配稳定成立。
+         *
+         * 服务端下发的 `Set-Cookie: JSESSIONID=…; Path=/authserver` 没有尾斜杠。
+         * OkHttp 的 path 匹配要求匹配的前缀要么等值、要么以 `/` 结尾、要么后续字符是 `/`，
+         * 因此这里统一补齐尾斜杠（`/authserver` → `/authserver/`），
+         * 保证 `/authserver/login`、`/authserver/checkNeedCaptcha.htl` 等子路径都能命中，
+         * 避免登录态在冷启动复用后静默失效。
+         *
+         * 规则：
+         * - 空路径 → `/`（根路径匹配所有请求）；
+         * - `/` 本身保持 `/`（不能再补斜杠）；
+         * - 缺前导 `/` 时补上；
+         * - 非根且缺尾 `/` 时补上；
+         * - 已规范化的路径原样返回。
+         */
+        internal fun normalizePath(path: String): String = when {
+            path.isEmpty() -> "/"
+            path == "/" -> "/"
+            !path.startsWith("/") -> "/$path/"
+            !path.endsWith("/") -> "$path/"
+            else -> path
+        }
     }
 }
 
