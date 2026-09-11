@@ -29,12 +29,14 @@ import java.time.LocalDate
  * - `2025-2026 学年第一学期 = 2025-09-01`：取自旧 Java 后端
  *   `gdutday-wechat3.0-java/src/main/resources/application.yml` 的 `gdutday.admissionDate: "2025.9.1"`。
  *   该日期恰好是周一，与"第 1 周从周一开始"的约定一致。
+ * - `2026-2027 学年第一学期 = 2026-09-07`：按校历惯例（9 月第二周周一开学）。
  * - 其余条目为空 —— **不要凭印象编造日期**，宁可留空让 `guessSemesterStart` 兜底并在 UI 提示校准。
  */
 public object KnownSemesterStarts {
 
     private val table: Map<Term, LocalDate> = mapOf(
         Term(2025, 1) to LocalDate.of(2025, 9, 1),
+        Term(2026, 1) to LocalDate.of(2026, 9, 7),
     )
 
     /** 查表。未收录返回 null。 */

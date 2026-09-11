@@ -78,6 +78,8 @@ fun ScheduleScreen(
     val selectedBlock by viewModel.selectedBlock.collectAsStateWithLifecycle()
     val guessedDismissed by viewModel.guessedBannerDismissed.collectAsStateWithLifecycle()
     val campusDismissed by viewModel.campusBannerDismissed.collectAsStateWithLifecycle()
+    val isLoggedIn by container.authRepository.isLoggedIn
+        .collectAsStateWithLifecycle(initialValue = true)
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showCalibrateDialog by remember { mutableStateOf(false) }
@@ -146,7 +148,7 @@ fun ScheduleScreen(
                             }
                         }
 
-                        grid == null && !state.hasAnyData -> {
+                        grid == null && !state.hasAnyData && !isLoggedIn -> {
                             CenteredEmpty(
                                 title = stringResource(R.string.schedule_not_logged_in_title),
                                 subtitle = stringResource(R.string.schedule_not_logged_in_subtitle),

@@ -73,8 +73,18 @@ public class SyncSchedulerImpl(
     }
 
     override fun requestImmediateSync(expedited: Boolean) {
+        val constraints = if (expedited) {
+            // Expedited job（Android 12+）只允许 NETWORK 和 STORAGE 约束。
+            // 带 setRequiresBatteryNotLow 等其它约束会直接抛 IllegalArgumentException。
+            // 参考：https://developer.android.com/topic/work/constraints
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+        } else {
+            syncConstraints()
+        }
         val request = OneTimeWorkRequestBuilder<ScheduleSyncWorker>()
-            .setConstraints(syncConstraints())
+            .setConstraints(constraints)
             .apply {
                 if (expedited) {
                     // 下拉刷新是用户正在等；配额不足时降级为普通任务，而不是失败。

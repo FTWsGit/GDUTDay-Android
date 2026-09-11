@@ -5,6 +5,10 @@ import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.AppContainerHolder
 import com.gdutday.data.repository.DefaultAppContainer
 import com.gdutday.data.repository.SyncListeners
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * 应用入口。
@@ -57,6 +61,13 @@ public class GdutDayApplication : Application() {
             // 插件刷新失败不该影响任何东西，WidgetUpdateManager 内部已容错；
             // 这里再包一层是因为 Application 级别的回调崩了会带走整个进程。
             runCatching { com.gdutday.widget.WidgetUpdateManager.updateAll(this@GdutDayApplication) }
+        }
+
+        // 用记住的密码静默重登。放在后台协程里，不阻塞 Application.onCreate。
+        // reloginSilently 内部只对 UNIFIED_AUTH 生效，且有 runCatching 兜底，不会崩。
+        // Session 恢复后 sessionStateFlow 更新 → isLoggedIn → true → NavHost 自动跳回课表页。
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            built.authRepository.reloginSilently()
         }
 
         // 刻意**不在这里**启动"下节课倒计时"的刷新调度。原因：

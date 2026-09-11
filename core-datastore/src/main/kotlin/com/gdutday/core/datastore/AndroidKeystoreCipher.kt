@@ -61,26 +61,50 @@ public open class AesGcmCipher(
      * @throws IllegalStateException 密钥无法获取或生成，或底层 Cipher 异常。
      *   加密失败是"要写入的数据没写成功"，必须让调用方感知，否则会静默丢数据；
      *   这与解密失败（当作未登录）的处理方式刻意不同。
+     *
+     * ## 坏密钥自动恢复
+     *
+     * 生产环境上常见的失败路径：系统升级 / StrongBox 状态变化 / 厂商 ROM bug
+     * 导致旧密钥处于"能从 KeyStore 取到 Key 对象，但 cipher.init 抛 KeyPermanentlyInvalidatedException
+     * 或 ProviderException"的状态。此时静默重试一次：删旧密钥、生成新密钥、再加密。
+     * 代价是旧数据（cookie / 记住的密码）丢失，用户会看到重新登录 —— 但这比"永远登不上"好得多。
      */
     override fun encrypt(plaintext: ByteArray): ByteArray {
         val key = keys.getOrCreateKey()
-            ?: throw IllegalStateException("AndroidKeyStore 无法获取或创建 AES 密钥，加密中止")
-
-        // GCM 下同一密钥重用 IV 会直接泄露两段明文的异或。每次加密都重新生成，
-        // 并把它前置存放，解密方无需额外通道即可拿到。
-        val iv = ByteArray(KeystoreCipher.GCM_IV_LENGTH)
-        secureRandom.nextBytes(iv)
+            ?: throw IllegalStateException("AndroidKeyStore 无法获取或创建 AES 密钥")
 
         return try {
-            val cipher = Cipher.getInstance(KeystoreCipher.TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH_BITS, iv))
-            val sealed = cipher.doFinal(plaintext)
-            ByteArray(iv.size + sealed.size).also {
-                System.arraycopy(iv, 0, it, 0, iv.size)
-                System.arraycopy(sealed, 0, it, iv.size, sealed.size)
+            doEncrypt(key, plaintext)
+        } catch (first: Exception) {
+            // 可能是坏密钥：删除重建重试一次。
+            try {
+                keys.deleteKey()
+            } catch (_: Exception) {
             }
-        } catch (e: Exception) {
-            throw IllegalStateException("AES/GCM 加密失败", e)
+            val newKey = keys.getOrCreateKey()
+                ?: throw IllegalStateException(
+                    "AES/GCM 加密失败（第一次失败：${first.message}，重建密钥也失败）", first
+                )
+            try {
+                doEncrypt(newKey, plaintext)
+            } catch (second: Exception) {
+                throw IllegalStateException(
+                    "AES/GCM 加密失败（重建密钥后仍失败，first=${first::class.java.simpleName}:${first.message}，" +
+                        "second=${second::class.java.simpleName}:${second.message}）", second
+                )
+            }
+        }
+    }
+
+    private fun doEncrypt(key: SecretKey, plaintext: ByteArray): ByteArray {
+        val iv = ByteArray(KeystoreCipher.GCM_IV_LENGTH)
+        secureRandom.nextBytes(iv)
+        val cipher = Cipher.getInstance(KeystoreCipher.TRANSFORMATION)
+        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH_BITS, iv))
+        val sealed = cipher.doFinal(plaintext)
+        return ByteArray(iv.size + sealed.size).also {
+            System.arraycopy(iv, 0, it, 0, iv.size)
+            System.arraycopy(sealed, 0, it, iv.size, sealed.size)
         }
     }
 
@@ -175,6 +199,9 @@ internal class AndroidKeystoreKeyProvider(
     override fun deleteKey() {
         try {
             keyStore.deleteEntry(KeystoreCipher.KEY_ALIAS)
+            // 部分 ROM 上 deleteEntry 后需要 reload，否则紧接着生成的新密钥
+            // 会报"别名已存在"或取到僵尸句柄。
+            keyStore.load(null)
         } catch (e: Exception) {
             // 删除失败不应阻断"重置加密数据"这个动作，调用方随后会清空密文文件。
         }
@@ -192,6 +219,11 @@ internal class AndroidKeystoreKeyProvider(
                 .setKeySize(KEY_SIZE_BITS)
                 // 显式写出：后台同步与 Widget 都要能解密。
                 .setUserAuthenticationRequired(false)
+                // 必须设为 false，否则小米/MIUI 等严格执行 Keystore2 规范的 ROM 会拒绝
+                // 我们显式传入的 IV（GCMParameterSpec），报 CALLER_NONCE_PROHIBITED。
+                // 我们仍然用 SecureRandom 生成每次不同的 12 字节 IV，安全性不变，
+                // 只是让 Cipher 自己从 GCMParameterSpec 里取 IV，而不是让 Keystore 生成。
+                .setRandomizedEncryptionRequired(false)
                 .apply { if (strongBox) setIsStrongBoxBacked(true) }
                 .build()
 
@@ -204,7 +236,12 @@ internal class AndroidKeystoreKeyProvider(
         } catch (e: ProviderException) {
             // 强盒不可用 / 槽位占满 / 厂商实现异常，一律降级。
             null
-        } catch (e: Exception) {
+        } catch (e: java.security.GeneralSecurityException) {
+            // 部分厂商 ROM 把强盒失败包成 InvalidAlgorithmParameterException 等非 ProviderException，
+            // 同样静默降级到普通 TEE。
+            null
+        } catch (e: RuntimeException) {
+            // 极少数厂商 ROM 的 KeyGenerator 会直接抛 RuntimeException（如 IncompatibleClassChangeError）。
             null
         }
     }

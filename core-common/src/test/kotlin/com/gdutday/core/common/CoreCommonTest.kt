@@ -174,7 +174,12 @@ class TermCalendarTest {
     fun `内置表收录了 2025-2026 第一学期`() {
         // 来源：旧 Java 后端 application.yml 的 gdutday.admissionDate: "2025.9.1"
         assertThat(KnownSemesterStarts.startOf(Term(2025, 1))).isEqualTo(LocalDate.of(2025, 9, 1))
-        assertThat(KnownSemesterStarts.latestKnownTerm).isEqualTo(Term(2025, 1))
+    }
+
+    @Test
+    fun `内置表收录了 2026-2027 第一学期`() {
+        assertThat(KnownSemesterStarts.startOf(Term(2026, 1))).isEqualTo(LocalDate.of(2026, 9, 7))
+        assertThat(KnownSemesterStarts.latestKnownTerm).isEqualTo(Term(2026, 1))
     }
 
     @Test

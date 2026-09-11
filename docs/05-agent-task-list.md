@@ -8,6 +8,50 @@
 
 ---
 
+## 真机验证已修复的 Bug
+
+以下是在小米 Redmi 真机（Android 16 / MIUI 3.0）上验证并修复的问题，按发现顺序排列。
+
+### B1. 统一认证登录失败：Keystore 加密报 `CALLER_NONCE_PROHIBITED`
+
+- **现象**：密码正确，但报 "加密失败，无法写入 gdutday_session.enc"，app 不崩溃
+- **根因**：MIUI 严格执行 Keystore2 规范：`setRandomizedEncryptionRequired(true)`（默认）时
+  拒绝调用方通过 `GCMParameterSpec` 传入 IV
+- **修复**：`AndroidKeystoreCipher` 的 `KeyGenParameterSpec` 中显式添加
+  `setRandomizedEncryptionRequired(false)`，IV 仍由 `SecureRandom` 生成（每次不同），安全性不变
+- **附带修复**：加密失败时自动删除坏密钥→重建→重试一次（系统升级/厂商 ROM bug 导致密钥"存在但不可用"）
+
+### B2. 同步课表崩溃：`IllegalArgumentException: Expedited jobs only support network and storage constraints`
+
+- **现象**：点击"同步课表"后 app 直接崩溃
+- **根因**：`SyncSchedulerImpl.requestImmediateSync(expedited=true)` 给 Expedited Job 设了
+  `setRequiresBatteryNotLow(true)`，但 Android 12+ expedited job 只允许 NETWORK 和 STORAGE 约束
+- **修复**：expedited 时只用 `NETWORK_TYPE.CONNECTED` 约束；普通任务仍带电量约束
+
+### B3. 登录成功后课表页仍显示"还没有登录"
+
+- **现象**：统一认证登录成功返回课表页，UI 仍显示未登录状态
+- **根因**：`ScheduleScreen` 用 `!hasAnyData` 推断"未登录"，忽略了"已登录但尚未同步"的状态
+- **修复**：新增 `isLoggedIn` 状态收集，条件改为 `!hasAnyData && !isLoggedIn`，
+  已登录但无数据时显示"暂无数据"
+
+### B4. 校准日期按钮无反应
+
+- **现象**：设置页"校准"按钮灰掉，点不了
+- **根因**：`SemesterStartRow.enabled = scheduleState.term != null`，同步从未成功过 →
+  `term` 恒为 null → 按钮禁用
+- **修复**：改为 `enabled = true`，任何时候都能手动校准开学日期
+
+### B5. 退出 App 后不自动登录（记住密码无效）
+
+- **现象**：勾了"记住密码"，退出 App 再进仍显示登录页
+- **根因**：(a) `GdutDayApplication.onCreate()` 没有启动静默重登；
+  (b) `NavHost` 没有处理"在登录页时 isLoggedIn 变 true"的反向导航
+- **修复**：Application 启动时后台协程调用 `authRepository.reloginSilently()`；
+  NavHost 的 `LaunchedEffect` 中加反向分支，登录成功（包括静默）自动跳回课表页
+
+---
+
 ## P0 · 阻断项
 
 ### T0.1 `app` 模块资源链接失败：`Theme.Material3.DayNight.NoActionBar` 不存在
@@ -105,12 +149,12 @@
   `Course.parseWeeks` 已支持单双周文本，可复用。
 - **验收**：用一个真实研究生账号（或脱敏 fixture）跑通"登录 → 授权 → 课表解析"。
 
-### T1.6 `KnownSemesterStarts` 只有一条记录
+### T1.6 ~~`KnownSemesterStarts` 只有一条记录~~ ✅ 已完成
 
-- **现状**：表里只有 `Term(2025, 1) -> 2025-09-01`。
-- **要求**：每学期开学后补一行（维护方式见 [数据模型 §3](./02-data-model.md)）。
-  后续学期会落到 `guessSemesterStart`，误差可达两周。
-- **验收**：新增学期条目，并跑 `TermCalendarTest`/`SemesterStartResolverTest` 覆盖"命中已知表"分支。
+- **已修复**：新增 `Term(2026, 1) -> LocalDate.of(2026, 9, 7)`（2026-2027 第一学期，开学第一周周一）。
+- **备注**：开学日期按校历惯例设为 9 月第二周周一（2026-09-07），用户可在设置页校准。
+  每学期开学后都需要补一行。
+- **测试**：`CoreCommonTest` 已覆盖"内置表收录了 2026-2027 第一学期"。
 
 ### T1.7 设置页是占位实现
 

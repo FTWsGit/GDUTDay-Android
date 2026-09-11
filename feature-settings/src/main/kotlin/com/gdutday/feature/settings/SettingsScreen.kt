@@ -208,7 +208,7 @@ fun SettingsScreen(
                 SemesterStartRow(
                     date = scheduleState.calendar?.semesterStart,
                     source = scheduleState.semesterStartSource,
-                    enabled = scheduleState.term != null,
+                    enabled = true, // 校准日期永远可用：即使从未同步过，用户也应能手动设置开学日期。
                     onCalibrate = { showSemesterStartPicker = true },
                 )
             }

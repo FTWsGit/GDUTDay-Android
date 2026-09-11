@@ -24,7 +24,7 @@
 | `feature-auth` | **9** | `LoginLogicTest` | 纯 JVM |
 | `feature-grade` | **9** | `GradeLogicTest` | 纯 JVM |
 | `feature-settings` | **7** | `SettingsLogicTest` | 纯 JVM |
-| **合计** | **390** | | **0 失败** |
+| **合计** | **391** | | **0 失败** |
 
 **`core-database` 没有任何测试** —— DAO 的 `@Query` SQL 只能在真实 Room + SQLite 上验证，
 目前没有 Robolectric/androidTest，所以 SQL 写错不会被任何测试发现。

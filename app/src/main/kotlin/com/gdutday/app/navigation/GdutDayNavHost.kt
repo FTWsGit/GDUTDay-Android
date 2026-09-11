@@ -96,10 +96,19 @@ fun GdutDayNavHost(
         .collectAsLifecycleState(initial = true)
 
     androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentDestination?.route) {
-        if (!isLoggedIn && currentDestination?.route != Routes.LOGIN) {
-            navController.navigate(Routes.LOGIN) {
-                // 清空回退栈：从登录页返回不该回到一个没有数据的课表页
-                popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+        when {
+            // 未登录且不在登录页 → 跳登录
+            !isLoggedIn && currentDestination?.route != Routes.LOGIN -> {
+                navController.navigate(Routes.LOGIN) {
+                    // 清空回退栈：从登录页返回不该回到一个没有数据的课表页
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+                }
+            }
+            // 静默重登成功：已在登录页且 isLoggedIn 变 true → 跳课表
+            isLoggedIn && currentDestination?.route == Routes.LOGIN -> {
+                navController.navigate(Routes.SCHEDULE) {
+                    popUpTo(Routes.LOGIN) { inclusive = true }
+                }
             }
         }
     }
