@@ -180,14 +180,18 @@ public class ScheduleRepositoryImpl(
         val fetch = client.fetchSchedule(targetTerm)
         val warnings = fetch.warnings.toMutableList()
 
-        // 考试不是关键路径：拿不到时保留上一次的考试数据（这里不写 exam 表即可），
+        // 考试不是关键路径：拿不到时保留上一次的考试数据（不写 exam 表即可），
         // 只记一条 warning。会话失效例外 —— 那说明整个会话都不可用，必须上抛。
+        var examFetchFailed = false
         val examOutcome: JxfwExamParser.Outcome = try {
             client.fetchExams(targetTerm)
         } catch (e: GdutException.SessionExpired) {
             throw e
         } catch (e: Exception) {
             warnings += "考试安排获取失败：${e.message ?: e.javaClass.simpleName}"
+            // 失败时用空 Outcome 继续走后面的开学日期/校区逻辑，但**绝不**据此清空 exam 表：
+            // 接口抖动一次就删掉整学期考试，与上面的注释相悖。
+            examFetchFailed = true
             JxfwExamParser.Outcome(emptyList())
         }
 
@@ -229,10 +233,13 @@ public class ScheduleRepositoryImpl(
             targetTerm.shortCode,
             with(Mappers) { schoolCourses.map { it.toEntity() } },
         )
-        examDao.replaceByTerm(
-            targetTerm.shortCode,
-            with(Mappers) { examOutcome.exams.map { it.toEntity() } },
-        )
+        // 只有成功拿到考试数据才替换；失败时保留上一次的考试安排（存量数据不动）。
+        if (!examFetchFailed) {
+            examDao.replaceByTerm(
+                targetTerm.shortCode,
+                with(Mappers) { examOutcome.exams.map { it.toEntity() } },
+            )
+        }
         refreshColors()
 
         // 服务端会轮换 JSESSIONID，不回写的话下次冷启动就得重新登录。

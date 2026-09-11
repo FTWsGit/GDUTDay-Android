@@ -134,6 +134,11 @@ public class AuthRepositoryImpl(
     override suspend fun reloginSilently(): GdutSession? = withContext(Dispatchers.IO) {
         val credentials = credentialStore.current() ?: return@withContext null
         if (credentials.method != LoginMethod.UNIFIED_AUTH) return@withContext null
+
+        // 先探活：会话仍有效就直接复用，避免每次冷启动都发起一次完整密码登录。
+        // 这既减少触发学校风控，也避免用户改密后在我们这里累积"密码错误"计数。
+        if (isSessionValid()) return@withContext sessionStore.current()
+
         runCatching {
             val session = authClientFactory().login(credentials.username, credentials.password)
             requireUndergraduate(session)
@@ -164,6 +169,10 @@ public class AuthRepositoryImpl(
                     rememberPassword = true,
                 ),
             )
+        } else {
+            // 用户取消勾选"记住密码"（或换账号时未勾选）：必须清掉磁盘上的旧凭据，
+            // 否则下次冷启动仍会用旧密码静默重登，与用户意愿相反。
+            credentialStore.clear()
         }
     }
 
