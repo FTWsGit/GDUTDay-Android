@@ -1,8 +1,15 @@
 package com.gdutday.feature.schedule
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -22,23 +29,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.common.CourseBlock
+import com.gdutday.core.common.Period
 import com.gdutday.core.common.WeekGrid
 import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.ui.LocalGdutDayColors
 import com.gdutday.core.ui.ScheduleBlockText
 import java.time.LocalDate
+import kotlin.math.abs
 
-/** 网格整体每分钟对应的像素高度。745 分钟（8:30~20:55）≈ 745dp，比一屏高，需要纵向滚动。 */
-private val MINUTE_HEIGHT: Dp = 1.dp
+/**
+ * 每节对应的固定像素高度。
+ *
+ * 与旧实现"1 分钟 = 1dp"不同，这里把每一节压成等高，课间休息（含午休）不占高度。
+ * 否则第 4 节之后那段 110 分钟的午休会把第 4 节所在行撑成第 1 节的 3 倍高，
+ * 行高参差不齐、色块之间还留一大段空白。
+ */
+private val PERIOD_HEIGHT: Dp = 56.dp
 
 /** 左侧节次栏宽度。要放下 "08:30"（8sp）+ 节次数字（11sp）。 */
 private val GUTTER_WIDTH: Dp = 44.dp
@@ -68,11 +85,12 @@ private val WEEKDAY_LABELS = listOf("周一", "周二", "周三", "周四", "周
  *    每块是一个小 Composable（通常 ≤ 25 个，可接受）；
  * 3. **交互**：色块自身可点击，空网格不需要热区。
  *
- * ## 为什么纵向按分钟定位
+ * ## 为什么按节次等高定位
  *
- * `CourseBlock.startMinute/endMinute` 是当天分钟数。考试只给具体时刻
- * （`08:30--10:05`），自定义课程也可能是任意时段，按节次整数格摆会画错。
- * 用 [ScheduleGridMath.minuteToY] 线性插值即可与节次无关地精确定位。
+ * [CourseBlock.startMinute/endMinute] 是当天分钟数，但按分钟线性定位会让
+ * "45 分钟的课 + 课间休息"共同决定行高，导致各节行高不一致、色块间出现空隙。
+ * 因此改用 [ScheduleGridMath.minuteToYByPeriods]：每一节占等高槽位，节内分钟线性插值，
+ * 课间不占高度。考试给的具体时刻（`08:30--10:05`）也照常映射，不损失精度。
  */
 @Composable
 public fun WeekGridView(
@@ -84,7 +102,7 @@ public fun WeekGridView(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val minuteHeightPx = with(density) { MINUTE_HEIGHT.toPx() }
+    val periodHeightPx = with(density) { PERIOD_HEIGHT.toPx() }
     val gutterPx = with(density) { GUTTER_WIDTH.toPx() }
     val insetPx = with(density) { BLOCK_INSET.toPx() }
     val range = grid.verticalRange
@@ -93,38 +111,33 @@ public fun WeekGridView(
         ScheduleGridMath.visibleDayIndices(settings.showWeekend)
     }
 
+    // 作息表恒为 12 节。showExtraSections 的语义是"是否展开 13/14 节"，
+    // 内置作息没有这两节，所以这里最多取到 size（未来若作息表扩到 14 节，这里自动生效）。
+    val periods = remember(grid.timetable, settings.showExtraSections) {
+        if (settings.showExtraSections) grid.timetable.periods
+        else grid.timetable.periods.take(12)
+    }
+
+    val periodRanges = remember(periods, range) { buildPeriodRanges(periods, range) }
+
+    val touchSlop = LocalViewConfiguration.current.touchSlop
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .pointerInput(grid.week) {
-                var dragged = 0f
-                val threshold = 64.dp.toPx()
-                detectHorizontalDragGestures(
-                    onDragStart = { dragged = 0f },
-                    onDragEnd = {
-                        if (dragged > threshold) {
-                            onSwipeWeek(grid.week - 1)
-                        } else if (dragged < -threshold) {
-                            onSwipeWeek(grid.week + 1)
-                        }
-                    },
-                    onHorizontalDrag = { change, amount ->
-                        change.consume()
-                        dragged += amount
-                    },
+                detectWeekSwipe(
+                    week = grid.week,
+                    onSwipeWeek = onSwipeWeek,
+                    touchSlop = touchSlop,
+                    threshold = 64.dp.toPx(),
                 )
             },
     ) {
         val widthPx = constraints.maxWidth.toFloat()
-        val gridHeightPx = ScheduleGridMath.totalMinutes(range) * minuteHeightPx
+        val gridHeightPx = periodRanges.size * periodHeightPx
         val dayWidthPx = ((widthPx - gutterPx) / visibleDays.size).coerceAtLeast(1f)
         val dayWidthDp = with(density) { dayWidthPx.toDp() }
         val gridHeightDp = with(density) { gridHeightPx.toDp() }
-
-        // 只在几何输入变化时重建色块列表，滚动/重组不重新分配。
-        val placed = remember(grid, visibleDays, dayWidthPx, gutterPx, gridHeightPx, insetPx) {
-            buildPlacedBlocks(grid, visibleDays, range, dayWidthPx, gutterPx, gridHeightPx, insetPx)
-        }
 
         Column(Modifier.fillMaxSize()) {
             DayHeaderRow(
@@ -141,25 +154,109 @@ public fun WeekGridView(
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                Box(Modifier.fillMaxWidth().height(gridHeightDp)) {
-                    GridBackground(
-                        grid = grid,
-                        settings = settings,
-                        visibleDays = visibleDays,
-                        today = today,
-                        range = range,
-                        gutterPx = gutterPx,
-                        dayWidthPx = dayWidthPx,
-                    )
-                    CourseBlockLayer(
-                        placed = placed,
-                        settings = settings,
-                        onBlockClick = onBlockClick,
-                    )
+                // 周次切换的滑动过渡动画。方向由新旧周次的相对大小决定：
+                // 往右滑看上一周 → 新内容从左侧滑入；往左滑看下一周 → 新内容从右侧滑入。
+                AnimatedContent(
+                    targetState = grid,
+                    transitionSpec = {
+                        val direction = if (targetState.week > initialState.week) 1 else -1
+                        (slideInHorizontally { full -> full * direction } + fadeIn())
+                            .togetherWith(
+                                slideOutHorizontally { full -> -full * direction } + fadeOut(),
+                            )
+                    },
+                    label = "weekGrid",
+                ) { currentGrid ->
+                    // 只在几何输入变化时重建色块列表，滚动/重组不重新分配。
+                    val placed = remember(
+                        currentGrid, visibleDays, dayWidthPx, gutterPx, gridHeightPx, insetPx,
+                    ) {
+                        buildPlacedBlocks(
+                            currentGrid, visibleDays, periodRanges, dayWidthPx, gutterPx,
+                            gridHeightPx, insetPx,
+                        )
+                    }
+
+                    Box(Modifier.fillMaxWidth().height(gridHeightDp)) {
+                        GridBackground(
+                            visibleDays = visibleDays,
+                            today = today,
+                            periods = periods,
+                            periodRanges = periodRanges,
+                            gutterPx = gutterPx,
+                            dayWidthPx = dayWidthPx,
+                        )
+                        CourseBlockLayer(
+                            placed = placed,
+                            settings = settings,
+                            onBlockClick = onBlockClick,
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * 识别"横向滑动切周"手势，同时不吞掉纵向拖动（交给外层的下拉刷新）。
+ *
+ * 关键点：先用触摸阈值锁定滑动方向，只有确定为**横向**时才消费事件并累计位移，
+ * 纵向（或尚未判定方向）的拖动原样放行，这样 [androidx.compose.material3.pulltorefresh.PullToRefreshBox]
+ * 不会因为一个略斜的横滑被误触。
+ */
+private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.detectWeekSwipe(
+    week: Int,
+    onSwipeWeek: (Int) -> Unit,
+    touchSlop: Float,
+    threshold: Float,
+) {
+    awaitEachGesture {
+        awaitFirstDown()
+        var dragged = 0f
+        var directionLocked = false
+        var isHorizontal = false
+
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull() ?: break
+            if (!change.pressed) {
+                if (isHorizontal && dragged > threshold) {
+                    onSwipeWeek(week - 1)
+                } else if (isHorizontal && dragged < -threshold) {
+                    onSwipeWeek(week + 1)
+                }
+                break
+            }
+
+            val dx = change.positionChange().x
+            val dy = change.positionChange().y
+
+            if (!directionLocked && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
+                directionLocked = true
+                isHorizontal = abs(dx) > abs(dy)
+            }
+            if (isHorizontal) {
+                change.consume()
+                dragged += dx
+            }
+        }
+    }
+}
+
+/**
+ * 把作息表的各节转成分钟区间，并在必要时于首/末节之外补一个"溢出槽"，
+ * 容纳早于第 1 节、晚于第 12 节的自定义课程或考试，避免它们被钳制到网格内。
+ */
+private fun buildPeriodRanges(periods: List<Period>, range: IntRange): List<IntRange> {
+    val ranges = periods.map { CourseBlock.clockToMinute(it.start)..CourseBlock.clockToMinute(it.end) }
+    if (ranges.isEmpty()) return ranges
+    val result = ranges.toMutableList()
+    val firstStart = ranges.first().first
+    val lastEnd = ranges.last().last
+    if (range.first < firstStart) result.add(0, range.first..(firstStart - 1))
+    if (range.last > lastEnd) result.add((lastEnd + 1)..range.last)
+    return result
 }
 
 /** 预计算好的色块几何。像素坐标在布局阶段直接使用，避免在 measure 里现算。 */
@@ -174,7 +271,7 @@ private data class PlacedBlock(
 private fun buildPlacedBlocks(
     grid: WeekGrid,
     visibleDays: List<Int>,
-    range: IntRange,
+    periodRanges: List<IntRange>,
     dayWidthPx: Float,
     gutterPx: Float,
     gridHeightPx: Float,
@@ -185,9 +282,9 @@ private fun buildPlacedBlocks(
         if (slot < 0) continue
         for (block in day.blocks) {
             val x = ScheduleGridMath.blockX(slot, dayWidthPx, block.columnIndex, block.columnCount, gutterPx) + insetPx
-            val y = ScheduleGridMath.minuteToY(block.startMinute, range, gridHeightPx) + insetPx
+            val y = ScheduleGridMath.minuteToYByPeriods(block.startMinute, periodRanges, gridHeightPx) + insetPx
             val w = (ScheduleGridMath.blockWidth(dayWidthPx, block.columnCount) - insetPx * 2).coerceAtLeast(1f)
-            val h = (ScheduleGridMath.blockHeight(block.startMinute, block.endMinute, range, gridHeightPx) - insetPx * 2)
+            val h = (ScheduleGridMath.blockHeightByPeriods(block.startMinute, block.endMinute, periodRanges, gridHeightPx) - insetPx * 2)
                 .coerceAtLeast(1f)
             add(PlacedBlock(block, x, y, w, h))
         }
@@ -238,11 +335,10 @@ private fun DayHeaderRow(
  */
 @Composable
 private fun GridBackground(
-    grid: WeekGrid,
-    settings: UserSettings,
     visibleDays: List<Int>,
     today: LocalDate,
-    range: IntRange,
+    periods: List<Period>,
+    periodRanges: List<IntRange>,
     gutterPx: Float,
     dayWidthPx: Float,
 ) {
@@ -252,15 +348,9 @@ private fun GridBackground(
     val numberStyle = ScheduleBlockText.sectionNumber.copy(color = scheme.onSurfaceVariant)
     val timeStyle = ScheduleBlockText.sectionTime.copy(color = scheme.onSurfaceVariant)
 
-    // 作息表恒为 12 节。showExtraSections 的语义是"是否展开 13/14 节"，
-    // 内置作息没有这两节，所以这里最多取到 size（未来若作息表扩到 14 节，这里自动生效）。
-    val periods = remember(grid.timetable, settings.showExtraSections) {
-        if (settings.showExtraSections) grid.timetable.periods
-        else grid.timetable.periods.take(12)
-    }
-
     Canvas(Modifier.fillMaxSize()) {
         val height = size.height
+        val slotHeight = height / periodRanges.size.coerceAtLeast(1)
 
         // 1. 节次栏底色
         drawRect(color = colors.sectionGutter, size = Size(gutterPx, height))
@@ -275,13 +365,11 @@ private fun GridBackground(
             )
         }
 
-        // 3. 横向网格线：每节开始处 + 末节结束处
-        for (period in periods) {
-            val y = ScheduleGridMath.minuteToY(CourseBlock.clockToMinute(period.start), range, height)
+        // 3. 横向网格线：每个节次槽位的边界（等高，不随分钟浮动）
+        for (i in 0..periodRanges.size) {
+            val y = i * slotHeight
             drawLine(colors.gridLine, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
         }
-        val bottomY = ScheduleGridMath.minuteToY(CourseBlock.clockToMinute(periods.last().end), range, height)
-        drawLine(colors.gridLine, Offset(0f, bottomY), Offset(size.width, bottomY), strokeWidth = 1f)
 
         // 4. 纵向网格线（含节次栏右边界）
         for (i in 0..visibleDays.size) {
@@ -289,26 +377,31 @@ private fun GridBackground(
             drawLine(colors.gridLine, Offset(x, 0f), Offset(x, height), strokeWidth = 1f)
         }
 
-        // 5. 节次栏文字：节次号居中，开始时刻在下方
-        for (period in periods) {
-            val startY = ScheduleGridMath.minuteToY(CourseBlock.clockToMinute(period.start), range, height)
-            val endY = ScheduleGridMath.minuteToY(CourseBlock.clockToMinute(period.end), range, height)
-            val centerY = (startY + endY) / 2f
+        // 5. 节次栏文字：节次号居中，开始/结束时刻分列其下。
+        //    溢出槽（早于第 1 节或晚于第 12 节）没有节次，不画数字。
+        periods.forEachIndexed { index, period ->
+            val y = index * slotHeight
+            val centerY = y + slotHeight / 2f
             val number = measurer.measure(period.index.toString(), numberStyle)
             drawText(
                 textLayoutResult = number,
-                topLeft = Offset((gutterPx - number.size.width) / 2f, centerY - number.size.height),
+                topLeft = Offset((gutterPx - number.size.width) / 2f, centerY - number.size.height - timeStyle.fontSize.toPx()),
             )
-            val clock = measurer.measure(formatClock(period.start), timeStyle)
+            val start = measurer.measure(formatClock(period.start), timeStyle)
             drawText(
-                textLayoutResult = clock,
-                topLeft = Offset((gutterPx - clock.size.width) / 2f, centerY + 1f),
+                textLayoutResult = start,
+                topLeft = Offset((gutterPx - start.size.width) / 2f, centerY - timeStyle.fontSize.toPx() / 2f),
+            )
+            val end = measurer.measure(formatClock(period.end), timeStyle)
+            drawText(
+                textLayoutResult = end,
+                topLeft = Offset((gutterPx - end.size.width) / 2f, centerY + timeStyle.fontSize.toPx() / 2f),
             )
         }
     }
 }
 
-/** `08:30`。只画开始时刻，结束时刻由学生自己看下一节。 */
+/** `08:30`。 */
 private fun formatClock(time: java.time.LocalTime): String =
     "%02d:%02d".format(time.hour, time.minute)
 

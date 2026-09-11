@@ -67,6 +67,48 @@ public object ScheduleGridMath {
         dayWidthPx / columnCount.coerceAtLeast(1)
 
     /**
+     * 按节次等高的纵坐标映射。
+     *
+     * 与 [minuteToY] 的线性按分钟映射不同，这里把**每一节**视为等高的一个槽位，
+     * 节内的分钟在槽内线性插值，课间休息不占任何高度。这样：
+     * - 各节次的行高完全一致（修复"第 4 节行高高于前几节"）；
+     * - 跨节的课程块会从上一节末尾紧贴到下一节开头，中间不再因课间留白（修复空隙）。
+     *
+     * [periodRanges] 是每节的分钟区间，必须按开始时间升序。节外的分钟钳制到首/末槽边界。
+     */
+    public fun minuteToYByPeriods(
+        minute: Int,
+        periodRanges: List<IntRange>,
+        gridHeightPx: Float,
+    ): Float {
+        if (periodRanges.isEmpty()) return 0f
+        val slotHeight = gridHeightPx / periodRanges.size
+        for ((i, range) in periodRanges.withIndex()) {
+            if (minute <= range.first) return i * slotHeight
+            if (minute <= range.last) {
+                val duration = (range.last - range.first).coerceAtLeast(1)
+                val fraction = (minute - range.first).toFloat() / duration
+                return i * slotHeight + fraction * slotHeight
+            }
+        }
+        return gridHeightPx
+    }
+
+    /** 按节次等高的色块纵向高度。见 [minuteToYByPeriods]。 */
+    public fun blockHeightByPeriods(
+        startMinute: Int,
+        endMinute: Int,
+        periodRanges: List<IntRange>,
+        gridHeightPx: Float,
+    ): Float {
+        // 倒置（结束早于开始）返回 0，与旧版 [blockHeight] 语义一致，不画出错块。
+        if (endMinute <= startMinute) return 0f
+        val startY = minuteToYByPeriods(startMinute, periodRanges, gridHeightPx)
+        val endY = minuteToYByPeriods(endMinute, periodRanges, gridHeightPx)
+        return (endY - startY).coerceAtLeast(1f)
+    }
+
+    /**
      * 色块左上角横坐标。
      *
      * `columnIndex/columnCount` 已经由 `ScheduleGridBuilder.layout()` 算好，

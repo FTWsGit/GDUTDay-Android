@@ -1,5 +1,11 @@
 package com.gdutday.feature.schedule
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,6 +84,7 @@ fun ScheduleScreen(
     val selectedBlock by viewModel.selectedBlock.collectAsStateWithLifecycle()
     val guessedDismissed by viewModel.guessedBannerDismissed.collectAsStateWithLifecycle()
     val campusDismissed by viewModel.campusBannerDismissed.collectAsStateWithLifecycle()
+    val dayOffset by viewModel.selectedDayOffset.collectAsStateWithLifecycle()
     val isLoggedIn by container.authRepository.isLoggedIn
         .collectAsStateWithLifecycle(initialValue = true)
 
@@ -104,7 +111,6 @@ fun ScheduleScreen(
                     )
                 },
                 onSync = viewModel::refresh,
-                onOpenSettings = onOpenSettings,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -163,12 +169,35 @@ fun ScheduleScreen(
                         }
 
                         settings.scheduleView == ScheduleView.DAY -> {
-                            DayScheduleView(
-                                blocks = state.todayBlocks,
-                                settings = settings,
-                                date = state.today,
-                                onBlockClick = viewModel::openBlock,
-                            )
+                            val selectedDate = state.today.plusDays(dayOffset.toLong())
+                            val dayBlocks = remember(state.grid, selectedDate) {
+                                state.grid?.days?.find { it.date == selectedDate }?.blocks.orEmpty()
+                            }
+                            // 稳定引用：onSwipeDay 是 pointerInput 的 key，
+                            // 每次重组都换新引用会让正在进行的滑动手势被重启。
+                            val onSwipeDay = remember(viewModel) { viewModel::selectDay }
+                            // 切天的平滑过渡：按新旧日期的先后决定滑入方向。
+                            AnimatedContent(
+                                targetState = selectedDate,
+                                transitionSpec = {
+                                    val direction = if (targetState > initialState) 1 else -1
+                                    (slideInHorizontally { full -> full * direction } + fadeIn())
+                                        .togetherWith(
+                                            slideOutHorizontally { full -> -full * direction } + fadeOut(),
+                                        )
+                                },
+                                label = "daySwitch",
+                            ) { date ->
+                                DayScheduleView(
+                                    blocks = remember(state.grid, date) {
+                                        state.grid?.days?.find { it.date == date }?.blocks.orEmpty()
+                                    },
+                                    settings = settings,
+                                    date = date,
+                                    onBlockClick = viewModel::openBlock,
+                                    onSwipeDay = onSwipeDay,
+                                )
+                            }
                         }
 
                         else -> {

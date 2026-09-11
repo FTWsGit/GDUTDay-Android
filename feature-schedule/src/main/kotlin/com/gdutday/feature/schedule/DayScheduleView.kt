@@ -3,6 +3,8 @@ package com.gdutday.feature.schedule
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.common.BlockStatus
@@ -31,6 +36,7 @@ import com.gdutday.core.ui.EmptyState
 import com.gdutday.core.ui.LocalGdutDayColors
 import com.gdutday.core.ui.toComposeColor
 import java.time.LocalDate
+import kotlin.math.abs
 
 /**
  * 日视图：单天日程列表（时间轴 + 卡片）。
@@ -49,9 +55,46 @@ public fun DayScheduleView(
     date: LocalDate,
     onBlockClick: (CourseBlock) -> Unit,
     modifier: Modifier = Modifier,
+    onSwipeDay: ((Int) -> Unit)? = null,
 ) {
+    // 左右滑动切天：先锁定方向，只有横向拖拽才消费事件并触发切天，
+    // 纵向拖拽原样交给 LazyColumn 滚动 / 外层下拉刷新，互不干扰。
+    // 空的那天也要能滑走，所以容器修饰符在空状态分支之前算好。
+    val containerModifier = if (onSwipeDay != null) {
+        val touchSlop = LocalViewConfiguration.current.touchSlop
+        modifier.pointerInput(onSwipeDay) {
+            val threshold = 48.dp.toPx()
+            awaitEachGesture {
+                awaitFirstDown()
+                var dragged = 0f
+                var directionLocked = false
+                var isHorizontal = false
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull() ?: break
+                    if (!change.pressed) {
+                        if (isHorizontal && dragged > threshold) onSwipeDay(-1)
+                        else if (isHorizontal && dragged < -threshold) onSwipeDay(1)
+                        break
+                    }
+                    val delta = change.positionChange()
+                    if (!directionLocked && (abs(delta.x) > touchSlop || abs(delta.y) > touchSlop)) {
+                        directionLocked = true
+                        isHorizontal = abs(delta.x) > abs(delta.y)
+                    }
+                    if (isHorizontal) {
+                        change.consume()
+                        dragged += delta.x
+                    }
+                }
+            }
+        }
+    } else {
+        modifier
+    }
+
     if (blocks.isEmpty()) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(containerModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             EmptyState(
                 title = stringResource(R.string.schedule_today_empty_title),
                 subtitle = stringResource(R.string.schedule_today_empty_subtitle),
@@ -61,7 +104,7 @@ public fun DayScheduleView(
     }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = containerModifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

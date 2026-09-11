@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material.icons.filled.ViewWeek
@@ -41,7 +40,7 @@ import com.gdutday.data.repository.ScheduleUiState
  * 课表顶栏。
  *
  * 包含：学期名（可下拉切换）、当前周次、可选周次范围、[UserSettings.scheduleView] 切换、
- * 手动同步、设置入口，以及"回到本周"按钮（只在浏览别的周次时出现，
+ * 手动同步，以及"回到本周"按钮（只在浏览别的周次时出现，
  * 否则它会是一个永远没用的按钮，白白占位）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +52,6 @@ internal fun ScheduleTopBar(
     onBackToCurrentWeek: () -> Unit,
     onToggleView: () -> Unit,
     onSync: () -> Unit,
-    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var termMenuOpen by remember { mutableStateOf(false) }
@@ -147,14 +145,6 @@ internal fun ScheduleTopBar(
                         onClick = {
                             actionMenuOpen = false
                             onSync()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.schedule_menu_settings)) },
-                        leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                        onClick = {
-                            actionMenuOpen = false
-                            onOpenSettings()
                         },
                     )
                 }

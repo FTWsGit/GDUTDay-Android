@@ -77,6 +77,13 @@ internal fun CourseBlockItem(
 
         Column(Modifier.padding(horizontal = 3.dp, vertical = 1.dp)) {
             Text(
+                text = "${block.startClock}-${block.endClock}",
+                style = ScheduleBlockText.timeRange,
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
                 text = block.course.name.maskIfNeeded(settings),
                 style = ScheduleBlockText.courseName,
                 color = textColor,
@@ -106,13 +113,27 @@ internal fun CourseBlockItem(
     }
 }
 
-/** 按设置决定字体色；`AUTO` 走 WCAG 相对亮度（纯函数在 core-ui）。 */
-internal fun resolveTextColor(settings: UserSettings, block: CourseBlock): Color =
-    when (settings.courseTextColor) {
+/**
+ * 按设置决定字体色；`AUTO` 走 WCAG 相对亮度（纯函数在 core-ui）。
+ *
+ * 纯白在浅色色块上对比度过高、刺眼。未上课（UPCOMING）的色块把白色调暗一档，
+ * 让"还没上的课"视觉上更柔和，同时不改变黑字与正在上课/已上完的语义。
+ */
+internal fun resolveTextColor(settings: UserSettings, block: CourseBlock): Color {
+    val base = when (settings.courseTextColor) {
         CourseTextColor.AUTO -> autoTextColorFor(block.color.argb)
         CourseTextColor.WHITE -> Color.White
         CourseTextColor.BLACK -> Color.Black
     }
+    // 纯白 → 90% 白，仅对未上课的色块生效，避免破坏 AUTO 对深色块选白字的意图。
+    if (base == Color.White && block.status == BlockStatus.UPCOMING) {
+        return DIMMED_WHITE
+    }
+    return base
+}
+
+/** 未上课色块的柔化白。 */
+private val DIMMED_WHITE = Color(0xE6FFFFFF)
 
 /** 打码只针对姓名类文本；空串保持空串。 */
 internal fun String.maskIfNeeded(settings: UserSettings): String =

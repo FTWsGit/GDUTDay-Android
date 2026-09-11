@@ -1,6 +1,5 @@
 package com.gdutday.feature.grade
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,9 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,8 +61,7 @@ import com.gdutday.data.repository.SyncInfo
  * 3. 绩点趋势图见 [GpaTrendChart]（Canvas 手绘，无第三方图表库）。
  * 4. 等级制成绩：走 [GradeLogic.scoreDisplay]，`score == null` 时显示 `scoreText`。
  * 5. 挂科（`score < 60`）用 `colorScheme.error`。
- * 6. `countsTowardsGpa == false` 的行有"不计入绩点"入口，点击弹出解释。
- * 7. 空状态区分没登录 / 登录未同步 / 同步了但无成绩三种。
+ * 6. 空状态区分没登录 / 登录未同步 / 同步了但无成绩三种。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,9 +85,6 @@ fun GradeScreen(
             viewModel.consumeError()
         }
     }
-
-    // 用户点开"为什么不算绩点"的那门课。
-    var explanationFor by remember { mutableStateOf<Grade?>(null) }
 
     Scaffold(
         modifier = modifier,
@@ -159,25 +152,11 @@ fun GradeScreen(
                             summary = summary,
                             allSummaries = summaries,
                             lastSync = lastSync,
-                            onExplain = { explanationFor = it },
                         )
                     }
                 }
             }
         }
-    }
-
-    explanationFor?.let { grade ->
-        AlertDialog(
-            onDismissRequest = { explanationFor = null },
-            confirmButton = {
-                TextButton(onClick = { explanationFor = null }) {
-                    Text(stringResource(R.string.grade_confirm))
-                }
-            },
-            title = { Text(grade.courseName) },
-            text = { Text(stringResource(R.string.grade_not_counted_explain)) },
-        )
     }
 }
 
@@ -198,7 +177,6 @@ private fun GradeList(
     summary: TermGradeSummary,
     allSummaries: List<TermGradeSummary>,
     lastSync: SyncInfo?,
-    onExplain: (Grade) -> Unit,
 ) {
     val trendPoints = remember(allSummaries) { GradeLogic.trendPoints(allSummaries) }
 
@@ -253,7 +231,7 @@ private fun GradeList(
         }
 
         items(summary.grades, key = { it.id }) { grade ->
-            GradeRow(grade = grade, onClickNotCounted = { onExplain(grade) })
+            GradeRow(grade = grade)
         }
     }
 }
@@ -321,7 +299,6 @@ private fun StatCell(
 @Composable
 private fun GradeRow(
     grade: Grade,
-    onClickNotCounted: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -338,27 +315,6 @@ private fun GradeRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            if (!grade.countsTowardsGpa) {
-                Row(
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .clickable(onClick = onClickNotCounted),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Info,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(R.string.grade_not_counted),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 4.dp),
-                    )
-                }
             }
         }
         Text(

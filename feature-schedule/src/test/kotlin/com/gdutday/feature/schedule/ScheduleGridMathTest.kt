@@ -89,4 +89,68 @@ class ScheduleGridMathTest {
         // 周二一簇两门并排：columnIndex=1 时右移半个列宽
         assertThat(ScheduleGridMath.blockX(1, dayWidth, 1, 2, gutter)).isEqualTo(44f + 350f + 175f)
     }
+
+    // 大学城作息：12 节，节间课间 5~20 分钟不等，第 4/5 节之间有 110 分钟午休。
+    // 用 120px 总高（12 节 × 10px/节）验证"每节等高、课间不占高度"。
+    private val periodRanges = listOf(
+        510..555,   // 1 08:30-09:15
+        560..605,   // 2 09:20-10:05
+        625..670,   // 3 10:25-11:10
+        675..720,   // 4 11:15-12:00
+        830..875,   // 5 13:50-14:35
+        880..925,   // 6 14:40-15:25
+        930..975,   // 7 15:30-16:15
+        990..1035,  // 8 16:30-17:15
+        1040..1085, // 9 17:20-18:05
+        1110..1155, // 10 18:30-19:15
+        1160..1205, // 11 19:20-20:05
+        1210..1255, // 12 20:10-20:55
+    )
+    private val periodGridHeight = 120f
+
+    @Test
+    fun `节次等高映射 - 每节槽位边界固定`() {
+        // 第 1 节开始 = 0，第 12 节结束 = 满高
+        assertThat(ScheduleGridMath.minuteToYByPeriods(510, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(0f)
+        assertThat(ScheduleGridMath.minuteToYByPeriods(1255, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(120f)
+        // 每节 10px：第 4 节开始(675) = 30，第 5 节开始(830) = 40 —— 午休被折叠
+        assertThat(ScheduleGridMath.minuteToYByPeriods(675, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(30f)
+        assertThat(ScheduleGridMath.minuteToYByPeriods(830, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(40f)
+        // 越界钳制
+        assertThat(ScheduleGridMath.minuteToYByPeriods(0, periodRanges, periodGridHeight)).isEqualTo(0f)
+        assertThat(ScheduleGridMath.minuteToYByPeriods(9999, periodRanges, periodGridHeight)).isEqualTo(120f)
+    }
+
+    @Test
+    fun `节次等高映射 - 课间分钟折叠到相邻节边界`() {
+        // 第 1 节结束(555) 与第 2 节开始(560) 之间的课间折叠：都映射到 10px
+        assertThat(ScheduleGridMath.minuteToYByPeriods(555, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(10f)
+        assertThat(ScheduleGridMath.minuteToYByPeriods(560, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(10f)
+        // 午休：第 4 节结束(720) 与第 5 节开始(830) 都落在 40px
+        assertThat(ScheduleGridMath.minuteToYByPeriods(720, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(40f)
+        assertThat(ScheduleGridMath.minuteToYByPeriods(830, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(40f)
+    }
+
+    @Test
+    fun `节次等高映射 - 跨节色块不留课间空隙`() {
+        // 单节 45 分钟 = 10px
+        assertThat(ScheduleGridMath.blockHeightByPeriods(510, 555, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(10f)
+        // 08:30-10:05 跨第 1、2 节，中间的 5 分钟课间折叠，高度 = 2 节
+        assertThat(ScheduleGridMath.blockHeightByPeriods(510, 605, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(20f)
+        // 跨午休的第 4~5 节(11:15-14:35)也是恰好 2 节高
+        assertThat(ScheduleGridMath.blockHeightByPeriods(675, 875, periodRanges, periodGridHeight))
+            .isWithin(1e-3f).of(20f)
+        // 结束早于开始时高度为 0
+        assertThat(ScheduleGridMath.blockHeightByPeriods(600, 500, periodRanges, periodGridHeight)).isEqualTo(0f)
+    }
 }

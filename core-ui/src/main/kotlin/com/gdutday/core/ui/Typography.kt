@@ -74,6 +74,14 @@ public object ScheduleBlockText {
         letterSpacing = (-0.1).sp,
     )
 
+    /** 课程块顶部的时间范围（08:30-09:15）。 */
+    public val timeRange: TextStyle = TextStyle(
+        fontSize = 8.sp,
+        lineHeight = 9.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = (-0.2).sp,
+    )
+
     /** 课程名最多显示几行。3 行 × 12sp = 36sp ≈ 40dp，是 2 节课高度（约 90dp）的一半，留得下详情。 */
     public const val COURSE_NAME_MAX_LINES: Int = 3
 

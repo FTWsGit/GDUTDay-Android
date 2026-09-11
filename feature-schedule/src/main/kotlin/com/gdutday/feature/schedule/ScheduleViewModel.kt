@@ -68,6 +68,32 @@ public class ScheduleViewModel(
     /** 校区未设置横幅是否被关掉。 */
     public val campusBannerDismissed: StateFlow<Boolean> = _campusBannerDismissed.asStateFlow()
 
+    // ---------------------------------------------------------------------- 日视图切换日期
+    private val _selectedDayOffset = MutableStateFlow(0)
+
+    /** 日视图当前选中日期相对今天的天数偏移（默认 0 = 今天）。负数表示过去，正数表示未来。 */
+    public val selectedDayOffset: StateFlow<Int> = _selectedDayOffset.asStateFlow()
+
+    /**
+     * 左右滑动切天。如果目标日期跨入另一个周次，同时把周次也切过去，让网格数据同步更新。
+     */
+    public fun selectDay(delta: Int) {
+        val newOffset = _selectedDayOffset.value + delta
+        _selectedDayOffset.value = newOffset
+        // 如果选中的日期不在当前展示的周里，自动切换周次让网格包含它
+        val calendar = uiState.value.calendar ?: return
+        val selectedDate = uiState.value.today.plusDays(newOffset.toLong())
+        val targetWeek = calendar.weekOf(selectedDate)
+        if (targetWeek != uiState.value.selectedWeek && targetWeek in 1..uiState.value.totalWeeks) {
+            selectWeek(targetWeek)
+        }
+    }
+
+    /** 回到今天的快捷入口。 */
+    public fun backToToday() {
+        _selectedDayOffset.value = 0
+    }
+
     public fun selectWeek(week: Int) {
         val clamped = ScheduleGridMath.clampWeek(week, uiState.value.totalWeeks)
         viewModelScope.launch { repository.selectWeek(clamped) }
