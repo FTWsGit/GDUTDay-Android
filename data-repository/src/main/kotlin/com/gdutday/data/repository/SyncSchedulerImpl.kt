@@ -92,7 +92,9 @@ public class SyncSchedulerImpl(
                 }
             }
             .build()
-        // APPEND_OR_REPLACE：连续下拉时排队而不是丢弃，且失败的任务不会阻塞后续。
+        // APPEND_OR_REPLACE：连续下拉时**取消未开始的旧任务再入队新任务**，确保执行的是
+        // 最新一次请求（语义是"以最新为准"，不是"排队"）；正在运行的旧任务不受影响。
+        // 若未来改成真正的排队语义，应换 ExistingWorkPolicy.APPEND 并同步这里的注释。
         workManager.enqueueUniqueWork(IMMEDIATE_WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
     }
 

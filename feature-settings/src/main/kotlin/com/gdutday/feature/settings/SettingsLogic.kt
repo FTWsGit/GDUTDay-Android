@@ -45,7 +45,7 @@ public object SettingsLogic {
     /** 透明度滑杆可选的自动同步间隔（小时）。 */
     public val SYNC_INTERVAL_OPTIONS: List<Int> = listOf(1, 2, 3, 6, 12, 24)
 
-    /** 某校区内置作息表的 24 项 `HH:mm` 字符串。 */
+    /** 某校区内置作息表的 `HH:mm` 字符串对（14 节共 28 项）。 */
     public fun defaultTimetable(campus: Campus): List<String> =
         CampusTimetable.of(campus).periods.flatMap { listOf(formatTime(it.start), formatTime(it.end)) }
 
@@ -66,14 +66,17 @@ public object SettingsLogic {
      * 它是保存的唯一权威，返回 null 就一定不保存。
      */
     public fun validateCustomTimetable(campus: Campus, raw: List<String>): TimetableValidation {
-        if (raw.size != CampusTimetable.SECTIONS_PER_DAY * 2) {
+        // 接受 28 项（14 节，当前标准）或 24 项（旧版 12 节，缺失节次由 parseCustom 补默认值）。
+        if (raw.size != CampusTimetable.SECTIONS_PER_DAY * 2 && raw.size != 24) {
             return TimetableValidation.Invalid(TimetableInvalidReason.WRONG_SIZE)
         }
+        // 校验循环按输入的实际节次走（24 项时只查前 12 节，末两节交给默认值）。
+        val sectionCount = raw.size / 2
         val parsedTimes = raw.map { runCatching { LocalTime.parse(it.trim()) }.getOrNull() }
         if (parsedTimes.any { it == null }) {
             return TimetableValidation.Invalid(TimetableInvalidReason.BAD_FORMAT)
         }
-        for (i in 0 until CampusTimetable.SECTIONS_PER_DAY) {
+        for (i in 0 until sectionCount) {
             val start = parsedTimes[i * 2]!!
             val end = parsedTimes[i * 2 + 1]!!
             if (end <= start) return TimetableValidation.Invalid(TimetableInvalidReason.REVERSED)

@@ -10,7 +10,7 @@ import com.gdutday.data.gdut.http.FormFields
 import com.gdutday.data.gdut.http.LenientJson
 import com.gdutday.data.gdut.http.RedirectFollower
 import com.gdutday.data.gdut.http.SessionCookieJar
-import com.gdutday.data.gdut.http.StoredCookie
+import com.gdutday.core.model.StoredCookie
 import com.gdutday.data.gdut.http.asBrowserNavigation
 import com.gdutday.data.gdut.http.asBrowserXhr
 import com.gdutday.data.gdut.http.originOf
@@ -409,14 +409,25 @@ public class JxfwClient(
         // 业务接口正常不该有这种跳转，所以限制 5 跳并在超限时抛 TooManyRedirects。
         val resolved = request.url.resolve(location)
             ?: throw GdutException.Parse(what = what, snippet = "无法解析重定向地址 '$location'（来自 $url）")
+        // 307/308 要求**原样重放**方法与 body：POST 表单被 307 转走时降级为 GET
+        // 会丢掉整个表单，服务端只看到空参数，错误会被误报成 Parse。
+        // 301/302/303 维持老约定：降级为 GET。
+        val preserveBody = response.code == 307 || response.code == 308
+        val followRequest = Request.Builder()
+            .url(resolved)
+            .asBrowserXhr(request.header("Referer") ?: hosts.jxfwHome)
+            .apply {
+                val body = request.body
+                if (preserveBody && body != null) {
+                    header("Origin", originOf(resolved.toString()))
+                    post(body)
+                } else {
+                    get()
+                }
+            }
+            .build()
         val follower = RedirectFollower(client, maxHops = 5)
-        val followed = follower.follow(
-            Request.Builder()
-                .url(resolved)
-                .asBrowserXhr(request.header("Referer") ?: hosts.jxfwHome)
-                .get()
-                .build(),
-        )
+        val followed = follower.follow(followRequest)
         return followed.response.use { finish(it, url, what, allowHtml) }
     }
 

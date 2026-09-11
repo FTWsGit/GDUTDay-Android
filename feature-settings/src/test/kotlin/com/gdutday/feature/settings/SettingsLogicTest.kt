@@ -15,10 +15,14 @@ import org.junit.Test
 class SettingsLogicTest {
 
     @Test
-    fun `默认作息表是 24 项且可被 parseCustom 接受`() {
+    fun `默认作息表是 28 项且可被 parseCustom 接受，旧版 24 项也接受`() {
         val raw = SettingsLogic.defaultTimetable(Campus.UNIVERSITY_CITY)
         assertThat(raw).hasSize(CampusTimetable.SECTIONS_PER_DAY * 2)
         assertThat(CampusTimetable.parseCustom(Campus.UNIVERSITY_CITY, raw)).isNotNull()
+        // 旧版 12 节（24 项）仍能通过校验并补齐为 28 项
+        val legacy = SettingsLogic.validateCustomTimetable(Campus.UNIVERSITY_CITY, raw.dropLast(4))
+        assertThat(legacy).isInstanceOf(TimetableValidation.Valid::class.java)
+        assertThat((legacy as TimetableValidation.Valid).normalized).hasSize(28)
     }
 
     @Test
@@ -53,7 +57,7 @@ class SettingsLogicTest {
         val raw = SettingsLogic.defaultTimetable(Campus.UNIVERSITY_CITY)
         val result = SettingsLogic.validateCustomTimetable(Campus.UNIVERSITY_CITY, raw)
         assertThat(result).isInstanceOf(TimetableValidation.Valid::class.java)
-        assertThat((result as TimetableValidation.Valid).normalized).hasSize(24)
+        assertThat((result as TimetableValidation.Valid).normalized).hasSize(28)
     }
 
     @Test

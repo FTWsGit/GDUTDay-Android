@@ -31,7 +31,8 @@ kotlin {
 dependencies {
     api(project(":core-model"))
     api(project(":core-common"))
-    api(project(":data-gdut"))
+    // 会话模型（GdutSession / StoredCookie / LoginMethod / GdutHosts）已下沉到 core-model，
+    // 这里不再依赖协议层 data-gdut —— core 必须是叶子（分层修复 M21）。
 
     api(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)

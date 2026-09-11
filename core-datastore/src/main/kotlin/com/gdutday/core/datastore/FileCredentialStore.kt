@@ -1,7 +1,7 @@
 package com.gdutday.core.datastore
 
 import android.content.Context
-import com.gdutday.data.gdut.session.LoginMethod
+import com.gdutday.core.model.LoginMethod
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

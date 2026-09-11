@@ -1,6 +1,6 @@
 package com.gdutday.core.datastore
 
-import com.gdutday.data.gdut.session.GdutSession
+import com.gdutday.core.model.GdutSession
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -90,7 +90,7 @@ public interface CredentialStore {
 public data class StoredCredentials(
     public val username: String,
     public val password: String,
-    public val method: com.gdutday.data.gdut.session.LoginMethod,
+    public val method: com.gdutday.core.model.LoginMethod,
     public val rememberPassword: Boolean = true,
     public val savedAt: Long = System.currentTimeMillis(),
 ) {

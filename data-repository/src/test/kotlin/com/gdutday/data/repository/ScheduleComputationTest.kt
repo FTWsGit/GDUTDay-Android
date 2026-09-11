@@ -194,7 +194,7 @@ class ScheduleComputationTest {
         )
         val timetable = resolveTimetable(settings, Campus.UNIVERSITY_CITY)
         assertThat(timetable.campus).isEqualTo(Campus.UNIVERSITY_CITY)
-        assertThat(timetable.size).isEqualTo(12)
+        assertThat(timetable.size).isEqualTo(14)
     }
 
     @Test

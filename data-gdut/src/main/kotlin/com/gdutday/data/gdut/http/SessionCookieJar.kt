@@ -1,87 +1,44 @@
 package com.gdutday.data.gdut.http
 
+import com.gdutday.core.model.StoredCookie
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 
 /**
- * 可持久化的 Cookie。
+ * [StoredCookie] ↔ [okhttp3.Cookie] 的互转。
  *
- * [okhttp3.Cookie] 本身不可序列化，而登录态必须跨进程重启保留
- * （否则每次打开 App 都要重新登录，还会累积风控计数），
- * 所以定义这么一个纯数据镜像，落在 `core-datastore` 里加密存储。
- *
- * @property expiresAtMillis 过期时刻（epoch millis）。[Long.MAX_VALUE] 表示会话级 cookie
- *   （`persistent == false`）—— 这类 cookie 浏览器关掉就没了，但我们**仍然保存**，
- *   因为 `JSESSIONID` 就是会话级的，而它正是登录态的载体。
- * @property hostOnly true 表示只匹配精确主机（cookie 未带 `Domain` 属性），
- *   false 表示匹配该域及其子域。还原时必须保留这个区别，否则匹配范围会出错。
+ * 模型本体已下沉到 `core-model`（分层修复 M21：core-datastore / core-network 是
+ * core 叶子，不能反向依赖协议层 data-gdut）；OkHttp 依赖只属于协议层，
+ * 所以互转在这里以扩展函数的形式存在。
  */
-public data class StoredCookie(
-    public val name: String,
-    public val value: String,
-    public val domain: String,
-    public val path: String,
-    public val expiresAtMillis: Long,
-    public val secure: Boolean,
-    public val httpOnly: Boolean,
-    public val hostOnly: Boolean,
-) {
-    /** 是否已过期。会话级 cookie（[expiresAtMillis] 为 MAX_VALUE）永不过期。 */
-    public fun isExpired(nowMillis: Long = System.currentTimeMillis()): Boolean =
-        expiresAtMillis != Long.MAX_VALUE && expiresAtMillis <= nowMillis
 
-    public fun toOkHttpCookie(): Cookie = Cookie.Builder()
-        .name(name)
-        .value(value)
-        .path(normalizePath(path))
-        .apply {
-            if (hostOnly) hostOnlyDomain(domain) else domain(domain)
-            if (secure) secure()
-            if (httpOnly) httpOnly()
-            // 会话级 cookie 不设 expiresAt，还原成非持久 cookie；
-            // 但由于我们每次都从 snapshot 重建，效果等同于持久保存。
-            if (expiresAtMillis != Long.MAX_VALUE) expiresAt(expiresAtMillis)
-        }
-        .build()
-
-    public companion object {
-        public fun from(cookie: Cookie): StoredCookie = StoredCookie(
-            name = cookie.name,
-            value = cookie.value,
-            domain = cookie.domain,
-            path = normalizePath(cookie.path),
-            expiresAtMillis = if (cookie.persistent) cookie.expiresAt else Long.MAX_VALUE,
-            secure = cookie.secure,
-            httpOnly = cookie.httpOnly,
-            hostOnly = cookie.hostOnly,
-        )
-
-        /**
-         * 按 RFC 6265 语义规范化 [Cookie] 的 path，使 [Cookie.matches] 的前缀匹配稳定成立。
-         *
-         * 服务端下发的 `Set-Cookie: JSESSIONID=…; Path=/authserver` 没有尾斜杠。
-         * OkHttp 的 path 匹配要求匹配的前缀要么等值、要么以 `/` 结尾、要么后续字符是 `/`，
-         * 因此这里统一补齐尾斜杠（`/authserver` → `/authserver/`），
-         * 保证 `/authserver/login`、`/authserver/checkNeedCaptcha.htl` 等子路径都能命中，
-         * 避免登录态在冷启动复用后静默失效。
-         *
-         * 规则：
-         * - 空路径 → `/`（根路径匹配所有请求）；
-         * - `/` 本身保持 `/`（不能再补斜杠）；
-         * - 缺前导 `/` 时补上；
-         * - 非根且缺尾 `/` 时补上；
-         * - 已规范化的路径原样返回。
-         */
-        internal fun normalizePath(path: String): String = when {
-            path.isEmpty() -> "/"
-            path == "/" -> "/"
-            !path.startsWith("/") -> "/$path/"
-            !path.endsWith("/") -> "$path/"
-            else -> path
-        }
+/** 还原成 OkHttp cookie。规范化 path 保证子路径匹配命中（见模型注释）。 */
+public fun StoredCookie.toOkHttpCookie(): Cookie = Cookie.Builder()
+    .name(name)
+    .value(value)
+    .path(StoredCookie.normalizePath(path))
+    .apply {
+        if (hostOnly) hostOnlyDomain(domain) else domain(domain)
+        if (secure) secure()
+        if (httpOnly) httpOnly()
+        // 会话级 cookie 不设 expiresAt，还原成非持久 cookie；
+        // 但由于我们每次都从 snapshot 重建，效果等同于持久保存。
+        if (expiresAtMillis != Long.MAX_VALUE) expiresAt(expiresAtMillis)
     }
-}
+    .build()
+
+/** 从 OkHttp cookie 抓取可持久化镜像。 */
+public fun StoredCookie.Companion.from(cookie: Cookie): StoredCookie = StoredCookie(
+    name = cookie.name,
+    value = cookie.value,
+    domain = cookie.domain,
+    path = StoredCookie.normalizePath(cookie.path),
+    expiresAtMillis = if (cookie.persistent) cookie.expiresAt else Long.MAX_VALUE,
+    secure = cookie.secure,
+    httpOnly = cookie.httpOnly,
+    hostOnly = cookie.hostOnly,
+)
 
 /**
  * 内存 CookieJar，带快照/还原能力。
@@ -130,14 +87,24 @@ public class SessionCookieJar(
         val snapshot = synchronized(lock) { store.values.toList() }
         val matched = mutableListOf<Cookie>()
         val expiredKeys = mutableListOf<String>()
+        // 同名 cookie 只发一把：restore 后可能同时存在 name+domain 相同、path 不同的
+        // 两把 cookie（keyOf 含 path），都发给服务端会构成重复的 Cookie 头键，
+        // 部分容器会取错值导致会话错乱。保留 path 最长（最具体）的一把。
+        val bestByName = linkedMapOf<String, Pair<Int, Cookie>>()   // name -> (pathLen, cookie)
         for (sc in snapshot) {
             if (sc.isExpired(now)) {
                 expiredKeys += keyOf(sc.name, sc.domain, sc.path)
                 continue
             }
             val cookie = runCatching { sc.toOkHttpCookie() }.getOrNull() ?: continue
-            if (cookie.matches(url)) matched += cookie
+            if (cookie.matches(url)) {
+                val prev = bestByName[cookie.name]
+                if (prev == null || sc.path.length > prev.first) {
+                    bestByName[cookie.name] = sc.path.length to cookie
+                }
+            }
         }
+        matched += bestByName.values.map { it.second }
         // 顺手清理过期项，避免长期运行后 store 无限增长
         if (expiredKeys.isNotEmpty()) synchronized(lock) { expiredKeys.forEach { store.remove(it) } }
         return matched

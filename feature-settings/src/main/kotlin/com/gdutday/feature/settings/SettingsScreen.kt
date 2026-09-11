@@ -859,7 +859,9 @@ private fun TimetableEditor(
 ) {
     val draft = remember(current, campus) {
         mutableStateListOf<String>().apply {
-            addAll(current.take(CampusTimetable.SECTIONS_PER_DAY * 2))
+            // 旧版存量数据只有 12 节（24 项）：缺失的 13/14 节用校区默认值补齐，避免显示 "--:--"。
+            val padded = if (current.size == 24) current + SettingsLogic.defaultTimetable(campus).drop(24) else current
+            addAll(padded.take(CampusTimetable.SECTIONS_PER_DAY * 2))
         }
     }
     // 点击某一节时记录 (节次下标, 起点/终点)，用于弹时间选择器。

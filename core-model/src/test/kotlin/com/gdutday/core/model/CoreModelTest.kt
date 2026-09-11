@@ -176,7 +176,7 @@ class CourseTest {
     @Test
     fun `常量上限`() {
         assertThat(Course.MAX_WEEK).isAtLeast(20)   // 旧小程序硬编码 20，第 21 周的课会消失
-        assertThat(Course.MAX_SECTION).isEqualTo(12)
+        assertThat(Course.MAX_SECTION).isEqualTo(14)   // 与 SectionRunSplitter 对齐，13/14 节为实验课
     }
 }
 

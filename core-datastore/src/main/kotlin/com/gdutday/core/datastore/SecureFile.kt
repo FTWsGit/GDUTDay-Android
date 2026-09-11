@@ -44,6 +44,8 @@ internal class SecureFile<T>(
 
     /** 读并解密、解码。任何一步失败都返回 null（必要时删除损坏文件）。 */
     fun read(): T? {
+        // 顺手清理上次写失败残留的孤儿 tmp（几乎零成本：目录通常只有一两个文件）。
+        cleanupStaleTmp()
         val raw = try {
             if (!file.exists()) return null
             file.readText(Charsets.UTF_8)
@@ -74,13 +76,42 @@ internal class SecureFile<T>(
 
         file.parentFile?.mkdirs()
         // 先写临时文件再改名：避免写到一半进程被杀，留下半截密文让下次解密失败。
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        tmp.writeText(encrypted, Charsets.UTF_8)
-        if (!tmp.renameTo(file)) {
-            // 少数文件系统 rename 会失败，退化为直接覆盖写。
-            file.writeText(encrypted, Charsets.UTF_8)
+        // tmp 文件名带随机后缀：并发写 / 上次失败残留不会互相覆盖踩踏。
+        val tmp = File(file.parentFile, "${file.name}.tmp.${System.nanoTime()}")
+        try {
+            tmp.writeText(encrypted, Charsets.UTF_8)
+            restrictToOwner(tmp)
+            if (!tmp.renameTo(file)) {
+                // 少数文件系统 rename 会失败，退化为直接覆盖写。
+                file.writeText(encrypted, Charsets.UTF_8)
+                restrictToOwner(file)
+            }
+        } finally {
+            // 失败路径不留孤儿 tmp（rename 成功后 tmp 已不存在，delete 是空操作）。
             tmp.delete()
         }
+    }
+
+    /**
+     * 收紧为 owner-only（0600）。密文等同账号本体：默认 umask 0644 下，
+     * 同设备的特权工具 / root 可直接拷走。尽力而为——个别文件系统不支持时静默忽略，
+     * 不能因为权限设置失败丢掉刚写好的数据。
+     */
+    private fun restrictToOwner(f: File) {
+        runCatching {
+            f.setReadable(true, true)
+            f.setWritable(true, true)
+            f.setExecutable(false, false)
+        }
+    }
+
+    /**
+     * 清理上次写失败可能残留的孤儿 tmp 文件（`<name>.tmp.*`）。
+     * 在首次读盘前调用一次，避免垃圾在私有目录里长期堆积。
+     */
+    fun cleanupStaleTmp() {
+        val parent = file.parentFile ?: return
+        parent.listFiles { _, name -> name.startsWith("${file.name}.tmp.") }?.forEach { it.delete() }
     }
 
     /**

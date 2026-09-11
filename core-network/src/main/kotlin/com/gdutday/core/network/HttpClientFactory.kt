@@ -3,6 +3,7 @@ package com.gdutday.core.network
 import android.content.Context
 import okhttp3.Cache
 import okhttp3.ConnectionPool
+import okhttp3.CookieJar
 import okhttp3.OkHttpClient
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -120,6 +121,6 @@ public object HttpClientFactory {
      */
     public fun withCookieJar(
         root: OkHttpClient,
-        cookieJar: com.gdutday.data.gdut.http.SessionCookieJar,
+        cookieJar: CookieJar,
     ): OkHttpClient = root.newBuilder().cookieJar(cookieJar).build()
 }

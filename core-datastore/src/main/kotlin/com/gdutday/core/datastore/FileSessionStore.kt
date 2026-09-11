@@ -4,10 +4,10 @@ import android.content.Context
 import com.gdutday.core.model.Campus
 import com.gdutday.core.model.StudentProfile
 import com.gdutday.core.model.UserType
-import com.gdutday.data.gdut.GdutHosts
-import com.gdutday.data.gdut.http.StoredCookie
-import com.gdutday.data.gdut.session.GdutSession
-import com.gdutday.data.gdut.session.LoginMethod
+import com.gdutday.core.model.GdutHosts
+import com.gdutday.core.model.StoredCookie
+import com.gdutday.core.model.GdutSession
+import com.gdutday.core.model.LoginMethod
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

@@ -30,7 +30,7 @@ kotlin {
 }
 
 dependencies {
-    api(project(":data-gdut"))          // SessionCookieJar / StoredCookie 在这里
+    api(project(":core-model"))
     api(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)

@@ -1,5 +1,6 @@
 package com.gdutday.data.gdut.http
 
+import com.gdutday.core.model.StoredCookie
 import com.google.common.truth.Truth.assertThat
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -94,5 +95,28 @@ class SessionCookieJarTest {
         )
 
         assertThat(jar.size).isEqualTo(2)
+    }
+
+    @Test
+    fun `restore 后同名不同 Path 的 cookie 并存，且请求头不出现重复键`() {
+        // M10 行为钉住：keyOf = name|domain|path，OkHttp 允许同 name+domain 不同 path
+        // 的 cookie 并存。restore 含两把同名 cookie 的快照后，对同一 URL 两者都可能命中
+        // —— 这里钉住"Cookie 请求头里同名键只出现一份"的底线；
+        // 若未来改为合并/覆盖语义，应更新此测试并同步文档。
+        val jar = SessionCookieJar()
+        jar.saveFromResponse(
+            "https://$authHost/".toHttpUrl(),
+            listOf(cookie("/authserver", "first"), cookie("/", "second")),
+        )
+        val restored = SessionCookieJar(jar.snapshot())
+        assertThat(restored.size).isEqualTo(2)
+
+        val url = "https://$authHost/authserver/login".toHttpUrl()
+        val header = restored.cookieHeaderValue(url)
+        val names = header.split("; ").map { it.substringBefore('=') }
+        // 请求头不允许同名键重复出现
+        assertThat(names).containsNoDuplicates()
+        // 两把 cookie 都还在 store 里，只是同一请求只发一份
+        assertThat(restored.loadForRequest(url).map { it.name }.distinct()).hasSize(1)
     }
 }

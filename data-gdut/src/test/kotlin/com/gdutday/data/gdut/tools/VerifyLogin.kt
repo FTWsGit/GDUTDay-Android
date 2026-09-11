@@ -65,9 +65,24 @@ public object VerifyLogin {
 
     private val SECTION = "=".repeat(72)
 
-    // 验证工具专用：跳过 gdut.edu.cn 相关域名的证书验证，解决 PKIX path building failed
-    private fun createUnsafeOkHttpClient(): OkHttpClient {
-        // 信任所有证书的 TrustManager
+    // 默认走系统信任链；仅当显式设置 GDUT_VERIFY_INSECURE=1 时才信任所有证书
+    //（解决个别环境的 PKIX path building failed）。trust-all 会打开 MITM 窗口，
+    // 而本工具要发送真实账号密码，绝不能默认开启。
+    private fun createOkHttpClient(): OkHttpClient {
+        val builder = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+
+        if (System.getenv("GDUT_VERIFY_INSECURE") == "1") {
+            println("⚠️  警告：GDUT_VERIFY_INSECURE=1，TLS 证书验证已禁用，存在 MITM 风险！")
+            builder.applyTrustAll()
+        }
+        return builder.build()
+    }
+
+    /** 信任所有证书 + 任意主机名。仅限显式 opt-in（见 [createOkHttpClient]）。 */
+    private fun OkHttpClient.Builder.applyTrustAll() {
         val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
             override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
             override fun checkClientTrusted(chain: Array<out X509Certificate>, authType: String) {}
@@ -84,18 +99,8 @@ public object VerifyLogin {
             throw RuntimeException(e)
         }
 
-        val sslSocketFactory = sslContext.socketFactory
-
-        // 接受任何主机名的 HostnameVerifier
-        val hostnameVerifier = HostnameVerifier { _: String, _: SSLSession -> true }
-
-        return OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .sslSocketFactory(sslSocketFactory, trustAllCerts[0] as X509TrustManager)
-            .hostnameVerifier(hostnameVerifier)
-            .build()
+        sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+        hostnameVerifier(HostnameVerifier { _: String, _: SSLSession -> true })
     }
 
     @JvmStatic
@@ -426,7 +431,7 @@ public object VerifyLogin {
         }
     }
 
-    private fun buildHttpClient(): OkHttpClient = createUnsafeOkHttpClient().newBuilder()
+    private fun buildHttpClient(): OkHttpClient = createOkHttpClient().newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .callTimeout(90, TimeUnit.SECONDS)

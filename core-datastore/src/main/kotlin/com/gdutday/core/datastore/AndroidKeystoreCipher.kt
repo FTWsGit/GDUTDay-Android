@@ -76,6 +76,11 @@ public open class AesGcmCipher(
         return try {
             doEncrypt(key, plaintext)
         } catch (first: Exception) {
+            // 只对"坏密钥"类异常重建重试；OOM 等瞬时故障（RuntimeException 而非安全异常）
+            // 必须原样抛出——把瞬时故障放大成"删钥重建"会永久丢失用户登录态。
+            if (first !is java.security.GeneralSecurityException && first !is ProviderException) {
+                throw first
+            }
             // 可能是坏密钥：删除重建重试一次。
             try {
                 keys.deleteKey()

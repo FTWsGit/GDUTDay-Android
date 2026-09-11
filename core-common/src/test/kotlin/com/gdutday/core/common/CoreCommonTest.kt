@@ -315,22 +315,22 @@ class SectionRunSplitterTest {
 class CampusTimetableTest {
 
     @Test
-    fun `四个校区加 UNKNOWN 都能取到作息表，且都是 12 节`() {
+    fun `四个校区加 UNKNOWN 都能取到作息表，且都是 14 节`() {
         for (campus in Campus.entries) {
             val t = CampusTimetable.of(campus)
-            assertThat(t.size).isEqualTo(12)
-            assertThat(t.periods.map { it.index }).containsExactlyElementsIn(1..12).inOrder()
+            assertThat(t.size).isEqualTo(14)
+            assertThat(t.periods.map { it.index }).containsExactlyElementsIn(1..14).inOrder()
         }
     }
 
     @Test
-    fun `大学城第 1 节 8-30 起，末节 20-55 止`() {
+    fun `大学城第 1 节 8-30 起，第 12 节 20-55 止、第 14 节 22-35 止`() {
         val t = CampusTimetable.of(Campus.UNIVERSITY_CITY)
         assertThat(t.periodOf(1).start).isEqualTo(LocalTime.of(8, 30))
         assertThat(t.periodOf(1).end).isEqualTo(LocalTime.of(9, 15))
         assertThat(t.periodOf(12).end).isEqualTo(LocalTime.of(20, 55))
         assertThat(t.firstPeriodStart).isEqualTo(LocalTime.of(8, 30))
-        assertThat(t.lastPeriodEnd).isEqualTo(LocalTime.of(20, 55))
+        assertThat(t.lastPeriodEnd).isEqualTo(LocalTime.of(22, 35))   // 13/14 节为实验课
     }
 
     @Test
@@ -363,12 +363,20 @@ class CampusTimetableTest {
     }
 
     @Test
-    fun `节次越界时钳制而不抛异常`() {
-        // 教务系统偶尔会给出第 13 节（某些实验课），课表页不该因此整页崩溃
+    fun `13 14 节使用内置时刻，15 节以后显式降级而不抛异常`() {
+        // 教务 jcdm 会出现 13/14 节（实验课），内置表已补齐这两节
         val t = CampusTimetable.of(Campus.UNIVERSITY_CITY)
+        assertThat(t.periodOf(13).start).isEqualTo(LocalTime.of(21, 0))
+        assertThat(t.periodOf(14).end).isEqualTo(LocalTime.of(22, 35))
+        // 非正数钳制到第 1 节
         assertThat(t.periodOf(0)).isEqualTo(t.periodOf(1))
-        assertThat(t.periodOf(13)).isEqualTo(t.periodOf(12))
-        assertThat(t.periodOf(99)).isEqualTo(t.periodOf(12))
+        // 超出内置范围的节次：接在最后一节之后、固定 45 分钟
+        val extra = t.periodOf(15)
+        assertThat(extra.start).isEqualTo(t.lastPeriodEnd)
+        assertThat(extra.durationMinutes).isEqualTo(45)
+        // 降级节次的时刻都一样（只有 index 不同）
+        assertThat(t.periodOf(99).start).isEqualTo(t.lastPeriodEnd)
+        assertThat(t.periodOf(99).end).isEqualTo(t.periodOf(98).end)
     }
 
     @Test
@@ -392,7 +400,7 @@ class CampusTimetableTest {
     }
 
     @Test
-    fun `自定义作息表能覆盖默认值`() {
+    fun `自定义作息表能覆盖默认值，旧版 24 项也能接受`() {
         val raw = (1..12).flatMap { i ->
             listOf("%02d:00".format(i + 7), "%02d:50".format(i + 7))
         }
@@ -400,11 +408,14 @@ class CampusTimetableTest {
         assertThat(custom).isNotNull()
         assertThat(custom!!.periodOf(1).start).isEqualTo(LocalTime.of(8, 0))
         assertThat(custom.periodOf(1).end).isEqualTo(LocalTime.of(8, 50))
+        // 旧版 12 节（24 项）：13/14 节回退校区默认值，而不是整体拒绝
+        assertThat(custom.size).isEqualTo(14)
+        assertThat(custom.periodOf(13)).isEqualTo(CampusTimetable.of(Campus.UNIVERSITY_CITY).periodOf(13))
     }
 
     @Test
     fun `自定义作息表有一处输错时整体拒绝，而不是半对半错`() {
-        val good = (1..12).flatMap { listOf("08:00", "08:45") }
+        val good = (1..14).flatMap { listOf("08:00", "08:45") }
         assertThat(CampusTimetable.parseCustom(Campus.PANYU, good)).isNotNull()
         // 长度不对
         assertThat(CampusTimetable.parseCustom(Campus.PANYU, good.take(10))).isNull()
@@ -756,10 +767,10 @@ class ScheduleGridBuilderTest {
 
     @Test
     fun `verticalRange 覆盖作息表与实际色块的并集`() {
-        // 空网格 = 作息表首尾
+        // 空网格 = 作息表首尾（末节现为 14 节 22:35）
         val empty = builder.buildWeek(emptyList(), week = 2, now = nowInWeek2)
         assertThat(empty.verticalRange.first).isEqualTo(8 * 60 + 30)
-        assertThat(empty.verticalRange.last).isEqualTo(20 * 60 + 55)
+        assertThat(empty.verticalRange.last).isEqualTo(22 * 60 + 35)
 
         // 有一门晚于末节的自定义课 → 下界被撑大
         val late = course("社团活动", 1, 12, 1, source = CourseSource.CUSTOM)

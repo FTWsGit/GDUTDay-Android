@@ -157,8 +157,8 @@ public data class Course(
         /** 支持的最大周次。旧小程序硬编码 20，研究生接口按 21 周建表，这里放宽到 25。 */
         public const val MAX_WEEK: Int = 25
 
-        /** 每天最大节次。 */
-        public const val MAX_SECTION: Int = 12
+        /** 每天最大节次。与 [com.gdutday.core.common.SectionRunSplitter.MAX_SECTION] 对齐（13/14 节为实验课）。 */
+        public const val MAX_SECTION: Int = 14
 
         /**
          * [parseWeeks] 的白名单过滤器：匹配所有**不该保留**的字符。

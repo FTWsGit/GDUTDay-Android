@@ -50,18 +50,21 @@ public class CampusTimetable private constructor(
     public val campus: Campus,
     public val periods: List<Period>,
 ) {
-    /** 节数，恒为 12。 */
+    /** 节数，恒为 [Companion.SECTIONS_PER_DAY]（14）。 */
     public val size: Int get() = periods.size
 
     /**
      * 取第 [section] 节（1-based）。
      *
-     * 越界时**不抛异常**，而是钳制到首/末节 —— 教务系统偶尔会给出第 13 节
-     * （某些实验课），课表页面不应该因此整页崩溃。
+     * 超出内置范围的节次（第 15 节以后的实验课、或 ≤0 的脏数据）**不抛异常**：
+     * 正数节次显式降级为"接在最后一节之后、固定 45 分钟"的合成节次；
+     * 非正数钳制到第 1 节。课表页面不应该因一个越界节次整页崩溃。
      */
     public fun periodOf(section: Int): Period {
-        val idx = section.coerceIn(1, size) - 1
-        return periods[idx]
+        if (section in 1..size) return periods[section - 1]
+        if (section <= 0) return periods.first()
+        val start = periods.last().end
+        return Period(section, start, start.plusMinutes(45))
     }
 
     /** 一段连续节次的开始时刻。 */
@@ -85,8 +88,11 @@ public class CampusTimetable private constructor(
 
     public companion object {
 
-        /** 每天节数。旧小程序在多处硬编码 `v-for="(item,index) in 12"`。 */
-        public const val SECTIONS_PER_DAY: Int = 12
+        /**
+         * 每天节数。教务 `jcdm` 会出现 13/14 节（实验课），
+         * 必须与 [com.gdutday.core.common.SectionRunSplitter.MAX_SECTION] 一致。
+         */
+        public const val SECTIONS_PER_DAY: Int = 14
 
         private fun t(h: Int, m: Int): LocalTime = LocalTime.of(h, m)
 
@@ -103,6 +109,10 @@ public class CampusTimetable private constructor(
             t(18, 30) to t(19, 15),
             t(19, 20) to t(20, 5),
             t(20, 10) to t(20, 55),
+            // 第 13/14 节（实验课）：原始数据没有这两节，按教务常见晚课时间补齐，
+            // 供 `jcdm` 出现 13/14 时渲染对齐；用户可在设置里自定义覆盖。
+            t(21, 0) to t(21, 45),
+            t(21, 50) to t(22, 35),
         )
 
         // 东风路与龙洞的作息完全一致（原数据里两份是逐字相同的拷贝）。
@@ -119,6 +129,10 @@ public class CampusTimetable private constructor(
             t(18, 30) to t(19, 15),
             t(19, 20) to t(20, 5),
             t(20, 10) to t(20, 55),
+            // 第 13/14 节（实验课）：原始数据没有这两节，按教务常见晚课时间补齐，
+            // 供 `jcdm` 出现 13/14 时渲染对齐；用户可在设置里自定义覆盖。
+            t(21, 0) to t(21, 45),
+            t(21, 50) to t(22, 35),
         )
 
         private val PANYU = listOf(
@@ -135,6 +149,9 @@ public class CampusTimetable private constructor(
             t(19, 30) to t(21, 30),
             t(19, 30) to t(21, 30),
             t(19, 30) to t(21, 30),
+            // 第 13/14 节：同上，仅为让 `jcdm` 出现 13/14 时不至于渲染错位。
+            t(21, 35) to t(22, 20),
+            t(22, 25) to t(23, 10),
         )
 
         private val cache: Map<Campus, CampusTimetable> = buildMap {
@@ -161,14 +178,22 @@ public class CampusTimetable private constructor(
             cache.getValue(campus)
 
         /**
-         * 用户自定义作息表。设置里存 24 个 `HH:mm` 字符串（12 节的起止），
+         * 用户自定义作息表。设置里存 `HH:mm` 字符串对（每节起止），
          * 解析失败的位置回退到该校区默认值，**不让一处输错毁掉整张表**。
          *
-         * @param raw 形如 `["08:30","09:15","09:20","10:05", …]`，长度必须为 24。
+         * @param raw 形如 `["08:30","09:15","09:20","10:05", …]`。
+         *   长度接受 28（14 节，当前标准）或 24（旧版 12 节，
+         *   缺失的 13/14 节回退该校区默认值），其余长度返回 null。
          */
         public fun parseCustom(campus: Campus, raw: List<String>?): CampusTimetable? {
-            if (raw == null || raw.size != SECTIONS_PER_DAY * 2) return null
-            val times = raw.map { runCatching { LocalTime.parse(it.trim()) }.getOrNull() }
+            if (raw == null) return null
+            // 旧版数据只有 12 节（24 项）：缺失的 13/14 节用校区默认值补齐，保持向后兼容。
+            val padded = when (raw.size) {
+                SECTIONS_PER_DAY * 2 -> raw
+                24 -> raw + defaultsOf(campus).drop(12).flatMap { (s, e) -> listOf(s.toString(), e.toString()) }
+                else -> return null
+            }
+            val times = padded.map { runCatching { LocalTime.parse(it.trim()) }.getOrNull() }
             if (times.any { it == null }) return null
             val ranges = (0 until SECTIONS_PER_DAY).map { i ->
                 @Suppress("UNNECESSARY_NOT_NULL_ASSERTION")
@@ -177,6 +202,13 @@ public class CampusTimetable private constructor(
             // 起止倒挂的节次视为无效输入
             if (ranges.any { (s, e) -> e <= s }) return null
             return of(campus, ranges)
+        }
+
+        /** 某校区内置作息表（起止对），供 [parseCustom] 的旧版数据补齐使用。 */
+        private fun defaultsOf(campus: Campus): List<Pair<LocalTime, LocalTime>> = when (campus) {
+            Campus.DONGFENG_ROAD, Campus.LONGDONG -> DONGFENG_ROAD
+            Campus.PANYU -> PANYU
+            Campus.UNIVERSITY_CITY, Campus.UNKNOWN -> UNIVERSITY_CITY
         }
     }
 }
