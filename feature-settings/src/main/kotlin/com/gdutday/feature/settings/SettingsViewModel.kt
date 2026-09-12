@@ -245,6 +245,13 @@ public class SettingsViewModel(
         }
     }
 
+    // ---------------------------------------------------------------- 工具
+
+    /** 保存图书馆二维码学号。存储层会过滤非数字字符。 */
+    public fun setLibraryQrStudentId(studentId: String) {
+        viewModelScope.launch { settingsStore.setLibraryQrStudentId(studentId) }
+    }
+
     // ---------------------------------------------------------------- 隐私
 
     /** 关闭"记住密码"时必须真的擦除本机凭据，不能只是改个开关。 */

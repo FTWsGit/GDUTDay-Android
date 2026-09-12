@@ -124,6 +124,7 @@ internal object SettingsKeys {
     const val FETCH_STRATEGY = "fetch_strategy"
     const val AUTO_SYNC_ON_LAUNCH = "auto_sync_on_launch"
     const val AUTO_SYNC_INTERVAL_HOURS = "auto_sync_interval_hours"
+    const val LIBRARY_QR_STUDENT_ID = "library_qr_student_id"
 }
 
 /**
@@ -163,6 +164,7 @@ internal object SettingsMapper {
             autoSyncOnLaunch = map.bool(SettingsKeys.AUTO_SYNC_ON_LAUNCH, defaults.autoSyncOnLaunch),
             autoSyncIntervalHours = map.int(SettingsKeys.AUTO_SYNC_INTERVAL_HOURS, defaults.autoSyncIntervalHours)
                 .coerceIn(0, MAX_SYNC_INTERVAL_HOURS),
+            libraryQrStudentId = map[SettingsKeys.LIBRARY_QR_STUDENT_ID] as? String ?: defaults.libraryQrStudentId,
         )
     }
 
@@ -184,6 +186,7 @@ internal object SettingsMapper {
         map[SettingsKeys.FETCH_STRATEGY] = settings.fetchStrategy.name
         map[SettingsKeys.AUTO_SYNC_ON_LAUNCH] = settings.autoSyncOnLaunch
         map[SettingsKeys.AUTO_SYNC_INTERVAL_HOURS] = settings.autoSyncIntervalHours
+        putOrRemove(map, SettingsKeys.LIBRARY_QR_STUDENT_ID, settings.libraryQrStudentId.takeIf { it.isNotBlank() })
     }
 
     private fun putOrRemove(map: MutableMap<String, Any?>, key: String, value: String?) {

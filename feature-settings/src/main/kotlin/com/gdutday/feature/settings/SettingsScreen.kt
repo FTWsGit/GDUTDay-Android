@@ -30,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -369,6 +370,20 @@ fun SettingsScreen(
                     RememberPasswordRow(
                         credentials = credentials,
                         onClear = viewModel::clearRememberedPassword,
+                    )
+                }
+            }
+
+            // ---------------------------------------------------------- 工具
+            item(key = "section_tools") {
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_section_tools),
+                    expanded = "tools" in expandedSections,
+                    onToggle = { toggleSection("tools") },
+                ) {
+                    LibraryQrStudentIdRow(
+                        value = settings.libraryQrStudentId,
+                        onValueChange = viewModel::setLibraryQrStudentId,
                     )
                 }
             }
@@ -844,6 +859,29 @@ private fun RememberPasswordRow(credentials: StoredCredentials?, onClear: () -> 
             )
         }
     }
+}
+
+/**
+ * "图书馆二维码学号"输入框。
+ *
+ * 即时保存：每次输入都直接落盘，由 [SettingsViewModel] 去抖/过滤
+ * （存储层会过滤非数字字符）。已打开的二维码不会实时刷新，下次打开生效。
+ */
+@Composable
+private fun LibraryQrStudentIdRow(
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(stringResource(R.string.settings_library_qr_student_id)) },
+        supportingText = { Text(stringResource(R.string.settings_library_qr_student_id_hint)) },
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    )
 }
 
 /**

@@ -171,4 +171,34 @@ class DataStoreSettingsStoreTest {
         assertThat(result.selectedTerm).isNull()
         assertThat(result.backgroundImageUri).isNull()
     }
+
+    @Test
+    fun `setLibraryQrStudentId 写入并读取`() = runBlocking {
+        val store = DataStoreSettingsStore(FakeSettingsBackend())
+
+        store.setLibraryQrStudentId("3120001234")
+
+        assertThat(store.settings.first().libraryQrStudentId).isEqualTo("3120001234")
+    }
+
+    @Test
+    fun `setLibraryQrStudentId 过滤非数字字符`() = runBlocking {
+        val store = DataStoreSettingsStore(FakeSettingsBackend())
+
+        store.setLibraryQrStudentId("31a2b0c0x9")
+
+        assertThat(store.settings.first().libraryQrStudentId).isEqualTo("312009")
+    }
+
+    @Test
+    fun `setLibraryQrStudentId 空字符串删除键`() = runBlocking {
+        val store = DataStoreSettingsStore(FakeSettingsBackend())
+        store.setLibraryQrStudentId("3120001234")
+        assertThat(store.settings.first().libraryQrStudentId).isEqualTo("3120001234")
+
+        store.setLibraryQrStudentId("")
+
+        // 键被删除后读回默认值（空字符串）
+        assertThat(store.settings.first().libraryQrStudentId).isEmpty()
+    }
 }

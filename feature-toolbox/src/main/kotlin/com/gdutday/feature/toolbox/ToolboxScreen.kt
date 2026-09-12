@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogWindowProvider
 import com.gdutday.data.repository.AppContainer
+import kotlinx.coroutines.flow.first
 
 /**
  * 工具箱页。
@@ -144,7 +145,8 @@ private fun LibraryQrDialog(
 ) {
     val qrState by produceState<QrState>(initialValue = QrState.Loading) {
         value = try {
-            val pixels = container.libraryRepository.renderEntryQr(sizePx = 480)
+            val customId = container.settingsStore.settings.first().libraryQrStudentId
+            val pixels = container.libraryRepository.renderEntryQr(sizePx = 480, studentId = customId)
             if (pixels != null) {
                 val bitmap = Bitmap.createBitmap(pixels, 480, 480, Bitmap.Config.ARGB_8888)
                 QrState.Success(bitmap.asImageBitmap())

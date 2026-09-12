@@ -1,8 +1,10 @@
 package com.gdutday.data.repository
 
 import com.gdutday.core.datastore.SessionStore
+import com.gdutday.core.datastore.SettingsStore
 import com.gdutday.data.gdut.library.LibraryQr
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
@@ -15,6 +17,7 @@ import kotlinx.coroutines.withContext
  */
 public class LibraryRepositoryImpl(
     private val sessionStore: SessionStore,
+    private val settingsStore: SettingsStore,
 ) : LibraryRepository {
 
     /**
@@ -34,9 +37,16 @@ public class LibraryRepositoryImpl(
         LibraryQr.moduleCount(studentId)
     }
 
-    override suspend fun renderEntryQr(sizePx: Int): IntArray? = withContext(Dispatchers.Default) {
-        val studentId = sessionStore.current()?.studentId?.takeIf { it.isNotBlank() }
-            ?: return@withContext null
-        LibraryQr.renderArgb(content = studentId, width = sizePx, height = sizePx)
-    }
+    /**
+     * 学号来源优先级：显式传入 > 设置中的自定义学号 > 当前登录会话。
+     * 都拿不到（未设置且未登录）时返回 null，由 UI 显示引导提示。
+     */
+    override suspend fun renderEntryQr(sizePx: Int, studentId: String?): IntArray? =
+        withContext(Dispatchers.Default) {
+            val effectiveId = studentId?.takeIf { it.isNotBlank() }
+                ?: settingsStore.settings.first().libraryQrStudentId.takeIf { it.isNotBlank() }
+                ?: sessionStore.current()?.studentId?.takeIf { it.isNotBlank() }
+                ?: return@withContext null
+            LibraryQr.renderArgb(content = effectiveId, width = sizePx, height = sizePx)
+        }
 }

@@ -82,6 +82,11 @@
     <string name="settings_remember_password_off">未记住；如需会话过期后自动重登，请在登录页勾选</string>
     <string name="settings_remember_password_risk">密码用系统密钥加密后存在本机，仅用于会话过期时自动重登。关闭此开关会立即擦除。</string>
 
+    <!-- 工具 -->
+    <string name="settings_section_tools">工具</string>
+    <string name="settings_library_qr_student_id">图书馆二维码学号</string>
+    <string name="settings_library_qr_student_id_hint">留空则使用当前登录用户的学号</string>
+
     <!-- 关于 / 诊断 -->
     <string name="settings_section_about">关于</string>
     <string name="settings_version">版本号</string>

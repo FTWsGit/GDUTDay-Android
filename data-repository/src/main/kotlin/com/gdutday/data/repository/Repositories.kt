@@ -242,10 +242,12 @@ public interface LibraryRepository {
      * 生成入馆二维码的 ARGB 像素数组。
      *
      * @param sizePx 边长（像素）。闸机扫码对分辨率不敏感，256~512 都够用。
+     * @param studentId 自定义学号；null 或空白时回退到设置中的
+     *   `libraryQrStudentId`，仍为空再回退到当前登录用户的学号。
      * @return `IntArray(sizePx * sizePx)`，可直接喂给 `Bitmap.createBitmap`。
-     *   未登录时返回 null。
+     *   三个来源都拿不到学号时返回 null。
      */
-    public suspend fun renderEntryQr(sizePx: Int = 480): IntArray?
+    public suspend fun renderEntryQr(sizePx: Int = 480, studentId: String? = null): IntArray?
 
     /**
      * 二维码的模块数（不含静默区），UI 用来决定码点大小与留白。

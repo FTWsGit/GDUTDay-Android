@@ -145,7 +145,7 @@ public class DefaultAppContainer(
     }
 
     override val libraryRepository: LibraryRepository by lazy {
-        LibraryRepositoryImpl(sessionStore)
+        LibraryRepositoryImpl(sessionStore, settingsStore)
     }
 
     override val syncScheduler: SyncScheduler by lazy {

@@ -124,6 +124,11 @@ public data class UserSettings(
 
     /** 自动同步的最小间隔（小时）。防止用户反复重启 App 打爆教务系统。 */
     public val autoSyncIntervalHours: Int = 6,
+
+    // ---------------------------------------------------------------- 工具
+
+    /** 图书馆入馆二维码使用的学号。为空时回退到当前登录用户的学号。 */
+    public val libraryQrStudentId: String = "",
 ) {
 
     public companion object {
@@ -206,4 +211,13 @@ public interface SettingsStore {
     }
 
     public suspend fun setFetchStrategy(strategy: ScheduleFetchStrategy) = update { it.copy(fetchStrategy = strategy) }
+
+    /**
+     * 设置图书馆二维码学号。
+     *
+     * 虽然 issue 说"不需要格式校验"，但学号二维码内容应仅为数字；
+     * 这里只做过滤（丢掉非数字字符），不拒绝非数字输入。
+     */
+    public suspend fun setLibraryQrStudentId(studentId: String) =
+        update { it.copy(libraryQrStudentId = studentId.filter { c -> c.isDigit() }) }
 }
