@@ -24,6 +24,7 @@ credentials.local.properties
 
 # Agent Stuff
 temp/
+.atomcode/
 
 # CortexKit 工具生成的目录
 .cortexkit/
