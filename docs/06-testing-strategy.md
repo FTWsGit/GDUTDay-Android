@@ -231,6 +231,34 @@ private inner class Script(
 `GdutEndpoints` 每条常量都标注了**实测状态与来源**，判断"这条还能不能用"时先看它。
 `GdutHosts` 与 `GdutEndpoints` 的分工：前者是运行时配置、后者是协议文档兼默认值来源。
 
+### 7.1 故障排查案例：不是学校接口的问题
+
+**2026-09-12，「同步考试安排」按钮 100% 失败，错误只有一句"同步失败"。**
+
+排查结论：不是接口问题 —— `GradeViewModel.refreshExams()` 直接在
+`viewModelScope.launch`（主线程）里调 `ScheduleRepository.sync()`，
+而 sync 流程里的 OkHttp 是阻塞调用，抛 `NetworkOnMainThreadException`，
+message 为 null，被包装成没有信息量的 `GdutException.Local("同步失败", 类名)`。
+课表下拉刷新（WorkManager）与成绩同步（自己 `withContext(IO)`）都在后台线程，
+所以只有这一个按钮挂。
+
+**教训与排查路径**（按这个顺序走能省很多弯路）：
+
+1. **先分清"全挂还是单入口挂"**：其它同步入口正常时，几乎可以排除
+   接口改版 / TLS / 风控 / 服务端故障 —— 这些会让所有入口一起挂；
+2. **看"设置 → 诊断信息"的 lastError**：release 包没有 HTTP 日志
+   （`logHttp=false`），`sync_state.last_error` 是唯一落盘的错误现场；
+3. **报错文案越笼统，越要怀疑计划外异常**：`GdutException` 家族都有具体的
+   `userMessage`，只有走到 `catch (e: Exception)` 兜底分支才只剩"同步失败"；
+4. **Repository 入口自己切 `withContext(Dispatchers.IO)`**，
+   不指望每个调用方（尤其 `viewModelScope` 默认主线程）记得切 ——
+   阻塞式 OkHttp 是项目刻意的线程模型（见 00 文档 5.6），切线程责任必须收口。
+
+设备侧取证备注：release 包 `run-as` 不可用（非 debuggable）、无线 adb 无
+`INJECT_EVENTS` 权限（`input tap` 被拒）、logcat 无 App 自身日志 ——
+让用户读诊断页是唯一低成本通道；要拿 logcat 现场需装 debug 包
+（`applicationIdSuffix=".debug"`，可与 release 并存，不覆盖用户数据）。
+
 ---
 
 ## 8. 写测试的约定
