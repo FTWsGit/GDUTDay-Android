@@ -7,6 +7,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.gdutday.core.model.GdutException
 import com.gdutday.core.model.Exam
+import com.gdutday.core.model.Grade
+import com.gdutday.core.model.TermGradeSummary
 import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.AuthRepository
 import com.gdutday.data.repository.GradeRepository
@@ -44,9 +46,19 @@ public class GradeViewModel(
         gradeRepository.observeSummaries()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** 可选学期名，按时间倒序。 */
+    /** 可选学期名（首项为"全部" Tab），按时间倒序。 */
     public val termNames: StateFlow<List<String>> = gradeRepository.observeTermNames()
+        .map { listOf("全部") + it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 全部学期的所有成绩，用于"全部" Tab 列表展示。 */
+    public val allGrades: StateFlow<List<Grade>> = gradeRepository.observeGrades()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** "全部学期"总览汇总（累计加权绩点 / 总学分 / 挂科数）。 */
+    public val overallSummary: StateFlow<TermGradeSummary?> = allGrades
+        .map { GradeLogic.overallSummary(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
      * 全部考试安排（跨学期，按日期升序）。

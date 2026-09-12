@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -29,8 +28,8 @@ import androidx.compose.ui.unit.sp
  *
  * - 坐标轴（左 + 下）；
  * - 数据点、连线、每点的数值标签；
- * - 横轴学期标签，**旋转 -35°** 避免相邻文字重叠；
- *   数据点较多时只标注首、尾与中间点，进一步降低密度。
+ * - 横轴学期标签**水平绘制**，居中对齐数据点；
+ *   数据点较多时只标注首、尾与中间点，降低密度。
  *
  * [points] 为空时什么都不画（调用方负责显示空状态）。
  */
@@ -61,10 +60,10 @@ public fun GpaTrendChart(
             .fillMaxWidth()
             .height(210.dp),
     ) {
-        val leftPad = 34.dp.toPx()
+        val leftPad = 46.dp.toPx()
         val rightPad = 16.dp.toPx()
         val topPad = 22.dp.toPx()
-        val bottomPad = 52.dp.toPx()
+        val bottomPad = 40.dp.toPx()
         val plotWidth = (size.width - leftPad - rightPad).coerceAtLeast(1f)
         val plotHeight = (size.height - topPad - bottomPad).coerceAtLeast(1f)
 
@@ -114,7 +113,11 @@ public fun GpaTrendChart(
             val valueY = (y - valueLayout.size.height - 4.dp.toPx()).coerceAtLeast(0f)
             drawText(
                 textLayoutResult = valueLayout,
-                topLeft = Offset(x - valueLayout.size.width / 2f, valueY),
+                topLeft = Offset(
+                    // 左侧数值标签避免越出画布左边界、被 Y 轴遮挡
+                    (x - valueLayout.size.width / 2f).coerceAtLeast(leftPad),
+                    valueY,
+                ),
             )
 
             if (i in labelledIndices) {
@@ -122,12 +125,14 @@ public fun GpaTrendChart(
                     text = GradeLogic.shortTermLabel(p.termName),
                     style = TextStyle(fontSize = 9.sp, color = labelColor),
                 )
-                rotate(degrees = -35f, pivot = Offset(x, topPad + plotHeight)) {
-                    drawText(
-                        textLayoutResult = termLayout,
-                        topLeft = Offset(x, topPad + plotHeight + 6.dp.toPx()),
-                    )
-                }
+                // 水平绘制，居中对齐数据点
+                drawText(
+                    textLayoutResult = termLayout,
+                    topLeft = Offset(
+                        x - termLayout.size.width / 2f,
+                        topPad + plotHeight + 6.dp.toPx(),
+                    ),
+                )
             }
         }
     }

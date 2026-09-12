@@ -99,4 +99,88 @@ class GradeLogicTest {
     fun `学期短标签去掉冗余后缀`() {
         assertThat(GradeLogic.shortTermLabel("2024-2025学年第一学期")).isEqualTo("2024-2025第一")
     }
+
+    // ---------------------------------------------------------------- overallSummary
+
+    private fun gradeOf(
+        termName: String,
+        term: Term?,
+        courseName: String,
+        score: Double?,
+        scoreText: String,
+        gpa: Double? = null,
+        credit: Double? = null,
+    ) = Grade(
+        termName = termName,
+        term = term,
+        courseName = courseName,
+        scoreText = scoreText,
+        score = score,
+        gpa = gpa,
+        credit = credit,
+    )
+
+    @Test
+    fun `overallSummary 累计加权绩点正确`() {
+        val summary = GradeLogic.overallSummary(
+            listOf(
+                gradeOf("2024-2025学年第一学期", Term(2024, 1), "高等数学", 90.0, "90", gpa = 4.0, credit = 3.0),
+                gradeOf("2025-2026学年第一学期", Term(2025, 1), "大学英语", 80.0, "80", gpa = 3.0, credit = 2.0),
+            ),
+        )
+        // Σ(gpa×credit) / Σ(credit) = (4.0×3 + 3.0×2) / (3 + 2) = 3.6
+        assertThat(summary.weightedGpa).isWithin(1e-9).of(3.6)
+    }
+
+    @Test
+    fun `overallSummary 排除等级制课程`() {
+        val summary = GradeLogic.overallSummary(
+            listOf(
+                gradeOf("2025-2026学年第一学期", Term(2025, 1), "体育", null, "优秀", gpa = null, credit = 1.0),
+                gradeOf("2025-2026学年第一学期", Term(2025, 1), "高等数学", 90.0, "90", gpa = 4.0, credit = 3.0),
+            ),
+        )
+        // 等级制课程不计入 GPA 分子/分母
+        assertThat(summary.weightedGpa).isWithin(1e-9).of(4.0)
+    }
+
+    @Test
+    fun `overallSummary 挂科计入 failedCount 但不计入学分`() {
+        val summary = GradeLogic.overallSummary(
+            listOf(
+                gradeOf("2025-2026学年第一学期", Term(2025, 1), "大学物理", 55.0, "55", gpa = 0.0, credit = 4.0),
+                gradeOf("2025-2026学年第一学期", Term(2025, 1), "高等数学", 90.0, "90", gpa = 4.0, credit = 3.0),
+            ),
+        )
+        assertThat(summary.failedCount).isEqualTo(1)
+        // 挂科课程学分不计入总学分
+        assertThat(summary.totalCredit).isWithin(1e-9).of(3.0)
+        // 但挂科（绩点 0）计入加权绩点
+        assertThat(summary.weightedGpa).isWithin(1e-9).of((0.0 * 4.0 + 4.0 * 3.0) / 7.0)
+    }
+
+    @Test
+    fun `overallSummary 空列表返回 null GPA`() {
+        val summary = GradeLogic.overallSummary(emptyList())
+        assertThat(summary.weightedGpa).isNull()
+        assertThat(summary.totalCredit).isWithin(1e-9).of(0.0)
+        assertThat(summary.failedCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `overallSummary 排序为学期倒序加课程名升序`() {
+        val summary = GradeLogic.overallSummary(
+            listOf(
+                gradeOf("2024-2025学年第一学期", Term(2024, 1), "大学英语", 85.0, "85", gpa = 3.5, credit = 2.0),
+                gradeOf("2025-2026学年第一学期", Term(2025, 1), "高等数学", 90.0, "90", gpa = 4.0, credit = 3.0),
+                gradeOf("2025-2026学年第一学期", Term(2025, 1), "大学物理", 80.0, "80", gpa = 3.0, credit = 4.0),
+            ),
+        )
+        assertThat(summary.grades.map { it.courseName }).containsExactly(
+            "大学物理",
+            "高等数学",
+            "大学英语",
+        ).inOrder()
+        assertThat(summary.termName).isEqualTo("全部")
+    }
 }

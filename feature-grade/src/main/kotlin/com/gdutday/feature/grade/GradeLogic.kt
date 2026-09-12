@@ -77,4 +77,20 @@ public object GradeLogic {
     /** 横轴学期短标签：`2024-2025学年第一学期` → `2024-2025第一`。 */
     public fun shortTermLabel(termName: String): String =
         termName.replace("学年", "").replace("学期", "").ifBlank { termName }
+
+    /**
+     * "全部学期"总览：把所有学期成绩合并成一个 [TermGradeSummary]。
+     *
+     * `weightedGpa` / `totalCredit` / `failedCount` 由 [TermGradeSummary] 的既有计算属性给出，
+     * 天然排除 `countsTowardsGpa == false` 的课程，总学分只统计已通过课程。
+     *
+     * 排序规则：`term` 倒序（最新学期在前），同学期按课程名升序。
+     */
+    public fun overallSummary(grades: List<Grade>): TermGradeSummary {
+        val sorted = grades.sortedWith(
+            compareByDescending<Grade> { it.term }
+                .thenBy { it.courseName }
+        )
+        return TermGradeSummary(termName = "全部", grades = sorted)
+    }
 }

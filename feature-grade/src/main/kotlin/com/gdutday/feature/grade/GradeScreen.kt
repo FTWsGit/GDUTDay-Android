@@ -84,6 +84,7 @@ fun GradeScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val lastSync by viewModel.lastSync.collectAsStateWithLifecycle()
     val selectedTerm by viewModel.selectedTermName.collectAsStateWithLifecycle()
+    val overallSummary by viewModel.overallSummary.collectAsStateWithLifecycle()
     val syncing by viewModel.syncing.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
@@ -153,6 +154,7 @@ fun GradeScreen(
                             termNames = termNames,
                             selectedTerm = selectedTerm,
                             onSelectTerm = viewModel::selectTerm,
+                            overallSummary = overallSummary,
                             lastSync = lastSync,
                             onSync = viewModel::refresh,
                         )
@@ -303,6 +305,7 @@ private fun GradeSection(
     termNames: List<String>,
     selectedTerm: String?,
     onSelectTerm: (String?) -> Unit,
+    overallSummary: TermGradeSummary?,
     lastSync: SyncInfo?,
     onSync: () -> Unit,
 ) {
@@ -332,8 +335,12 @@ private fun GradeSection(
                     termNames.firstOrNull { name -> Term.parse(name) == latest }
                 }
                 ?: termNames.firstOrNull()
-            val summary = summaries.firstOrNull { it.termName == effectiveTerm }
-                ?: summaries.first()
+            // "全部" Tab 用跨学期总览；其它 Tab 取对应学期汇总。
+            val summary = when (effectiveTerm) {
+                "全部" -> overallSummary ?: summaries.first()
+                else -> summaries.firstOrNull { it.termName == effectiveTerm }
+                    ?: summaries.first()
+            }
             Column(Modifier.fillMaxSize()) {
                 ScrollableTabRow(
                     selectedTabIndex = termNames.indexOf(summary.termName).coerceAtLeast(0),
