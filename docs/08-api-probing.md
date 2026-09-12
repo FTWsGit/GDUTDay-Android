@@ -1,0 +1,210 @@
+# 08 · 教务接口探测手册
+
+> 本文回答两个问题:**教务系统上有什么可查的**,以及**拿到一个陌生接口后,
+> 怎么系统地摸清它的"形状"**(URL、方法、参数、Referer、响应结构)。
+>
+> 配套脚本:`scripts/gdut-login.sh`(登录取会话)、`scripts/gdut-post.sh`(带会话探测接口)。
+>
+> 相关文档:[协议全集](./01-gdut-protocol.md) · [登录验证工具](./07-verify-login.md) ·
+> [测试策略](./06-testing-strategy.md)
+
+---
+
+## 0. 认知框架:你在逆向的是什么
+
+学校没有提供任何官方 API。所谓"接口",就是**你用浏览器操作教务系统时,
+它自己发出的那些 HTTP 请求**。所以探测接口的根本手段只有两种:
+
+1. **正向观察** —— 让浏览器替你发一次请求,在 DevTools 里看它发了什么、收到了什么;
+2. **逆向理解** —— 读页面 JS 源码,搞清浏览器在发请求前后对数据做了什么加工(加密、拼参数)。
+
+逆向产出的每一个结论都要标记可信度,与 [01-gdut-protocol.md 第 6 节](./01-gdut-protocol.md)
+保持同一套三态标记:
+
+| 标记 | 含义 |
+|---|---|
+| **实测** | 你今天在真实服务器上请求/抓包确认过的 |
+| **推断** | 来自旧代码(F#/Java)或文档,可信但未复验 |
+| **未验证** | 无任何来源,需要真实账号或抓包确认 |
+
+**每完成一次探测,把升级后的结论写回 01-gdut-protocol.md 对应小节,并注明日期。**
+文档不更新,探测就白做了。
+
+---
+
+## 1. 教务系统有什么可查
+
+### 1.1 已实现并验证(截至 2026-09-12)
+
+| 功能 | 接口 | 方法 | 状态 |
+|---|---|---|---|
+| 学期列表 | `/xsksap!ksapList.action` | GET | 实测:44 个学期 + 当前学期 |
+| 课表(主) | `/xsgrkbcx!getDataList.action` | POST | 实测:130 行 / 24 门课,含 `pkrq` |
+| 课表(备) | `/xsgrkbcx!xsAllKbList.action` | GET | 推断(2022 F#),未复验是否存活 |
+| 考试安排 | `/xsksap!getDataList.action` | POST | 实测:202401 返回 5 场,21 个字段全确认 |
+| 成绩 | `/xskccjxx!getDataList.action` | POST | 实测:35 条,劳动教育 bug 已处理 |
+| 会话探针 | `/` | GET | 实测:未登录 302 回 authserver |
+
+字段级对照表见 [01-gdut-protocol.md 第 4 节](./01-gdut-protocol.md),不在这里重复。
+
+### 1.2 登录体系(authserver.gdut.edu.cn)
+
+- CAS 统一认证全流程 —— **实测**,见 01 文档第 1 节
+- 滑块验证码检测 `checkNeedCaptcha.htl` —— 实测正常账号返回 `{"isNeed":false}`;
+  **触发滑块时不可自动化**,走逃生通道(教务直登 + 人工输图形码)
+- 教务系统图形验证码直登 `/new/login` —— 实测存在,`pwd` 是否要加密**未验证**
+
+### 1.3 网页上有、但 App 还没实现的(扩展空间)
+
+以下接口**不在旧后端实现范围里**,文档没有记录,需要在浏览器里逐个探:
+
+- 空教室查询
+- 等级考试报名(四六级 / 计算机)
+- 教学评价(评教)
+- 培养方案 / 选课
+- 学籍卡片
+
+探明一个就在 01 文档补一节,并在 `data-gdut` 加解析器 + fixture,流程见第 4 节。
+
+---
+
+## 2. 工具箱:四层由浅入深
+
+### 2.1 浏览器 DevTools —— 80% 的工作在这里
+
+Chrome/Edge 打开教务系统并登录,按 F12:
+
+| 面板 | 用途 |
+|---|---|
+| **Network** | 每个请求的 URL、方法、请求头(尤其 Referer/Cookie)、请求体、**响应原文**。这就是"接口形状"的直接答案 |
+| **Elements** | HTML 结构 —— 表单隐藏域、数据藏在哪个节点 |
+| **Sources** | 页面 JS 源码,搞清"提交前对数据做了什么加工"(如密码加密) |
+
+关键操作:
+
+- 勾选 **Preserve log**(保留日志),302 跳转链才不会丢;
+- 点页面上目标功能(如"查成绩"),Network 里新出现的请求就是目标接口;
+- 右键该请求 → **Copy → Copy as cURL**,得到完整请求配方,可直接进终端重放。
+
+### 2.2 curl —— 复现与控制变量实验
+
+"Copy as cURL" 粘到 Git Bash 即可重放。接口探测大量是**控制变量**实验:
+
+```bash
+# 基线:原样重放,响应存文件(别刷一屏 HTML)
+curl -s 'https://jxfw.gdut.edu.cn/xsksap!getDataList.action' \
+  -H 'Cookie: JSESSIONID=...' \
+  -H 'Referer: https://jxfw.gdut.edu.cn/' \
+  --data 'xnxqdm=202401&page=1&rows=200' -o resp.json
+
+# 变体:换学期 / 去掉 Referer / 换 rows / 传错参数 —— 观察服务端反应
+```
+
+01 文档里"课表 A 必须带特定 Referer"、"`jcdm` 是两位拼接"这类结论,全是这么试出来的。
+
+### 2.3 读页面 JS —— 加密与提交逻辑的地面真相
+
+发现请求体被 JS 加工过(加密、拼参数)时:Sources 面板搜字段名 → 找到那段 JS → 读懂 →
+用 Kotlin/脚本复刻。项目已抓的地面真相在
+`data-gdut/src/test/resources/fixtures/*.real`(如 `authserver_encrypt.js.real`)。
+
+### 2.4 fixture + MockWebServer —— 把发现固化
+
+真实响应存成 `.real` 文件进 `data-gdut/src/test/resources/fixtures/`,测试离线回放。
+**存档前必须脱敏**:`xsxm`(姓名)、`xsbh`(学号)等个人信息换成假值;
+cookie/JSESSIONID 值绝不入库。
+
+---
+
+## 3. 端到端实战案例:查 2024 秋考试安排(2026-09-12)
+
+全程没用 Android 代码,纯 curl + openssl,五步:
+
+```
+① GET jxfw/new/ssoLogin ──302──▶ 登录页 HTML(cookie 已存 jar)
+② 从 HTML 抠三个值:pwdEncryptSalt / execution / service
+③ 本地 AES-128-CBC 加密密码:
+     data = random(64字符) + 明文密码,iv = random(16字符)
+     字符表必须用 encrypt.js 的 48 字符表(见 AuthServerCrypto.kt)
+     openssl enc -aes-128-cbc -K <salt的hex> -iv <iv的hex> -nosalt | base64
+④ POST 表单到 authserver(带 ?service=):
+     隐藏域原样 + username + password(密文) + rememberMe=true + execution
+     ⚠ 密文里的 + / = 必须百分号编码,否则服务端解密失败报"密码错误"
+     ⚠ 含一个 name 为空的字段,值是 salt(浏览器的真实行为)
+⑤ 302 回 jxfw 拿 ticket → 跟随拿到 JSESSIONID(jxfw)→ 会话可用
+```
+
+然后用会话查考试:
+
+```bash
+curl -b cookies.txt \
+  -H 'Referer: https://jxfw.gdut.edu.cn/xsksap!ksapList.action' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  --data 'xnxqdm=202401&page=1&rows=200&sort=zc,xq,jcdm2&order=asc' \
+  'https://jxfw.gdut.edu.cn/xsksap!getDataList.action'
+```
+
+返回 EasyUI DataGrid:`{"total":5,"rows":[...21 个字段...]}`。
+
+**这次的产出**:
+
+1. "考试接口全部字段"从**推断**升级为**实测**(见 01 文档 4.4 节);
+2. 真实响应存档 `temp/jxfw_exams_202401.real.json`(含个人信息,仅本地,不入库);
+3. 流程沉淀为脚本:`scripts/gdut-login.sh` + `scripts/gdut-post.sh`(见第 5 节)。
+
+容易踩的坑(全部是 01 文档"常见陷阱"的实测复现):
+
+- 表单体编码:Base64 密文的 `+` 不编码会变空格 → "密码错误";
+- `execution` 是一次性、会话绑定的:每次登录重新抓登录页,不能复用上次的;
+- 302 不要让 curl 自动跟(`-L` 只在第⑤步用):跳转链每一跳的语义不同;
+- 学期长码 `202401` vs 短码 `20241`,接口只认长码(见 01 文档 4.2)。
+
+---
+
+## 4. 新接口的标准工作流(检查清单)
+
+1. ☐ 浏览器登录,DevTools Network 触发目标功能,找到请求;
+2. ☐ Copy as cURL → 终端重放,确认拿到数据;
+3. ☐ 控制变量实验:参数含义、必选头(Referer!)、分页行为(rows/total);
+4. ☐ 响应有 JS 加工?读 Sources 源码,复刻算法;
+5. ☐ 结论写进 `docs/01-gdut-protocol.md`(标"实测 + 日期"),字段列成表;
+6. ☐ 真实响应脱敏后存 `fixtures/*.real`;
+7. ☐ `data-gdut` 写解析器(纯 JVM,绝不抛异常吞整表,丢弃记 `dropReasons`);
+8. ☐ MockWebServer 测试,方法名反引号中文,断言用 Truth;
+9. ☐ 跑 `:data-gdut:verifyLogin` 式端到端确认。
+
+---
+
+## 5. 配套脚本
+
+### `scripts/gdut-login.sh` —— 登录取会话
+
+```bash
+# 凭据从环境变量或根目录 secrets.properties(GDUT_STUDENT_ID/GDUT_PASSWORD)
+scripts/gdut-login.sh temp/session/        # 会话文件落在这里
+# 成功输出:
+#   OK jxfw_jessionid=xxxx(仅前 6 位)... cookies.txt 已就绪
+```
+
+产物:`cookies.txt`(curl 可直接 `-b`)、`login_page.html`(可复查表单结构)。
+
+### `scripts/gdut-post.sh` —— 带会话探测任意 jxfw 接口
+
+```bash
+# 考试安排(2024 秋)
+scripts/gdut-post.sh temp/session/cookies.txt 'xsksap!getDataList.action' \
+  'xnxqdm=202401&page=1&rows=200&sort=zc,xq,jcdm2&order=asc'
+
+# 课表(注意 Referer 参数——课表 A 必须带特定 Referer)
+scripts/gdut-post.sh temp/session/cookies.txt 'xsgrkbcx!getDataList.action' \
+  'xnxqdm=202601&zc=&page=1&rows=200&sort=kxh&order=asc' \
+  'https://jxfw.gdut.edu.cn/xsgrkbcx!getXsgrbkList.action'
+```
+
+响应直接打到 stdout,方便接 `jq`。会话失效(被 302 回登录页)时非零退出并提示重跑 login。
+
+### 安全约定(与 VerifyLogin 一致)
+
+1. 密码任何情况下不打印、不写文件;
+2. cookie 值不打印(只列名/域),`cookies.txt` 只存 `temp/`(已被 .gitignore 忽略);
+3. 用完 `rm -rf temp/session/` —— JSESSIONID 等同登录态。
