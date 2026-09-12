@@ -222,4 +222,5 @@ App 直连 `authserver.gdut.edu.cn` / `jxfw.gdut.edu.cn`，没有自己的服务
 11. **劳动教育 bug**：`xnxqdm=""` 查询时劳动教育成绩为空，需单独重查。
 12. **`app` 模块代码量应始终保持在几百行内** —— 一旦膨胀说明有东西放错地方了。
 
----
+## Temp管理
+- 一切临时的、不希望commit的调查文件、issues都可以放进temp/
