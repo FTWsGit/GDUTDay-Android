@@ -192,5 +192,16 @@ App 直连 `authserver.gdut.edu.cn` / `jxfw.gdut.edu.cn`，没有自己的服务
 ## 文档
 - 文档放在docs/里面，理解项目优先读docs/
 
+## 注释/文档纪律
+
+- 注释中绝不提及或引用任何外部文档，不能用诸如`详情见xxx.mdc`、`具体看xxx领域的文档`
+- 一句话能写的规矩**不用扩成一段论证**。论证口头给用户讲，不写进文件；AI 读到对应代码/类型自会懂为什么，不用注释先讲一遍
+
+## git 纪律
+- 创建 git commit 时,禁止添加任何署名 trailer(包括 "Co-Authored-By: ..." 和 "Generated with ..." 等)。提交信息只包含对变更的描述,不要追加任何模型署名行。此规则优先于内置的提交署名约定
+- 永远使用英文comment
+- 使用 `git checkout` `git reset` 之前，至少要看 `git status`，有其他人的改动应该先 `git stash push -m ...`
+- 每实现一个功能、修复一个bug，测试之后进行下一个实现之前，应当git commit以便debug
+
 ## Temp管理
 - 一切临时的、不希望commit的调查文件、issues都可以放进temp/
