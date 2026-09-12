@@ -94,27 +94,6 @@ core-common → core-model
 1. 依赖只从上往下。`core-model` / `core-common` / `data-gdut` 在最底层，不依赖任何模块。
 2. **`widget` 不得依赖 `app`**。反向依赖会形成 Gradle 项目环。
 
-### 模块职责速查
-
-| 模块 | 类型 | 一句话 |
-|---|---|---|
-| `core-model` | 纯 JVM | 领域模型：`Term` `Course` `Grade` `Exam` `Campus`，零第三方依赖 |
-| `core-common` | 纯 JVM | 作息表、学期历、节次切分、课表网格、配色（与 Android 无关） |
-| `data-gdut` | 纯 JVM | **协议逆向层**：登录加密、表单、重定向、HTML/JSON 解析、图书馆二维码 |
-| `core-network` | Android | OkHttpClient 工厂 + 网络状态监听（极薄） |
-| `core-database` | Android | Room：实体、DAO、映射 |
-| `core-datastore` | Android | DataStore 偏好 + Keystore 加密的会话/凭据 |
-| `core-ui` | Android | 主题、通用组件、纯函数（WCAG 对比度、颜色转换） |
-| `data-repository` | Android | 编排层：读路径 Flow → UI State、写路径多接口同步、手写 DI 容器 |
-| `feature-auth` | Android | 登录页 |
-| `feature-schedule` | Android | 课表页（周网格 / 日列表） |
-| `feature-grade` | Android | 考试与成绩页（考试安排 + 绩点统计与趋势） |
-| `feature-settings` | Android | 设置页（六个分组已完整实现） |
-| `feature-toolbox` | Android | 工具箱：图书馆入馆二维码 |
-| `widget` | Android | 两个 Glance 桌面插件 |
-| `app` | Android | Application + MainActivity + NavHost（应用壳，代码量控制在几百行内） |
-
----
 
 ## 5. 核心设计决策（Agent 必须遵守）
 
@@ -192,21 +171,6 @@ App 直连 `authserver.gdut.edu.cn` / `jxfw.gdut.edu.cn`，没有自己的服务
 - **滑块验证无法自动通过**。触发风控时只能改用教务系统图形验证码直登。
 - **学校接口随时可能变更**，不保证可用性。
 - **测试仅在 JVM 上**。Room 迁移、AndroidKeyStore、Glance 渲染都没有真机验证。
-
----
-
-## 8. 文档索引
-
-| 文档 | 内容 | Agent 何时读 |
-|---|---|---|
-| [`docs/00-architecture.md`](docs/00-architecture.md) | 模块依赖、四条核心决策、冷启动、线程模型、发布流程 | 改架构前必读 |
-| [`docs/01-gdut-protocol.md`](docs/01-gdut-protocol.md) | 学校接口完整逆向报告 + 已实测/未实测清单 | 改协议层前必读 |
-| [`docs/02-data-model.md`](docs/02-data-model.md) | Room 表结构、映射规则、开学日期四级优先级、迁移策略 | 改数据库前必读 |
-| [`docs/03-ui-spec.md`](docs/03-ui-spec.md) | 五页面交互、网格渲染、并排布局、WCAG 字色 | 改 UI 前必读 |
-| [`docs/04-widget-spec.md`](docs/04-widget-spec.md) | 插件尺寸/内容/空状态、数据驱动、分级刷新、Glance 限制 | 改插件前必读 |
-| [`docs/05-agent-task-list.md`](docs/05-agent-task-list.md) | **待办任务清单**（含验收标准） | 找活干时读 |
-| [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md) | 逐模块测试统计、MockWebServer、缺失的测试 | 写测试前必读 |
-| [`docs/07-verify-login.md`](docs/07-verify-login.md) | 登录验证工具用法 + 诊断决策表 | 排查登录问题时读 |
 
 ---
 

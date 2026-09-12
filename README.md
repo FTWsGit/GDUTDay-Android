@@ -175,43 +175,6 @@ cp secrets.properties.example secrets.properties
 
 ---
 
-## 模块清单
-
-| 模块 | 一句话 |
-|---|---|
-| `core-model` | 纯领域模型（`Term` `Course` `Grade` `Exam` `Campus`），零第三方依赖 |
-| `core-common` | 与 Android 无关的纯逻辑：作息表、学期历、节次切分、课表网格、配色 |
-| `data-gdut` | **协议逆向层**（纯 JVM）：登录加密、表单、重定向、HTML/JSON 解析、图书馆二维码 |
-| `core-network` | OkHttpClient 工厂 + 网络状态监听 |
-| `core-database` | Room：实体、DAO、映射 |
-| `core-datastore` | DataStore 偏好 + Keystore 加密的会话/凭据 |
-| `core-ui` | 主题、通用组件、可离线单测的纯函数（WCAG 对比度、颜色转换） |
-| `data-repository` | 编排层：读路径 Flow → UI State、写路径多接口同步、手写 DI 容器 |
-| `feature-auth` | 登录页 |
-| `feature-schedule` | 课表页（周网格 / 日列表） |
-| `feature-grade` | 成绩页（绩点统计 + 趋势） |
-| `feature-settings` | 设置页（当前为占位） |
-| `widget` | 两个 Glance 桌面插件 |
-| `app` | Application + MainActivity + NavHost（应用壳） |
-
-依赖方向与"为什么这么分"见 [`docs/00-architecture.md`](docs/00-architecture.md)。
-
----
-
-## 文档索引
-
-| 文档 | 内容 |
-|---|---|
-| [`docs/00-architecture.md`](docs/00-architecture.md) | 模块依赖、四条核心决策（不用 WebView/Hilt/旧后端）、冷启动、线程模型、发布流程 |
-| [`docs/01-gdut-protocol.md`](docs/01-gdut-protocol.md) | ★ 学校接口完整逆向报告 + **已实测/未实测清单** |
-| [`docs/02-data-model.md`](docs/02-data-model.md) | Room 表结构、映射规则、开学日期四级优先级、迁移策略 |
-| [`docs/03-ui-spec.md`](docs/03-ui-spec.md) | 四页面交互、网格渲染、并排布局、WCAG 字色、边界情况 |
-| [`docs/04-widget-spec.md`](docs/04-widget-spec.md) | 插件尺寸/内容/空状态、数据驱动、分级刷新、Glance 限制 |
-| [`docs/05-agent-task-list.md`](docs/05-agent-task-list.md) | **待办任务清单**（含验收标准） |
-| [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md) | 逐模块测试统计、MockWebServer、缺失的测试、改接口回归流程 |
-| [`docs/07-verify-login.md`](docs/07-verify-login.md) | 登录验证工具用法 + 诊断决策表 |
-
----
 
 ## 已知限制
 
@@ -226,19 +189,3 @@ cp secrets.properties.example secrets.properties
 - **测试仅在 JVM 上**。Room 迁移、真实 AndroidKeyStore、Glance 渲染都没有真机验证。
 
 ---
-
-## 法律声明
-
-- 本项目是**学生自制的非官方客户端**，与**广东工业大学无任何隶属关系**，
-  不代表学校立场，也未获学校授权或认可。
-- 本项目**仅访问用户本人有权访问的数据**（用户自己输入账号登录后的课表、成绩、考试）。
-  不含任何爬虫绕过、不含自动化答题、不绕过任何访问控制。
-- 本项目**不含广告、不收集、不上传任何数据**。没有自建服务器，账号密码与
-  cookie 只存在于用户设备上（cookie 经 AndroidKeyStore 加密）。
-- 参考了 `gdutday` 组织的开源实现：
-  - 前端 `gdutday-wechat`：**MIT**；
-  - 后端 `gdutday-wechat3.0-java`：LICENSE 文件写 **Apache-2.0**，
-    但 commit 记录显示为 **AGPL-3.0**，**存在冲突**。本项目**没有复用其后端代码**，
-    只在协议逆向与设计取舍上参考了其思路。
-- 学校接口是本项目自行逆向的记录；**接口随时可能变更**，本项目不保证可用性。
-- 使用本项目的风险由使用者自行承担。请合理使用，不要高频请求学校服务器。
