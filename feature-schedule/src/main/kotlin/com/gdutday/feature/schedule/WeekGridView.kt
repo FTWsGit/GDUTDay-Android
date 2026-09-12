@@ -102,6 +102,7 @@ public fun WeekGridView(
     grid: WeekGrid,
     settings: UserSettings,
     today: LocalDate,
+    isCurrentWeek: Boolean,
     onBlockClick: (CourseBlock) -> Unit,
     onSwipeWeek: (Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -128,6 +129,9 @@ public fun WeekGridView(
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val drag = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    // 有背景图时节次栏改用半透明底色，否则 100% 不透明的 sectionGutter
+    // 会把背景图最左边一条完全盖住（网格线和今天列高亮本来就是半透明，无需处理）。
+    val translucentGutter = settings.backgroundImageUri != null
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -189,6 +193,8 @@ public fun WeekGridView(
                         GridBackground(
                             visibleDays = visibleDays,
                             today = today,
+                            isCurrentWeek = isCurrentWeek,
+                            translucentGutter = translucentGutter,
                             periods = periods,
                             periodRanges = periodRanges,
                             gutterPx = gutterPx,
@@ -299,6 +305,8 @@ private fun DayHeaderRow(
 private fun GridBackground(
     visibleDays: List<Int>,
     today: LocalDate,
+    isCurrentWeek: Boolean,
+    translucentGutter: Boolean,
     periods: List<Period>,
     periodRanges: List<IntRange>,
     gutterPx: Float,
@@ -314,11 +322,18 @@ private fun GridBackground(
         val height = size.height
         val slotHeight = height / periodRanges.size.coerceAtLeast(1)
 
-        // 1. 节次栏底色
-        drawRect(color = colors.sectionGutter, size = Size(gutterPx, height))
+        // 1. 节次栏底色。有背景图时降为半透明，让背景图透出来。
+        val gutterColor = if (translucentGutter) {
+            colors.sectionGutter.copy(alpha = 0.6f)
+        } else {
+            colors.sectionGutter
+        }
+        drawRect(color = gutterColor, size = Size(gutterPx, height))
 
-        // 2. 今天列高亮（必须在网格线之前画）
-        val todaySlot = visibleDays.indexOf(today.dayOfWeek.value)
+        // 2. 今天列高亮（必须在网格线之前画）。
+        //    仅当前周才画：翻到其它周次时同一天的列不该挂"今天"指示条，
+        //    否则每一周的这一天都亮，语义完全错误。
+        val todaySlot = if (isCurrentWeek) visibleDays.indexOf(today.dayOfWeek.value) else -1
         if (todaySlot >= 0) {
             drawRect(
                 color = colors.todayHighlight,

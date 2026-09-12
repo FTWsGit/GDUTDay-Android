@@ -83,6 +83,16 @@ else                                        → WeekGridView(grid)
 周次由 ViewModel 钳制到 `[1, totalWeeks]` 后调 `repository.selectWeek`。
 选中周是**纯内存状态**，不落盘（每次打开 App 回到"本周"更符合直觉）。
 
+手势与子级的竞争处理（`SwipeFollowGesture.kt`）：
+
+- 整个手势监听工作在 `PointerEventPass.Initial`：横向锁定后在此消费位移，
+  `verticalScroll` / `clickable`（都在 Main pass）收不到 move 事件，
+  不会出现"先被纵向吞掉再判定横滑失败"的竞态；
+- `awaitFirstDown(requireUnconsumed = false)`：Down 已被子级 clickable
+  标记过也不放弃手势序列；
+- **斜率鉴别**：突破 touch slop 后按 `|dx| vs |dy|` 一次性锁定方向，
+  纵向占优立即退出、不消费任何事件，把整段手势让给纵向滚动/下拉刷新。
+
 日视图同样支持左右滑动切天，阈值 48dp（比周视图的 64dp 更小，因为日视图
 单天内容更轻、切天频率更高），手势机制与周视图完全一致。
 
@@ -116,6 +126,15 @@ else                                        → WeekGridView(grid)
 
 几何在 `remember(grid, visibleDays, dayWidthPx, ...)` 里预计算成 `PlacedBlock`，
 滚动/重组不重新分配；`Layout` 阶段直接把像素坐标 `place` 下去，不在 `measure` 里现算。
+
+**今天列高亮的周次约束**：背景层的今天列高亮只在
+`selectedWeek == todayWeek`（`ScheduleUiState.isViewingCurrentWeek`）时绘制。
+没有这个约束的话，翻到任何一周，与今天星期相同的那一列都会挂"今天"指示条，
+语义完全错误。
+
+**节次栏底色与背景图**：有背景图（`settings.backgroundImageUri != null`）时，
+节次栏底色降为半透明（`sectionGutter` alpha 0.6），让背景图从最左列透出来；
+无背景图时保持 100% 不透明。网格线与今天列高亮本身就是半透明色，无需处理。
 
 ### 2.2 为什么纵向按分钟而不是按节次定位
 
@@ -336,6 +355,15 @@ else → ScrollableTabRow（学期）+ LazyColumn
 - 已上课程置灰、字体色（自动/白/黑）、背景图 + 模糊半径；
 - 显示老师/教室、显示第 13-14 节、显示周末。
 
+背景图链路：`SettingsViewModel.onBackgroundPicked` 对 Photo Picker 返回的
+content URI 调用 `takePersistableUriPermission` 持久化授权（部分机型不支持时
+静默降级），再把 URI 存进 DataStore；课表页由 `ScheduleBackground` 消费 ——
+`Dispatchers.IO` 上 `BitmapFactory` 解码，失败（图片被删、授权被回收）静默回退
+纯色背景；模糊用 `Modifier.blur`（API < 31 静默 no-op）。渲染层级在最外层
+`Box` 的最底层，`Scaffold`（`containerColor = Color.Transparent`）与顶栏
+（`ScheduleTopBar(containerColor = Color.Transparent)`）都改透明，否则不透明
+底色会把图完全盖住。
+
 ### 作息表
 - 自定义开关 + 12 节起止时间编辑；
 - 保存前必须用 `CampusTimetable.parseCustom` 校验，返回 null 说明输入非法
@@ -374,6 +402,12 @@ else → ScrollableTabRow（学期）+ LazyColumn
   将返回的 ARGB 像素数组转为 `ImageBitmap` 渲染（220dp 显示区域）。
 - 像素格式：`LibraryQr.renderArgb` 输出的 IntArray 与 `Bitmap.Config.ARGB_8888`
   的 32 位打包格式完全一致，可直接喂给 `Bitmap.createBitmap`，无需通道转换。
+- **亮度提升**（`BrightnessOverride`）：进入 composition 时把宿主 Activity 窗口
+  与 Dialog 自身窗口的 `screenBrightness` 设为 `BRIGHTNESS_OVERRIDE_FULL`，
+  离开时恢复原值（`DisposableEffect`）。Dialog 是独立窗口，只提亮 Activity
+  时弹窗自身仍按系统背光渲染，暗环境下二维码照旧灰暗 —— 所以两个窗口都要设置；
+  Dialog 窗口通过 `LocalView.parent as? DialogWindowProvider` 获取，
+  因此该组件必须放在 Dialog 内容里。窗口级瞬时提亮，不改系统设置、无需权限。
 
 ### 8.3 状态处理
 

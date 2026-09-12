@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -96,114 +97,125 @@ fun ScheduleScreen(
         state.errorMessage?.let { snackbarHostState.showSnackbar(it) }
     }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            ScheduleTopBar(
-                state = state,
-                settings = settings,
-                onSelectTerm = viewModel::selectTerm,
-                onBackToCurrentWeek = viewModel::backToCurrentWeek,
-                onToggleView = {
-                    viewModel.setScheduleView(
-                        if (settings.scheduleView == ScheduleView.WEEK) ScheduleView.DAY else ScheduleView.WEEK,
-                    )
-                },
-                onSync = viewModel::refresh,
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = state.isSyncing,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier.padding(innerPadding).fillMaxSize(),
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                // 开学日期是推测的：这是全屏里最该被看见的提示，日期错了周次全错。
-                if (state.semesterStartSource.needsUserConfirmation && !guessedDismissed) {
-                    StatusBanner(
-                        message = stringResource(R.string.schedule_semester_start_guessed),
-                        tone = BannerTone.WARNING,
-                        actionLabel = stringResource(R.string.schedule_calibrate),
-                        onAction = { showCalibrateDialog = true },
-                        onDismiss = viewModel::dismissGuessedBanner,
-                    )
-                }
-                // 校区未设置：作息表会回退到大学城，时间可能不准。
-                if (state.campus == Campus.UNKNOWN && !campusDismissed) {
-                    StatusBanner(
-                        message = stringResource(R.string.schedule_campus_unknown),
-                        tone = BannerTone.INFO,
-                        actionLabel = stringResource(R.string.schedule_campus_unknown_action),
-                        onAction = onOpenSettings,
-                        onDismiss = viewModel::dismissCampusBanner,
-                    )
-                }
-                if (state.isSyncing) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                }
+    // 背景图需要在最底层、铺满整个页面（含顶栏后面），所以包在最外层：
+    // Scaffold / 顶栏都改透明，否则不透明底色会把图完全盖住。
+    Box(Modifier.fillMaxSize()) {
+        ScheduleBackground(
+            uri = settings.backgroundImageUri,
+            blurDp = settings.backgroundBlurDp,
+        )
+        Scaffold(
+            modifier = modifier,
+            containerColor = Color.Transparent,
+            topBar = {
+                ScheduleTopBar(
+                    state = state,
+                    settings = settings,
+                    containerColor = Color.Transparent,
+                    onSelectTerm = viewModel::selectTerm,
+                    onBackToCurrentWeek = viewModel::backToCurrentWeek,
+                    onToggleView = {
+                        viewModel.setScheduleView(
+                            if (settings.scheduleView == ScheduleView.WEEK) ScheduleView.DAY else ScheduleView.WEEK,
+                        )
+                    },
+                    onSync = viewModel::refresh,
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { innerPadding ->
+            PullToRefreshBox(
+                isRefreshing = state.isSyncing,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier.padding(innerPadding).fillMaxSize(),
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    // 开学日期是推测的：这是全屏里最该被看见的提示，日期错了周次全错。
+                    if (state.semesterStartSource.needsUserConfirmation && !guessedDismissed) {
+                        StatusBanner(
+                            message = stringResource(R.string.schedule_semester_start_guessed),
+                            tone = BannerTone.WARNING,
+                            actionLabel = stringResource(R.string.schedule_calibrate),
+                            onAction = { showCalibrateDialog = true },
+                            onDismiss = viewModel::dismissGuessedBanner,
+                        )
+                    }
+                    // 校区未设置：作息表会回退到大学城，时间可能不准。
+                    if (state.campus == Campus.UNKNOWN && !campusDismissed) {
+                        StatusBanner(
+                            message = stringResource(R.string.schedule_campus_unknown),
+                            tone = BannerTone.INFO,
+                            actionLabel = stringResource(R.string.schedule_campus_unknown_action),
+                            onAction = onOpenSettings,
+                            onDismiss = viewModel::dismissCampusBanner,
+                        )
+                    }
+                    if (state.isSyncing) {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                    }
 
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    val grid = state.grid
-                    when {
-                        state.isInitialLoad && grid == null && state.isSyncing -> {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        val grid = state.grid
+                        when {
+                            state.isInitialLoad && grid == null && state.isSyncing -> {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator()
+                                }
                             }
-                        }
 
-                        grid == null && !state.hasAnyData && !isLoggedIn -> {
-                            CenteredEmpty(
-                                title = stringResource(R.string.schedule_not_logged_in_title),
-                                subtitle = stringResource(R.string.schedule_not_logged_in_subtitle),
-                            )
-                        }
-
-                        grid == null -> {
-                            CenteredEmpty(
-                                title = stringResource(R.string.schedule_no_data_title),
-                                subtitle = stringResource(R.string.schedule_no_data_subtitle),
-                            )
-                        }
-
-                        settings.scheduleView == ScheduleView.DAY -> {
-                            val selectedDate = state.today.plusDays(dayOffset.toLong())
-                            // 稳定引用：onSwipeDay 是 pointerInput 的 key，
-                            // 每次重组都换新引用会让正在进行的滑动手势被重启。
-                            val onSwipeDay = remember(viewModel) { viewModel::selectDay }
-                            // 切天的平滑过渡：按新旧日期的先后决定滑入方向。
-                            AnimatedContent(
-                                targetState = selectedDate,
-                                transitionSpec = {
-                                    val direction = if (targetState > initialState) 1 else -1
-                                    (slideInHorizontally { full -> full * direction } + fadeIn())
-                                        .togetherWith(
-                                            slideOutHorizontally { full -> -full * direction } + fadeOut(),
-                                        )
-                                },
-                                label = "daySwitch",
-                            ) { date ->
-                                DayScheduleView(
-                                    blocks = remember(state.grid, date) {
-                                        state.grid?.days?.find { it.date == date }?.blocks.orEmpty()
-                                    },
-                                    settings = settings,
-                                    date = date,
-                                    onBlockClick = viewModel::openBlock,
-                                    onSwipeDay = onSwipeDay,
+                            grid == null && !state.hasAnyData && !isLoggedIn -> {
+                                CenteredEmpty(
+                                    title = stringResource(R.string.schedule_not_logged_in_title),
+                                    subtitle = stringResource(R.string.schedule_not_logged_in_subtitle),
                                 )
                             }
-                        }
 
-                        else -> {
-                            WeekGridView(
-                                grid = grid,
-                                settings = settings,
-                                today = state.today,
-                                onBlockClick = viewModel::openBlock,
-                                onSwipeWeek = viewModel::selectWeek,
-                            )
+                            grid == null -> {
+                                CenteredEmpty(
+                                    title = stringResource(R.string.schedule_no_data_title),
+                                    subtitle = stringResource(R.string.schedule_no_data_subtitle),
+                                )
+                            }
+
+                            settings.scheduleView == ScheduleView.DAY -> {
+                                val selectedDate = state.today.plusDays(dayOffset.toLong())
+                                // 稳定引用：onSwipeDay 是 pointerInput 的 key，
+                                // 每次重组都换新引用会让正在进行的滑动手势被重启。
+                                val onSwipeDay = remember(viewModel) { viewModel::selectDay }
+                                // 切天的平滑过渡：按新旧日期的先后决定滑入方向。
+                                AnimatedContent(
+                                    targetState = selectedDate,
+                                    transitionSpec = {
+                                        val direction = if (targetState > initialState) 1 else -1
+                                        (slideInHorizontally { full -> full * direction } + fadeIn())
+                                            .togetherWith(
+                                                slideOutHorizontally { full -> -full * direction } + fadeOut(),
+                                            )
+                                    },
+                                    label = "daySwitch",
+                                ) { date ->
+                                    DayScheduleView(
+                                        blocks = remember(state.grid, date) {
+                                            state.grid?.days?.find { it.date == date }?.blocks.orEmpty()
+                                        },
+                                        settings = settings,
+                                        date = date,
+                                        onBlockClick = viewModel::openBlock,
+                                        onSwipeDay = onSwipeDay,
+                                    )
+                                }
+                            }
+
+                            else -> {
+                                WeekGridView(
+                                    grid = grid,
+                                    settings = settings,
+                                    today = state.today,
+                                    isCurrentWeek = state.isViewingCurrentWeek,
+                                    onBlockClick = viewModel::openBlock,
+                                    onSwipeWeek = viewModel::selectWeek,
+                                )
+                            }
                         }
                     }
                 }

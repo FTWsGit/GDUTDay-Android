@@ -1,6 +1,10 @@
 package com.gdutday.feature.toolbox
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
+import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +45,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
 import com.gdutday.data.repository.AppContainer
 
 /**
@@ -116,6 +122,14 @@ fun ToolboxScreen(
  * 打开时通过 [composableLocalState] 按需调用 [com.gdutday.data.repository.LibraryRepository.renderEntryQr]，
  * 将返回的 ARGB 像素数组转为 [androidx.compose.ui.graphics.ImageBitmap] 渲染。
  *
+ * ## 亮度提升
+ *
+ * 闸机光学传感器对屏幕背光敏感，系统默认低背光下二维码识读率显著下降。
+ * 进入 composition 时把宿主 Activity 窗口与 Dialog 自身窗口的
+ * `screenBrightness` 都设为 [WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL]，
+ * 离开时恢复 [WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE]。
+ * 这是窗口级瞬时提亮，不改系统设置，也无需任何权限。
+ *
  * ## 像素格式
  *
  * [com.gdutday.data.gdut.library.LibraryQr.renderArgb] 输出的 IntArray
@@ -143,6 +157,8 @@ private fun LibraryQrDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
+        // 必须在 Dialog 内容里调用：Dialog 窗口要通过 DialogWindowProvider 获取。
+        BrightnessOverride()
         Card(
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -236,4 +252,42 @@ private sealed interface QrState {
 
     /** 生成失败。 */
     data object Error : QrState
+}
+
+/**
+ * composition 期间把宿主 Activity 窗口与 Dialog 自身窗口的亮度压到最大，
+ * 离开时恢复原值。
+ *
+ * [Dialog] 在 Android 上是独立窗口，只提亮 Activity 窗口时弹窗自身仍按系统
+ * 背光渲染，暗环境下二维码照旧灰暗 —— 所以两个窗口都要设置。
+ * 本组件必须放在 Dialog 内容里：Dialog 的窗口要通过
+ * `LocalView.parent as? DialogWindowProvider` 获取，出了 Dialog 就拿不到。
+ * 找不到宿主窗口（预览环境等）时静默跳过。
+ */
+@Composable
+private fun BrightnessOverride() {
+    val view = androidx.compose.ui.platform.LocalView.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activityWindow = remember(context) { context.findActivity()?.window }
+
+    DisposableEffect(view, activityWindow) {
+        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+        val targets = listOfNotNull(activityWindow, dialogWindow)
+        val previous = targets.map { it.attributes.screenBrightness }
+        targets.forEach {
+            it.attributes.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+        }
+        onDispose {
+            targets.forEachIndexed { index, window ->
+                window.attributes.screenBrightness = previous[index]
+            }
+        }
+    }
+}
+
+/** 逐层解开 ContextWrapper 找到宿主 Activity；找不到返回 null。 */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.datastore.ScheduleView
@@ -52,6 +53,7 @@ internal fun ScheduleTopBar(
     onBackToCurrentWeek: () -> Unit,
     onToggleView: () -> Unit,
     onSync: () -> Unit,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
     modifier: Modifier = Modifier,
 ) {
     var termMenuOpen by remember { mutableStateOf(false) }
@@ -60,7 +62,7 @@ internal fun ScheduleTopBar(
     TopAppBar(
         modifier = modifier,
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = containerColor,
         ),
         title = {
             Column {
