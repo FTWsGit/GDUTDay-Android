@@ -190,7 +190,7 @@ App 直连 `authserver.gdut.edu.cn` / `jxfw.gdut.edu.cn`，没有自己的服务
 12. **`app` 模块代码量应始终保持在几百行内** —— 一旦膨胀说明有东西放错地方了。
 
 ## 文档
-- 文档放在docs/里面
+- 文档放在docs/里面，理解项目优先读docs/
 
 ## Temp管理
 - 一切临时的、不希望commit的调查文件、issues都可以放进temp/
