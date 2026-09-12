@@ -37,8 +37,8 @@ cp secrets.properties.example secrets.properties
 编辑 `gdutday-android/secrets.properties`：
 
 ```properties
-gdut_student_id=3120xxxxxx
-gdut_password=你的密码
+GDUT_STUDENT_ID=3120xxxxxx
+GDUT_PASSWORD=你的密码
 ```
 
 `secrets.properties` 已被 `.gitignore` 忽略（第 21 行），**永远不要提交它**。

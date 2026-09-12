@@ -39,8 +39,8 @@ import kotlin.system.exitProcess
  *   gradle :data-gdut:verifyLogin
  *
  * # 方式二：项目根目录的 secrets.properties
- * #   gdut_student_id=3120xxxxxx
- * #   gdut_password=...
+ * #   GDUT_STUDENT_ID=3120xxxxxx
+ * #   GDUT_PASSWORD=...
  * gradle :data-gdut:verifyLogin
  * ```
  *
@@ -111,7 +111,7 @@ public object VerifyLogin {
             println("缺少凭据，未发出任何网络请求。")
             println("请二选一：")
             println("  1) 环境变量 GDUT_STUDENT_ID / GDUT_PASSWORD")
-            println("  2) 项目根目录 secrets.properties 里的 gdut_student_id / gdut_password")
+            println("  2) 项目根目录 secrets.properties 里的 GDUT_STUDENT_ID / GDUT_PASSWORD")
             println(SECTION)
             exitProcess(2)
         }
@@ -411,8 +411,8 @@ public object VerifyLogin {
         if (envId.isNotEmpty() && envPwd.isNotEmpty()) return envId to envPwd
 
         val props = readSecretsProperties() ?: return null
-        val id = envId.ifEmpty { props.getProperty("gdut_student_id")?.trim().orEmpty() }
-        val pwd = envPwd.ifEmpty { props.getProperty("gdut_password").orEmpty() }
+        val id = envId.ifEmpty { props.getProperty("GDUT_STUDENT_ID")?.trim().orEmpty() }
+        val pwd = envPwd.ifEmpty { props.getProperty("GDUT_PASSWORD").orEmpty() }
         return if (id.isNotEmpty() && pwd.isNotEmpty()) id to pwd else null
     }
 
