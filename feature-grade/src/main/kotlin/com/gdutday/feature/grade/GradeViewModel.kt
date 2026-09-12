@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.gdutday.core.model.GdutException
+import com.gdutday.core.model.Exam
 import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.AuthRepository
 import com.gdutday.data.repository.GradeRepository
@@ -20,7 +21,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * 成绩页 ViewModel。
+ * 考试与成绩页 ViewModel。
  *
  * ## 为什么还要读 ScheduleRepository
  *
@@ -34,8 +35,8 @@ import kotlinx.coroutines.launch
  */
 public class GradeViewModel(
     private val gradeRepository: GradeRepository,
-    scheduleRepository: ScheduleRepository,
-    authRepository: AuthRepository,
+    private val scheduleRepository: ScheduleRepository,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     /** 按学期分组的汇总，含加权绩点。 */
@@ -45,6 +46,14 @@ public class GradeViewModel(
 
     /** 可选学期名，按时间倒序。 */
     public val termNames: StateFlow<List<String>> = gradeRepository.observeTermNames()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * 全部考试安排（跨学期，按日期升序）。
+     *
+     * 考试数据由课表同步落库，这里只读。考试安排与成绩放在同一个页面入口下展示。
+     */
+    public val exams: StateFlow<List<Exam>> = gradeRepository.observeExams()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     public val isLoggedIn: StateFlow<Boolean> = authRepository.isLoggedIn
@@ -81,6 +90,29 @@ public class GradeViewModel(
                 _errorMessage.value = e.userMessage
             } catch (e: Throwable) {
                 _errorMessage.value = e.message ?: "同步成绩失败"
+            } finally {
+                _syncing.value = false
+            }
+        }
+    }
+
+    /**
+     * 同步考试安排。
+     *
+     * 考试数据没有独立的抓取入口，它是课表同步（`ScheduleRepository.sync`）的一部分。
+     * 这里复用课表同步：会一并刷新课程，代价是比单纯抓考试多几个请求，
+     * 但保证了考试与课表一致，且复用了会话失效重登等基础设施。
+     */
+    public fun refreshExams() {
+        if (_syncing.value) return
+        _syncing.value = true
+        viewModelScope.launch {
+            try {
+                scheduleRepository.sync()
+            } catch (e: GdutException) {
+                _errorMessage.value = e.userMessage
+            } catch (e: Throwable) {
+                _errorMessage.value = e.message ?: "同步考试安排失败"
             } finally {
                 _syncing.value = false
             }

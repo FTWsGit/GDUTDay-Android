@@ -1,10 +1,12 @@
 package com.gdutday.data.repository
 
+import com.gdutday.core.database.ExamDao
 import com.gdutday.core.database.GradeDao
 import com.gdutday.core.database.Mappers
 import com.gdutday.core.database.SyncStateDao
 import com.gdutday.core.database.SyncStateEntity
 import com.gdutday.core.datastore.SessionStore
+import com.gdutday.core.model.Exam
 import com.gdutday.core.model.GdutException
 import com.gdutday.core.model.Grade
 import com.gdutday.core.model.TermGradeSummary
@@ -33,6 +35,7 @@ import java.time.Instant
  */
 public class GradeRepositoryImpl(
     private val gradeDao: GradeDao,
+    private val examDao: ExamDao,
     private val syncStateDao: SyncStateDao,
     private val sessionStore: SessionStore,
     private val authRepository: AuthRepository,
@@ -46,6 +49,9 @@ public class GradeRepositoryImpl(
         observeGrades().map { JxfwGradeParser.summarize(it) }
 
     override fun observeTermNames(): Flow<List<String>> = gradeDao.observeTermNames()
+
+    override fun observeExams(): Flow<List<Exam>> =
+        examDao.observeAll().map { rows -> with(Mappers) { rows.mapNotNull { it.toDomain() } } }
 
     override suspend fun sync(): SyncInfo = withContext(Dispatchers.IO) {
         var session = sessionStore.current()

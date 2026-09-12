@@ -98,6 +98,7 @@ include(":data-repository")
 include(":feature-auth")
 include(":feature-schedule")
 include(":feature-grade")
+include(":feature-toolbox")
 include(":feature-settings")
 
 // ---- 桌面插件 ----

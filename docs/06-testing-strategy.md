@@ -22,9 +22,10 @@
 | `widget` | **21** | `NextClassRefreshPolicyTest` `TodayScheduleMapperTest` `WidgetSizingTest` | 纯 JVM（映射/策略与 Android 解耦） |
 | `feature-schedule` | **10** | `ScheduleGridMathTest` | 纯 JVM（几何纯函数） |
 | `feature-auth` | **9** | `LoginLogicTest` | 纯 JVM |
-| `feature-grade` | **9** | `GradeLogicTest` | 纯 JVM |
+| `feature-grade` | **13** | `GradeLogicTest` `ExamLogicTest` | 纯 JVM |
 | `feature-settings` | **7** | `SettingsLogicTest` | 纯 JVM |
-| **合计** | **409** | | **0 失败** |
+| `feature-toolbox` | **0** | —— | 纯 UI（无状态 composable，二维码渲染已由 `data-gdut` 的 `LibraryQr` 测试覆盖） |
+| **合计** | **413** | | **0 失败** |
 
 **`core-database` 没有任何测试** —— DAO 的 `@Query` SQL 只能在真实 Room + SQLite 上验证，
 目前没有 Robolectric/androidTest，所以 SQL 写错不会被任何测试发现。
@@ -35,7 +36,8 @@
 JAVA_HOME="C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot" \
   gradle :core-model:test :core-common:test :data-gdut:test :core-datastore:test \
           :data-repository:test :widget:test :core-ui:test \
-          :feature-schedule:test :feature-auth:test :feature-grade:test :feature-settings:test
+          :feature-schedule:test :feature-auth:test :feature-grade:test :feature-settings:test \
+          :feature-toolbox:test
 ```
 
 然后读各 `build/test-results/**/TEST-*.xml` 的 `tests` 属性求和。
@@ -180,7 +182,7 @@ private inner class Script(
 | `core-datastore` | AES/GCM 往返、IV 唯一、篡改拒绝、`SecureFile` 解密失败删文件、设置映射 | 真实 AndroidKeyStore、真实 DataStore 文件 |
 | `data-repository` | `buildScheduleUiState` 的 Flow 装配、学期选择、配色持久化、冲突判定、开学日期四级优先级 | Room 真实 SQL（用 `flowOf` 假数据） |
 | `widget` | 快照映射、空状态分类、尺寸→行数、刷新间隔 | 真实 Glance 渲染 |
-| `feature-*` | 登录校验/错误映射、成绩格式化/趋势点、设置映射、网格几何 | Compose UI |
+| `feature-*` | 登录校验/错误映射、成绩格式化/趋势点、考试分组/日期标签/相对天数、设置映射、网格几何 | Compose UI |
 
 `AesGcmCipherTest` 用**假的 `AesKeyProvider`** 在普通 JVM 上完整验证：
 往返一致、IV 每次不同、篡改被 GCM Tag 拒绝、换密钥必失败。

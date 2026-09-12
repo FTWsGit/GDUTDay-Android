@@ -136,6 +136,7 @@ public class DefaultAppContainer(
     override val gradeRepository: GradeRepository by lazy {
         GradeRepositoryImpl(
             gradeDao = database.gradeDao(),
+            examDao = database.examDao(),
             syncStateDao = database.syncStateDao(),
             sessionStore = sessionStore,
             authRepository = authRepository,

@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  成绩页文案。库模块无法引用 app 的 R，与 app 同名的资源在此维护一份，
+  考试与成绩页文案。库模块无法引用 app 的 R，与 app 同名的资源在此维护一份，
   打包时以 app 为准。
 -->
 <resources>
-    <string name="grade_title">成绩与绩点</string>
+    <string name="grade_title">考试与成绩</string>
     <string name="grade_sync">同步成绩</string>
     <string name="grade_confirm">知道了</string>
+
+    <string name="grade_tab_exams">考试安排</string>
+    <string name="grade_tab_grades">成绩</string>
 
     <string name="grade_summary_gpa">加权绩点</string>
     <string name="grade_summary_credit">总学分</string>
@@ -25,9 +28,15 @@
     <string name="grade_not_counted_explain">等级制成绩（优秀/合格等）或未获得学分的课程不参与加权绩点计算。</string>
 
     <string name="grade_empty_not_logged_in">还没有登录</string>
-    <string name="grade_empty_not_logged_in_subtitle">登录后即可同步成绩</string>
-    <string name="grade_empty_not_synced">还没有同步过成绩</string>
+    <string name="grade_empty_not_logged_in_subtitle">登录后即可同步成绩与考试安排</string>
+    <string name="grade_empty_not_synced">还没有同步过</string>
     <string name="grade_empty_not_synced_subtitle">点击下方按钮从教务系统拉取</string>
     <string name="grade_empty_no_grades">暂无成绩</string>
     <string name="grade_empty_no_grades_subtitle">教务系统还没有发布你的成绩，稍后再来看看</string>
+
+    <string name="grade_exam_sync">同步考试安排</string>
+    <string name="grade_exam_empty_no_exams">暂无考试安排</string>
+    <string name="grade_exam_empty_no_exams_subtitle">考试安排随课表同步，点击下方按钮拉取</string>
+    <string name="grade_exam_today">今天</string>
+    <string name="grade_exam_finished">已结束</string>
 </resources>

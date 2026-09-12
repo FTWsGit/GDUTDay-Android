@@ -132,6 +132,7 @@ dependencies {
     implementation(project(":feature-auth"))
     implementation(project(":feature-schedule"))
     implementation(project(":feature-grade"))
+    implementation(project(":feature-toolbox"))
     implementation(project(":feature-settings"))
     implementation(project(":widget"))
 

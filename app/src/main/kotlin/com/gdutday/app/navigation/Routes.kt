@@ -13,6 +13,9 @@ public object Routes {
     /** 成绩页。 */
     public const val GRADE: String = "grade"
 
+    /** 工具箱页。 */
+    public const val TOOLBOX: String = "toolbox"
+
     /** 设置页。 */
     public const val SETTINGS: String = "settings"
 

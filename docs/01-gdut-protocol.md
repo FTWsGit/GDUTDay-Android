@@ -660,6 +660,8 @@ new MultiFormatWriter().encode(stuId, BarcodeFormat.QR_CODE, width, height, hint
 - **省流量**：一张 PNG 几 KB，一天刷几次也是白花；
 - **不依赖第三方服务器**：旧后端的 `api.cerbur.top` 是个人服务器，随时可能挂。
 
+> 已接入工具箱页 UI（`feature-toolbox/ToolboxScreen.kt`），但真机验证尚未完成。
+
 关于 ARGB 像素序：旧后端 `BufferedImage.TYPE_INT_RGB` + `setRGB(x, y, 0xFF000000 / 0xFFFFFFFF)`，
 Android 的 `Bitmap.Config.ARGB_8888` 用的是同一个 32 位打包格式，输出可直接灌进
 `Bitmap.createBitmap` + `setPixels`，无需通道转换。

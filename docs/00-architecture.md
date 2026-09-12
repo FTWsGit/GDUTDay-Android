@@ -20,6 +20,7 @@ graph TD
     fauth[":feature-auth"]
     fgrade[":feature-grade"]
     fset[":feature-settings"]
+    ftool[":feature-toolbox"]
     repo[":data-repository<br/>编排层 / 手动 DI"]
     db[":core-database<br/>Room"]
     ds[":core-datastore<br/>DataStore + Keystore"]
@@ -30,10 +31,10 @@ graph TD
     model[":core-model<br/>领域模型（纯 JVM）"]
 
     app --> widget
-    app --> fsched & fauth & fgrade & fset
+    app --> fsched & fauth & fgrade & fset & ftool
     app --> repo
     widget --> repo
-    fsched & fauth & fgrade & fset --> repo & ui
+    fsched & fauth & fgrade & fset & ftool --> repo & ui
     repo --> db & ds & net & gdut
     db --> model
     ds --> gdut & common
@@ -49,7 +50,7 @@ graph TD
                  └───────┬───────────────────────────┬───────────┘
                          │                           │
               ┌──────────▼───────────┐      ┌────────▼─────────┐
-              │   feature-*（4 个）   │      │      widget      │
+               │  feature-*（5 个）   │      │      widget      │
               └──────────┬───────────┘      └────────┬─────────┘
                          │                           │
                          └─────────────┬─────────────┘
@@ -97,7 +98,7 @@ graph TD
 | `core-datastore` | `UserSettings`（DataStore Preferences）+ 加密的会话/凭据（AndroidKeyStore）。 | 会话 cookie 等同账号，必须与普通偏好分开、单独加密存储。 |
 | `core-ui` | 主题、通用组件、可复现的纯函数（WCAG 对比度、颜色转换）。 | 叶子模块：谁都能依赖它，它不依赖任何数据模块。纯函数部分可离线单测。 |
 | `data-repository` | 编排层：读路径（Room Flow → UI State）+ 写路径（多接口同步）+ 手写 DI 容器。 | 唯一同时依赖三种数据源的模块，也是唯一知道"同步流程长什么样"的模块。UI 完全不知道 authserver / jxfw 的存在。 |
-| `feature-*`（4 个） | 四个页面：课表、登录、成绩、设置。只依赖 `data-repository` 与 `core-ui`。 | 按页面切分，避免"一个巨大的 UI 模块"。每个功能模块可以独立编译与测试。 |
+| `feature-*`（5 个） | 五个页面：课表、登录、成绩、设置、工具箱。只依赖 `data-repository` 与 `core-ui`。 | 按页面切分，避免"一个巨大的 UI 模块"。每个功能模块可以独立编译与测试。 |
 | `widget` | 两个 Glance 桌面插件。 | Glance 有独立的入口（Receiver）、独立的生命周期，与 Activity 无关。 |
 | `app` | Application、MainActivity、NavHost。**代码量刻意控制在几百行内**。 | 应用壳。一旦它开始膨胀，说明有东西放错地方了。 |
 

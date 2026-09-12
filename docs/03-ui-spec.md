@@ -1,6 +1,6 @@
 # 03 · UI 规格
 
-覆盖四个页面（课表 / 登录 / 成绩 / 设置）、课表网格渲染方案、并排冲突布局、
+覆盖五个页面（课表 / 登录 / 考试与成绩 / 设置 / 工具箱）、课表网格渲染方案、并排冲突布局、
 自动字色，以及各种边界情况。
 
 相关文档：[架构](./00-architecture.md) · [数据模型](./02-data-model.md) ·
@@ -14,9 +14,9 @@
   多 Activity 每次切换要走完整生命周期 + 窗口创建（约 100～300ms）；
   单 Activity 内 Compose 导航只是重组（几毫秒），且只需维护一个窗口的主题/insets。
 - **起始路由是课表，不是登录页**（理由见 [架构 · 冷启动](./00-architecture.md)）。
-- 底部导航放**三个顶层 Tab**：**课表 / 成绩 / 设置**（见 `GdutDayNavHost` 的
+- 底部导航放**四个顶层 Tab**：**课表 / 考试 / 工具箱 / 设置**（见 `GdutDayNavHost` 的
   `TopLevelDestination`）。设置项已成体系（六个分组），作为常驻 Tab 比藏在"下钻"页更易发现。
-- 底部导航只在三个顶层目的地显示；登录页是"下钻"页面，
+- 底部导航只在四个顶层目的地显示；登录页是"下钻"页面，
   显示导航栏会让返回语义混乱。
 - 所有页面用 `enableEdgeToEdge()` + `WindowInsets` 处理状态栏/手势区。
   Android 15（API 35）起 `targetSdk 35` 强制边到边。
@@ -74,12 +74,17 @@ else                                        → WeekGridView(grid)
 开学日期错了**整个周次全错**，所以它是全屏里最该被看见的提示。
 同步失败时**网格数据原样保留**，只用 Snackbar 提示 —— 这是与旧小程序最大的体验差异之一。
 
-### 1.5 周次切换
+### 1.5 周次切换（页面跟随手势）
 
-在网格上**横向拖动**切换周次（自定义 `detectHorizontalDragGestures`，阈值 64dp）：
-`dragged > threshold` → 上一周，`< -threshold` → 下一周。
+在网格上**横向拖动**切换周次（`detectHorizontalSwipe`，阈值 64dp）：
+拖动时页面随手势平移（`graphicsLayer { translationX = drag.value }`），
+松手时位移不足阈值弹回原位（spring 动画），超过阈值则提交翻页
+（新旧页的滑动过渡由既有 `AnimatedContent` 承担）。
 周次由 ViewModel 钳制到 `[1, totalWeeks]` 后调 `repository.selectWeek`。
 选中周是**纯内存状态**，不落盘（每次打开 App 回到"本周"更符合直觉）。
+
+日视图同样支持左右滑动切天，阈值 48dp（比周视图的 64dp 更小，因为日视图
+单天内容更轻、切天频率更高），手势机制与周视图完全一致。
 
 ### 1.6 课程详情（`CourseDetailSheet`）
 
@@ -267,9 +272,23 @@ NOT_UNDERGRADUATE / VALID`。`canSubmit` 要求 `VALID`，直登路径还要求�
 
 ---
 
-## 6. 成绩页（`feature-grade`）
+## 6. 考试与成绩页（`feature-grade`）
 
 ### 6.1 结构
+
+顶部一级 Tab 切换「考试安排」与「成绩」，默认显示「考试安排」。
+底部导航条目本身改名为"考试"。
+
+考试安排 Tab：
+
+```text
+exams.isEmpty() && !isLoggedIn          → EmptyState「未登录」
+exams.isEmpty() && lastSync?.at == null → EmptyState「登录了但还没同步」（带同步按钮）
+exams.isEmpty()                          → EmptyState「同步了但没有考试」（带同步按钮）
+else → LazyColumn（按学期分组）
+```
+
+成绩 Tab：
 
 ```text
 summaries.isEmpty() && !isLoggedIn          → EmptyState「未登录」
@@ -278,7 +297,17 @@ summaries.isEmpty()                          → EmptyState「同步了但没有
 else → ScrollableTabRow（学期）+ LazyColumn
 ```
 
-### 6.2 学期 Tab 与内容
+### 6.2 考试安排
+
+- 考试数据由**课表同步**落库（`ScheduleRepository.sync`），本页只读。
+- 考试按学期分组（`ExamLogic.groupByTerm`），学期内按日期升序，学期按时间正序。
+- 每行显示：课程名 + 日期标签（`"12月20日 · 周六"`）+ 时段 + 教室 + 考试类别。
+- **今天**的考试：课程名旁显示红色徽章（`ExamBadgeTone.TODAY`，`errorContainer` 色）。
+- **未考**的考试：显示"明天"/"3 天后"等倒计时徽章（`ExamBadgeTone.UPCOMING`，`secondaryContainer` 色）。
+- **已结束**的考试：整行置灰（`surfaceVariant` 底色 + `onSurfaceVariant` 字色）。
+- 刷新按钮复用课表同步（`GradeViewModel.refreshExams`）。
+
+### 6.3 学期 Tab 与成绩内容
 
 - 默认选中最新学期（`termNames.first()`，已按倒序）。
 - `SummaryCard`：加权绩点 / 总学分 / 挂科数三格，等距分布。挂科数 > 0 用 `colorScheme.error`。
@@ -330,7 +359,41 @@ else → ScrollableTabRow（学期）+ LazyColumn
 
 ---
 
-## 8. 边界情况处理表
+## 8. 工具箱页（`feature-toolbox`）
+
+### 8.1 结构
+
+页面结构为工具列表，每个工具是一个可点击的 `ListItem`。
+当前只有一个工具（图书馆入馆二维码），后续新增工具只需在列表中追加条目。
+
+### 8.2 二维码 Dialog
+
+点击工具条目弹出 `LibraryQrDialog`（Material3 `Dialog` + `Card`）：
+
+- 打开时通过 `produceState` 按需调用 `LibraryRepository.renderEntryQr(480)`，
+  将返回的 ARGB 像素数组转为 `ImageBitmap` 渲染（220dp 显示区域）。
+- 像素格式：`LibraryQr.renderArgb` 输出的 IntArray 与 `Bitmap.Config.ARGB_8888`
+  的 32 位打包格式完全一致，可直接喂给 `Bitmap.createBitmap`，无需通道转换。
+
+### 8.3 状态处理
+
+| 状态 | 表现 |
+|---|---|
+| `Loading` | 居中 `CircularProgressIndicator` |
+| `Success` | 显示二维码图片 |
+| `NotLoggedIn` | 文字提示"请先登录" |
+| `Error` | 文字提示"生成失败"（`colorScheme.error`） |
+
+### 8.4 无 ViewModel 的设计
+
+本页不持有跨页面共享状态——二维码内容完全由 `AppContainer.libraryRepository`
+在对话框打开时按需生成，对话框关闭后状态随之释放。
+按项目约定，ViewModel 仅用于需要跨屏幕数据流的页面，
+这种"一次性工具宿主"用 composable-local 状态即可。
+
+---
+
+## 9. 边界情况处理表
 
 | 场景 | 表现 | 依据 |
 |---|---|---|

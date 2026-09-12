@@ -2,6 +2,7 @@ package com.gdutday.app.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -28,6 +29,7 @@ import com.gdutday.feature.auth.LoginScreen
 import com.gdutday.feature.grade.GradeScreen
 import com.gdutday.feature.schedule.ScheduleScreen
 import com.gdutday.feature.settings.SettingsScreen
+import com.gdutday.feature.toolbox.ToolboxScreen
 
 /** 底部导航栏的一个条目。 */
 private data class TopLevelDestination(
@@ -37,9 +39,9 @@ private data class TopLevelDestination(
 )
 
 /**
- * 底部导航栏的三个入口：课表、成绩、设置。
+ * 底部导航栏的入口：课表、考试、工具箱、设置。
  *
- * 三者都是**顶层目的地**，各自持有独立的回退栈状态（`saveState / restoreState`），
+ * 各自都是**顶层目的地**，持有独立的回退栈状态（`saveState / restoreState`），
  * 从任一 Tab 切到另一个不会重建 Composable。
  *
  * ⚠ 用的是 Material Icons 的**内置**图标（`Icons.Filled.*`），
@@ -47,7 +49,8 @@ private data class TopLevelDestination(
  */
 private val TOP_LEVEL_DESTINATIONS = listOf(
     TopLevelDestination(Routes.SCHEDULE, "课表", Icons.Filled.DateRange),
-    TopLevelDestination(Routes.GRADE, "成绩", Icons.Filled.Star),
+    TopLevelDestination(Routes.GRADE, "考试", Icons.Filled.Star),
+    TopLevelDestination(Routes.TOOLBOX, "工具箱", Icons.Filled.Build),
     TopLevelDestination(Routes.SETTINGS, "设置", Icons.Filled.Settings),
 )
 
@@ -157,6 +160,9 @@ fun GdutDayNavHost(
             }
             composable(Routes.GRADE) {
                 GradeScreen(container = container)
+            }
+            composable(Routes.TOOLBOX) {
+                ToolboxScreen(container = container)
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(

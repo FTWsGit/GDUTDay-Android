@@ -1,6 +1,7 @@
 package com.gdutday.data.repository
 
 import com.gdutday.core.model.Course
+import com.gdutday.core.model.Exam
 import com.gdutday.core.model.Grade
 import com.gdutday.core.model.StudentProfile
 import com.gdutday.core.model.Term
@@ -209,6 +210,14 @@ public interface GradeRepository {
 
     /** 可选学期名列表。 */
     public fun observeTermNames(): Flow<List<String>>
+
+    /**
+     * 全部考试安排，按日期升序（跨学期）。
+     *
+     * 考试数据由**课表同步**落库（`ScheduleRepository.sync` 里 `fetchExams`），
+     * 本方法只读不写。成绩页把它和成绩放在同一个入口下展示。
+     */
+    public fun observeExams(): Flow<List<Exam>>
 
     /**
      * 同步成绩。

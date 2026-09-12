@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
@@ -24,15 +25,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,27 +46,30 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gdutday.core.model.Exam
 import com.gdutday.core.model.Grade
 import com.gdutday.core.model.Term
 import com.gdutday.core.model.TermGradeSummary
 import com.gdutday.core.ui.EmptyState
 import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.SyncInfo
+import java.time.LocalDate
 
 /**
- * 成绩与绩点页。
+ * 考试与成绩页。
+ *
+ * 把"考试安排"和"成绩查询"放在同一个入口下：顶部一级 Tab 切换
+ * [GradeTab.EXAMS]（考试安排）与 [GradeTab.GRADES]（成绩）。
+ * 底部导航条目本身改名为"考试"。
  *
  * ## ⚠ 契约文件：签名被 `app` 的 NavHost 直接调用，不要改
  *
- * ## KDoc 七条要求的落点
+ * ## 数据来源
  *
- * 1. 数据来源是 [com.gdutday.data.repository.GradeRepository.observeSummaries]；
- *    加权绩点/总学分/挂科数由 [TermGradeSummary] 算好，本页只展示。
- * 2. 学期切换用 [ScrollableTabRow]，默认最新（`termNames.first()`）。
- * 3. 绩点趋势图见 [GpaTrendChart]（Canvas 手绘，无第三方图表库）。
- * 4. 等级制成绩：走 [GradeLogic.scoreDisplay]，`score == null` 时显示 `scoreText`。
- * 5. 挂科（`score < 60`）用 `colorScheme.error`。
- * 6. 空状态区分没登录 / 登录未同步 / 同步了但无成绩三种。
+ * - 成绩：[com.gdutday.data.repository.GradeRepository.observeSummaries]；
+ *   加权绩点/总学分/挂科数由 [TermGradeSummary] 算好。
+ * - 考试：[com.gdutday.data.repository.GradeRepository.observeExams]；
+ *   考试数据由**课表同步**落库（`ScheduleRepository.sync`），本页只读。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +80,7 @@ fun GradeScreen(
     val viewModel: GradeViewModel = viewModel(factory = GradeViewModel.factory(container))
     val summaries by viewModel.summaries.collectAsStateWithLifecycle()
     val termNames by viewModel.termNames.collectAsStateWithLifecycle()
+    val exams by viewModel.exams.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val lastSync by viewModel.lastSync.collectAsStateWithLifecycle()
     val selectedTerm by viewModel.selectedTermName.collectAsStateWithLifecycle()
@@ -87,6 +95,8 @@ fun GradeScreen(
         }
     }
 
+    var tab by rememberSaveable { mutableIntStateOf(GradeTab.EXAMS.ordinal) }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -96,7 +106,12 @@ fun GradeScreen(
                     if (syncing) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     } else {
-                        IconButton(onClick = viewModel::refresh) {
+                        val onRefresh = if (tab == GradeTab.EXAMS.ordinal) {
+                            viewModel::refreshExams
+                        } else {
+                            viewModel::refresh
+                        }
+                        IconButton(onClick = onRefresh) {
                             Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.grade_sync))
                         }
                     }
@@ -106,60 +121,40 @@ fun GradeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(Modifier.padding(innerPadding).fillMaxSize()) {
-            when {
-                summaries.isEmpty() && !isLoggedIn -> {
-                    CenteredEmpty(
-                        title = stringResource(R.string.grade_empty_not_logged_in),
-                        subtitle = stringResource(R.string.grade_empty_not_logged_in_subtitle),
-                    )
-                }
-
-                summaries.isEmpty() && lastSync?.at == null -> {
-                    CenteredEmpty(
-                        title = stringResource(R.string.grade_empty_not_synced),
-                        subtitle = stringResource(R.string.grade_empty_not_synced_subtitle),
-                        actionLabel = stringResource(R.string.grade_sync),
-                        onAction = viewModel::refresh,
-                    )
-                }
-
-                summaries.isEmpty() -> {
-                    CenteredEmpty(
-                        title = stringResource(R.string.grade_empty_no_grades),
-                        subtitle = stringResource(R.string.grade_empty_no_grades_subtitle),
-                        actionLabel = stringResource(R.string.grade_sync),
-                        onAction = viewModel::refresh,
-                    )
-                }
-
-                else -> {
-                    // 默认学期 = 时间序最新的学期（Term.parse + Comparable），
-                    // 而不是 termNames.first() 的字典序巧合——"2025-2026..." 这类名字
-                    // 字典序恰巧与时间序同向，但"2024-2025学年第二学期"会排错。
-                    val effectiveTerm = selectedTerm
-                        ?: summaries.mapNotNull { it.term }.maxOrNull()?.let { latest ->
-                            termNames.firstOrNull { name -> Term.parse(name) == latest }
-                        }
-                        ?: termNames.firstOrNull()
-                    val summary = summaries.firstOrNull { it.termName == effectiveTerm }
-                        ?: summaries.first()
-                    Column(Modifier.fillMaxSize()) {
-                        ScrollableTabRow(
-                            selectedTabIndex = termNames.indexOf(summary.termName).coerceAtLeast(0),
-                            edgePadding = 12.dp,
-                        ) {
-                            termNames.forEach { name ->
-                                Tab(
-                                    selected = name == summary.termName,
-                                    onClick = { viewModel.selectTerm(name) },
-                                    text = { Text(name) },
-                                )
-                            }
-                        }
-                        GradeList(
-                            summary = summary,
-                            allSummaries = summaries,
+            if (!isLoggedIn) {
+                CenteredEmpty(
+                    title = stringResource(R.string.grade_empty_not_logged_in),
+                    subtitle = stringResource(R.string.grade_empty_not_logged_in_subtitle),
+                )
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    TabRow(
+                        selectedTabIndex = tab.coerceIn(0, 1),
+                    ) {
+                        Tab(
+                            selected = tab == GradeTab.EXAMS.ordinal,
+                            onClick = { tab = GradeTab.EXAMS.ordinal },
+                            text = { Text(stringResource(R.string.grade_tab_exams)) },
+                        )
+                        Tab(
+                            selected = tab == GradeTab.GRADES.ordinal,
+                            onClick = { tab = GradeTab.GRADES.ordinal },
+                            text = { Text(stringResource(R.string.grade_tab_grades)) },
+                        )
+                    }
+                    when (tab) {
+                        GradeTab.EXAMS.ordinal -> ExamSection(
+                            exams = exams,
                             lastSync = lastSync,
+                            onSync = viewModel::refreshExams,
+                        )
+                        else -> GradeSection(
+                            summaries = summaries,
+                            termNames = termNames,
+                            selectedTerm = selectedTerm,
+                            onSelectTerm = viewModel::selectTerm,
+                            lastSync = lastSync,
+                            onSync = viewModel::refresh,
                         )
                     }
                 }
@@ -167,6 +162,9 @@ fun GradeScreen(
         }
     }
 }
+
+/** 一级 Tab：考试安排 / 成绩。 */
+private enum class GradeTab { EXAMS, GRADES }
 
 @Composable
 private fun CenteredEmpty(
@@ -177,6 +175,185 @@ private fun CenteredEmpty(
 ) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         EmptyState(title = title, subtitle = subtitle, actionLabel = actionLabel, onAction = onAction)
+    }
+}
+
+// ---------------------------------------------------------------- 考试安排
+
+@Composable
+private fun ExamSection(
+    exams: List<Exam>,
+    lastSync: SyncInfo?,
+    onSync: () -> Unit,
+) {
+    if (exams.isEmpty()) {
+        CenteredEmpty(
+            title = stringResource(R.string.grade_exam_empty_no_exams),
+            subtitle = stringResource(R.string.grade_exam_empty_no_exams_subtitle),
+            actionLabel = stringResource(R.string.grade_exam_sync),
+            onAction = onSync,
+        )
+        return
+    }
+    val today = remember { LocalDate.now() }
+    val groups = remember(exams) { ExamLogic.groupByTerm(exams) }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp,
+        ),
+    ) {
+        lastSync?.let {
+            item {
+                Text(
+                    text = stringResource(R.string.grade_last_sync, it.relativeTime()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        groups.forEach { group ->
+            item(key = "term_${group.term.shortCode}") {
+                Text(
+                    text = group.term.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                )
+            }
+            items(group.exams, key = { "${group.term.shortCode}_${it.date}_${it.courseName}" }) { exam ->
+                ExamRow(exam = exam, today = today)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExamRow(exam: Exam, today: LocalDate) {
+    val past = ExamLogic.isPast(exam, today)
+    val relative = ExamLogic.relativeDays(exam, today)
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = if (past) scheme.surfaceVariant else scheme.primaryContainer.copy(alpha = 0.5f),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = exam.courseName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (past) scheme.onSurfaceVariant else scheme.onSurface,
+                    )
+                    if (relative == stringResource(R.string.grade_exam_today)) {
+                        ExamBadge(text = relative, tone = ExamBadgeTone.TODAY)
+                    } else if (!past) {
+                        ExamBadge(text = relative, tone = ExamBadgeTone.UPCOMING)
+                    }
+                }
+                val meta = buildList {
+                    add(ExamLogic.dateLabel(exam.date))
+                    add(exam.timeDisplay)
+                    if (exam.classroom.isNotBlank()) add(exam.classroom)
+                    if (exam.category.isNotBlank()) add(exam.category)
+                }
+                Text(
+                    text = meta.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+    }
+}
+
+private enum class ExamBadgeTone { TODAY, UPCOMING }
+
+@Composable
+private fun ExamBadge(text: String, tone: ExamBadgeTone) {
+    val scheme = MaterialTheme.colorScheme
+    val (bg, fg) = when (tone) {
+        ExamBadgeTone.TODAY -> scheme.errorContainer to scheme.onErrorContainer
+        ExamBadgeTone.UPCOMING -> scheme.secondaryContainer to scheme.onSecondaryContainer
+    }
+    Surface(
+        color = bg,
+        contentColor = fg,
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier.padding(start = 8.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+        )
+    }
+}
+
+// ---------------------------------------------------------------- 成绩
+
+@Composable
+private fun GradeSection(
+    summaries: List<TermGradeSummary>,
+    termNames: List<String>,
+    selectedTerm: String?,
+    onSelectTerm: (String?) -> Unit,
+    lastSync: SyncInfo?,
+    onSync: () -> Unit,
+) {
+    when {
+        summaries.isEmpty() && lastSync?.at == null -> {
+            CenteredEmpty(
+                title = stringResource(R.string.grade_empty_not_synced),
+                subtitle = stringResource(R.string.grade_empty_not_synced_subtitle),
+                actionLabel = stringResource(R.string.grade_sync),
+                onAction = onSync,
+            )
+        }
+
+        summaries.isEmpty() -> {
+            CenteredEmpty(
+                title = stringResource(R.string.grade_empty_no_grades),
+                subtitle = stringResource(R.string.grade_empty_no_grades_subtitle),
+                actionLabel = stringResource(R.string.grade_sync),
+                onAction = onSync,
+            )
+        }
+
+        else -> {
+            // 默认学期 = 时间序最新的学期（Term.parse + Comparable）。
+            val effectiveTerm = selectedTerm
+                ?: summaries.mapNotNull { it.term }.maxOrNull()?.let { latest ->
+                    termNames.firstOrNull { name -> Term.parse(name) == latest }
+                }
+                ?: termNames.firstOrNull()
+            val summary = summaries.firstOrNull { it.termName == effectiveTerm }
+                ?: summaries.first()
+            Column(Modifier.fillMaxSize()) {
+                ScrollableTabRow(
+                    selectedTabIndex = termNames.indexOf(summary.termName).coerceAtLeast(0),
+                    edgePadding = 12.dp,
+                ) {
+                    termNames.forEach { name ->
+                        Tab(
+                            selected = name == summary.termName,
+                            onClick = { onSelectTerm(name) },
+                            text = { Text(name) },
+                        )
+                    }
+                }
+                GradeList(
+                    summary = summary,
+                    allSummaries = summaries,
+                    lastSync = lastSync,
+                )
+            }
+        }
     }
 }
 

@@ -27,3 +27,4 @@ temp/
 
 # CortexKit 工具生成的目录
 .cortexkit/
+.kotlin/

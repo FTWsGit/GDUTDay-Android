@@ -95,6 +95,10 @@ public interface ExamDao {
     @Query("SELECT * FROM exam WHERE term_code = :termCode ORDER BY date, start_time")
     public fun observeByTerm(termCode: String): Flow<List<ExamEntity>>
 
+    /** 全部考试（跨学期），按日期升序。成绩页"考试安排"分组展示用。 */
+    @Query("SELECT * FROM exam ORDER BY date, start_time")
+    public fun observeAll(): Flow<List<ExamEntity>>
+
     /**
      * 从今天起最近的一场考试。Widget 和首页的"距期末还有 N 天"用。
      *

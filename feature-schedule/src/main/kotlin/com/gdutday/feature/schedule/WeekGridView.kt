@@ -8,8 +8,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -23,13 +21,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -46,7 +46,6 @@ import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.ui.LocalGdutDayColors
 import com.gdutday.core.ui.ScheduleBlockText
 import java.time.LocalDate
-import kotlin.math.abs
 
 /**
  * 每节对应的固定像素高度。
@@ -91,6 +90,12 @@ private val WEEKDAY_LABELS = listOf("周一", "周二", "周三", "周四", "周
  * "45 分钟的课 + 课间休息"共同决定行高，导致各节行高不一致、色块间出现空隙。
  * 因此改用 [ScheduleGridMath.minuteToYByPeriods]：每一节占等高槽位，节内分钟线性插值，
  * 课间不占高度。考试给的具体时刻（`08:30--10:05`）也照常映射，不损失精度。
+ *
+ * ## 左右滑动切周（页面跟随）
+ *
+ * 横向拖动时页面随手势平移（`graphicsLayer { translationX = drag.value }`），
+ * 松手时位移不足阈值弹回原位，超过阈值则提交翻页并由 [AnimatedContent] 完成过渡。
+ * 具体手势逻辑见 [detectHorizontalSwipe]。
  */
 @Composable
 public fun WeekGridView(
@@ -121,15 +126,18 @@ public fun WeekGridView(
     val periodRanges = remember(periods, range) { buildPeriodRanges(periods, range) }
 
     val touchSlop = LocalViewConfiguration.current.touchSlop
+    val drag = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .pointerInput(grid.week) {
-                detectWeekSwipe(
-                    week = grid.week,
-                    onSwipeWeek = onSwipeWeek,
+                detectHorizontalSwipe(
+                    drag = drag,
+                    scope = scope,
                     touchSlop = touchSlop,
                     threshold = 64.dp.toPx(),
+                    onSwipe = { delta -> onSwipeWeek(grid.week + delta) },
                 )
             },
     ) {
@@ -139,7 +147,7 @@ public fun WeekGridView(
         val dayWidthDp = with(density) { dayWidthPx.toDp() }
         val gridHeightDp = with(density) { gridHeightPx.toDp() }
 
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().graphicsLayer { translationX = drag.value }) {
             DayHeaderRow(
                 grid = grid,
                 visibleDays = visibleDays,
@@ -193,52 +201,6 @@ public fun WeekGridView(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-/**
- * 识别"横向滑动切周"手势，同时不吞掉纵向拖动（交给外层的下拉刷新）。
- *
- * 关键点：先用触摸阈值锁定滑动方向，只有确定为**横向**时才消费事件并累计位移，
- * 纵向（或尚未判定方向）的拖动原样放行，这样 [androidx.compose.material3.pulltorefresh.PullToRefreshBox]
- * 不会因为一个略斜的横滑被误触。
- */
-private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.detectWeekSwipe(
-    week: Int,
-    onSwipeWeek: (Int) -> Unit,
-    touchSlop: Float,
-    threshold: Float,
-) {
-    awaitEachGesture {
-        awaitFirstDown()
-        var dragged = 0f
-        var directionLocked = false
-        var isHorizontal = false
-
-        while (true) {
-            val event = awaitPointerEvent()
-            val change = event.changes.firstOrNull() ?: break
-            if (!change.pressed) {
-                if (isHorizontal && dragged > threshold) {
-                    onSwipeWeek(week - 1)
-                } else if (isHorizontal && dragged < -threshold) {
-                    onSwipeWeek(week + 1)
-                }
-                break
-            }
-
-            val dx = change.positionChange().x
-            val dy = change.positionChange().y
-
-            if (!directionLocked && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
-                directionLocked = true
-                isHorizontal = abs(dx) > abs(dy)
-            }
-            if (isHorizontal) {
-                change.consume()
-                dragged += dx
             }
         }
     }
