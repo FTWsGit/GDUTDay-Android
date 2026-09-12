@@ -63,13 +63,12 @@ import java.time.LocalDate
  * 4. 正在上课高亮：同文件叠 `ongoingBorder`。
  * 5. 透明度：`courseBlockAlpha` 只作用在色块背景，不影响文字。
  * 6. 字体色：`CourseTextColor.AUTO` 走 core-ui 的 WCAG 相对亮度纯函数。
- * 7. 隐私打码：`privacyMasked()` 应用于课程名与老师名，教室/时间保持可读。
- * 8. 周次选择器：网格上横向拖动切换周次（自定义 `detectHorizontalDragGestures`），
+ * 7. 周次选择器：网格上横向拖动切换周次（自定义 `detectHorizontalDragGestures`），
  *    非本周时顶栏出现"回到本周"。
- * 9. 开学日期提醒：`semesterStartSource == GUESSED` 时显示可关闭横幅，点击打开日期选择器。
- * 10. 同步失败不清空：`errorMessage` 弹 Snackbar，网格数据原样保留。
- * 11. 课程详情：[CourseDetailSheet]。
- * 12. 下拉刷新：触发 `SyncScheduler.requestImmediateSync(expedited = true)`。
+ * 8. 开学日期提醒：`semesterStartSource == GUESSED` 时显示可关闭横幅，点击打开日期选择器。
+ * 9. 同步失败不清空：`errorMessage` 弹 Snackbar，网格数据原样保留。
+ * 10. 课程详情：[CourseDetailSheet]。
+ * 11. 下拉刷新：触发 `SyncScheduler.requestImmediateSync(expedited = true)`。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

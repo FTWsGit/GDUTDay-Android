@@ -62,7 +62,7 @@ internal fun CourseDetailSheet(
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = course.name.maskIfNeeded(settings),
+                    text = course.name,
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
@@ -83,7 +83,7 @@ internal fun CourseDetailSheet(
 
             val rows = buildList {
                 if (course.teacher.isNotBlank()) {
-                    add(stringResource(R.string.schedule_detail_teacher) to course.teacher.maskIfNeeded(settings))
+                    add(stringResource(R.string.schedule_detail_teacher) to course.teacher)
                 }
                 if (course.classroom.isNotBlank()) {
                     add(stringResource(R.string.schedule_detail_classroom) to course.classroom)

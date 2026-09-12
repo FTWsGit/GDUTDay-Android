@@ -8,23 +8,23 @@
 ## 1. 当前测试覆盖情况
 
 数字由 `gradle <module>:test` 生成，从各模块 `build/test-results/*/TEST-*.xml`
-的 `tests` 属性统计。统计时刻 **2026-09-11**。
+的 `tests` 属性统计。统计时刻 **2026-09-12**。
 
 | 模块 | 测试数 | 测试类 | 类型 |
 |---|---:|---|---|
-| `core-model` | **47** | `CoreModelTest` | 纯 JVM |
-| `core-common` | **68** | `CoreCommonTest` | 纯 JVM |
-| `data-gdut` | **148** | `AuthLoginPageParserTest` `AuthServerClientTest` `AuthServerCryptoTest` `GdutHostsTest` `FormFieldsTest` `RedirectFollowerTest` `SessionCookieJarTest` `JxfwParserTest` `JxfwScheduleParserTest` | 纯 JVM（含 MockWebServer） |
+| `core-model` | **50** | `CampusTest` `CourseTest` `ExamTest` `GdutExceptionTest` `SnapshotAndGradeTest` `StudentProfileTest` `TermTest` | 纯 JVM |
+| `core-common` | **68** | `CampusTimetableTest` `CourseColorsTest` `ScheduleGridBuilderTest` `SectionRunSplitterTest` `TermCalendarTest` | 纯 JVM |
+| `data-gdut` | **161** | `AuthLoginPageParserTest` `AuthServerClientTest` `AuthServerCryptoTest` `GdutHostsTest` `FormFieldsTest` `RedirectFollowerTest` `SessionCookieJarTest` `JxfwClientTest` `JxfwParserTest` `JxfwScheduleParserTest` | 纯 JVM（含 MockWebServer） |
 | `core-database` | **6** | `SyncStateDaoContractTest` | 纯 JVM（常量一致性 + 映射往返） |
 | `core-datastore` | **40** | `AesGcmCipherTest` `DataStoreSettingsStoreTest` `MaskMiddleTest` `SecureFileTest` `SessionJsonTest` | JVM 单元（用假 KeyProvider/内存后端） |
-| `core-ui` | **12** | `ColorContrastTest` `PrivacyMaskTest` | 纯 JVM（纯函数） |
+| `core-ui` | **7** | `ColorContrastTest` | 纯 JVM（纯函数） |
 | `data-repository` | **21** | `ScheduleComputationTest` `ScheduleUiStateBuilderTest` `SemesterStartResolverTest` | JVM 单元（`flowOf` 假数据） |
-| `widget` | **26** | `NextClassRefreshPolicyTest` `TodayScheduleMapperTest` `WidgetSizingTest` `WidgetTextTest` | 纯 JVM（映射/策略与 Android 解耦） |
+| `widget` | **21** | `NextClassRefreshPolicyTest` `TodayScheduleMapperTest` `WidgetSizingTest` | 纯 JVM（映射/策略与 Android 解耦） |
 | `feature-schedule` | **10** | `ScheduleGridMathTest` | 纯 JVM（几何纯函数） |
 | `feature-auth` | **9** | `LoginLogicTest` | 纯 JVM |
 | `feature-grade` | **9** | `GradeLogicTest` | 纯 JVM |
 | `feature-settings` | **7** | `SettingsLogicTest` | 纯 JVM |
-| **合计** | **403** | | **0 失败** |
+| **合计** | **409** | | **0 失败** |
 
 **`core-database` 没有任何测试** —— DAO 的 `@Query` SQL 只能在真实 Room + SQLite 上验证，
 目前没有 Robolectric/androidTest，所以 SQL 写错不会被任何测试发现。
@@ -179,7 +179,7 @@ private inner class Script(
 | `data-gdut` 端到端 | MockWebServer 上的完整登录链、错误页识别、重定向 | 真实 TLS/风控 |
 | `core-datastore` | AES/GCM 往返、IV 唯一、篡改拒绝、`SecureFile` 解密失败删文件、设置映射 | 真实 AndroidKeyStore、真实 DataStore 文件 |
 | `data-repository` | `buildScheduleUiState` 的 Flow 装配、学期选择、配色持久化、冲突判定、开学日期四级优先级 | Room 真实 SQL（用 `flowOf` 假数据） |
-| `widget` | 快照映射、空状态分类、打码、尺寸→行数、刷新间隔 | 真实 Glance 渲染 |
+| `widget` | 快照映射、空状态分类、尺寸→行数、刷新间隔 | 真实 Glance 渲染 |
 | `feature-*` | 登录校验/错误映射、成绩格式化/趋势点、设置映射、网格几何 | Compose UI |
 
 `AesGcmCipherTest` 用**假的 `AesKeyProvider`** 在普通 JVM 上完整验证：
@@ -200,7 +200,7 @@ private inner class Script(
 | **Room 迁移测试** | schema 变更后老用户数据可能丢/迁移报错，只有真机才能发现 |
 | **DAO SQL 测试** | `@Query` 写错不会被任何测试发现（`core-database` 零测试） |
 | **真实 AndroidKeyStore 行为** | 强盒降级、密钥丢失后的静默丢弃、`setUserAuthenticationRequired(false)` 的实际效果 |
-| **Glance 渲染** | `SizeMode.Exact`、`LocalSize`、打码后的布局、`FlowDataStore` 是否真的每次重读 |
+| **Glance 渲染** | `SizeMode.Exact`、`LocalSize`、`FlowDataStore` 是否真的每次重读 |
 | **`SecureFile.secureErase`** | 真实文件系统上的覆盖+删除行为 |
 | **Compose UI 测试** | 页面交互、无障碍、点击目标 |
 | **截图测试** | 视觉回归 |

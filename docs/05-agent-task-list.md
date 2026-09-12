@@ -167,7 +167,7 @@
   下列**从未被真实验证**：
   - `AndroidKeystoreCipher` 在真实 KeyStore 上的行为（强盒降级、密钥丢失后的静默丢弃）；
   - Room 迁移（无 `MigrationTest`）；
-  - Glance 渲染（`SizeMode.Exact`、`LocalSize`、打码后的布局）；
+  - Glance 渲染（`SizeMode.Exact`、`LocalSize`、`FlowDataStore` 是否每次重读）；
   - `SecureFile.secureErase` 在真实文件系统上的行为；
   - `WidgetContainerAccess` 在 release/R8 下的行为。
 - **要求**：至少补 Keystore 与 Room 迁移的 androidTest；Glance 用 Robolectric 或截图测试。
@@ -191,9 +191,11 @@
 
 ### T2.4 `xsAllKbList` 是否仍存活未验证
 
-- **现状**：`ScheduleEndpoint.AUTO` 先试它、失败回退 `getDataList`，所以即使下线也用户无感，
+- **现状**：`ScheduleEndpoint.AUTO` 已默认先试 `getDataList`（**按周返回**，能还原每周教室、
+  带 `sknrjj` 授课内容），失败或返回空才回退 `xsAllKbList`，所以即使它下线也用户无感，
   但无法据此判断"该接口是否还该保留"。
-- **要求**：用验证脚本的真实输出确认；若已下线，考虑默认改用 `DATA_LIST` 或删掉 A 接口。
+- **要求**：用验证脚本的真实输出确认；若已下线，考虑把 A 接口整个删掉、
+  `AUTO` 退化为 `getDataList` 单一路径。
 - **验收**：验证脚本的课表阶段打印出实际命中的接口名。
 
 ### T2.5 文档引用了不存在的测试

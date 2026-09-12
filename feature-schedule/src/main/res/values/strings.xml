@@ -31,7 +31,6 @@
     <string name="schedule_campus_unknown_action">去设置</string>
     <string name="schedule_calibrate">校准</string>
     <string name="schedule_calibrate_title">校准开学日期</string>
-    <string name="schedule_privacy_hint">已开启课表打码</string>
     <string name="schedule_dismiss">关闭</string>
     <string name="schedule_confirm">确定</string>
     <string name="schedule_cancel">取消</string>
@@ -44,7 +43,7 @@
     <string name="schedule_detail_weeks">周次</string>
     <string name="schedule_detail_teaching_class">教学班</string>
     <string name="schedule_detail_course_code">课程编号</string>
-    <string name="schedule_detail_content">教学内容</string>
+    <string name="schedule_detail_content">授课内容</string>
     <string name="schedule_detail_color">课程颜色</string>
     <string name="schedule_detail_delete">删除课程</string>
 </resources>

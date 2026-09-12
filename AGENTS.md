@@ -102,7 +102,7 @@ core-common → core-model
 | `core-network` | Android | OkHttpClient 工厂 + 网络状态监听（极薄） |
 | `core-database` | Android | Room：实体、DAO、映射 |
 | `core-datastore` | Android | DataStore 偏好 + Keystore 加密的会话/凭据 |
-| `core-ui` | Android | 主题、通用组件、纯函数（WCAG 对比度、隐私打码） |
+| `core-ui` | Android | 主题、通用组件、纯函数（WCAG 对比度、颜色转换） |
 | `data-repository` | Android | 编排层：读路径 Flow → UI State、写路径多接口同步、手写 DI 容器 |
 | `feature-auth` | Android | 登录页 |
 | `feature-schedule` | Android | 课表页（周网格 / 日列表） |
@@ -199,7 +199,7 @@ App 直连 `authserver.gdut.edu.cn` / `jxfw.gdut.edu.cn`，没有自己的服务
 | [`docs/00-architecture.md`](docs/00-architecture.md) | 模块依赖、四条核心决策、冷启动、线程模型、发布流程 | 改架构前必读 |
 | [`docs/01-gdut-protocol.md`](docs/01-gdut-protocol.md) | 学校接口完整逆向报告 + 已实测/未实测清单 | 改协议层前必读 |
 | [`docs/02-data-model.md`](docs/02-data-model.md) | Room 表结构、映射规则、开学日期四级优先级、迁移策略 | 改数据库前必读 |
-| [`docs/03-ui-spec.md`](docs/03-ui-spec.md) | 四页面交互、网格渲染、并排布局、WCAG 字色、打码 | 改 UI 前必读 |
+| [`docs/03-ui-spec.md`](docs/03-ui-spec.md) | 四页面交互、网格渲染、并排布局、WCAG 字色 | 改 UI 前必读 |
 | [`docs/04-widget-spec.md`](docs/04-widget-spec.md) | 插件尺寸/内容/空状态、数据驱动、分级刷新、Glance 限制 | 改插件前必读 |
 | [`docs/05-agent-task-list.md`](docs/05-agent-task-list.md) | **待办任务清单**（含验收标准） | 找活干时读 |
 | [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md) | 逐模块测试统计、MockWebServer、缺失的测试 | 写测试前必读 |

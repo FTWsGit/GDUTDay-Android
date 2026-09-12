@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.glance.state.GlanceStateDefinition
 import com.gdutday.core.common.BlockStatus
-import com.gdutday.core.datastore.UserSettings
 import com.gdutday.data.repository.ScheduleUiState
 import kotlinx.coroutines.flow.combine
 import java.io.File
@@ -15,7 +14,7 @@ import java.time.LocalDate
  *
  * 刻意做成一个**已经算好、可直接渲染**的快照，而不是把 `ScheduleUiState` 直接塞进来：
  * 1. Glance 的 Compose 每次重组都会跑样式判断，数据越接近最终形态，重组越便宜；
- * 2. 打码、尺寸、日期格式化这些逻辑与 Glance 无关，可以在纯 JVM 里单测；
+ * 2. 尺寸、日期格式化这些逻辑与 Glance 无关，可以在纯 JVM 里单测；
  * 3. 快照是不可变 data class，与上一次比较即可判断"是否需要重画"。
  */
 public data class TodayScheduleWidgetState(
@@ -45,12 +44,7 @@ public enum class TodayPhase {
     HAS_CLASS,
 }
 
-/**
- * 列表里的一行课程。
- *
- * `name` / `teacher` 可能已被打码；`classroom` 与 [startClock] 永远保持可读
- * （见 [WidgetText] 的说明）。
- */
+/** 列表里的一行课程。 */
 public data class WidgetCourseRow(
     public val startClock: String,
     public val name: String,
@@ -61,7 +55,7 @@ public data class WidgetCourseRow(
 )
 
 /**
- * `ScheduleUiState` + 设置 + 登录态 → 插件快照 的纯映射。
+ * `ScheduleUiState` + 登录态 → 插件快照 的纯映射。
  *
  * 没有 Android 依赖，唯一的外部输入是 `today`，测试可固化。
  */
@@ -70,13 +64,11 @@ public object TodayScheduleMapper {
     /**
      * @param ui 课表状态；null 表示仓库还没给出第一帧 → 加载中
      * @param loggedIn 是否已登录。未登录且没有任何本地数据时才显示"未登录"
-     * @param settings 用于隐私打码开关
      * @param today 今天。由调用方传入，避免在映射里读墙钟
      */
     public fun map(
         ui: ScheduleUiState?,
         loggedIn: Boolean,
-        settings: UserSettings,
         today: LocalDate,
     ): TodayScheduleWidgetState {
         if (ui == null) return TodayScheduleWidgetState.Loading
@@ -93,12 +85,11 @@ public object TodayScheduleMapper {
             return TodayScheduleWidgetState(TodayPhase.NO_CLASS, dateLine, emptyList())
         }
 
-        val blur = WidgetText.shouldBlur(settings)
         val rows = blocks.map { block ->
             WidgetCourseRow(
                 startClock = block.startClock,
-                name = WidgetText.mask(block.course.name, blur),
-                teacher = WidgetText.mask(block.course.teacher, blur),
+                name = block.course.name,
+                teacher = block.course.teacher,
                 classroom = block.course.classroom,
                 colorArgb = block.color.argb,
                 status = block.status,
@@ -158,10 +149,9 @@ internal class TodayScheduleWidgetStateDefinition : GlanceStateDefinition<TodayS
         return FlowDataStore {
             combine(
                 container.scheduleRepository.observeScheduleUiState(),
-                container.settingsStore.settings,
                 container.authRepository.isLoggedIn,
-            ) { ui, settings, loggedIn ->
-                TodayScheduleMapper.map(ui, loggedIn, settings, LocalDate.now())
+            ) { ui, loggedIn ->
+                TodayScheduleMapper.map(ui, loggedIn, LocalDate.now())
             }
         }
     }

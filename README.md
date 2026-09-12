@@ -23,7 +23,7 @@
 ## 当前完成度
 
 - 登录（统一认证 + 教务直登）、课表、考试、成绩、学期切换、图书馆二维码都有实现。
-- 课表以周网格 / 日列表展示，支持并排冲突、按分钟定位、隐私打码、自动配色。
+- 课表以周网格 / 日列表展示，支持并排冲突、按分钟定位、自动配色。
 - 两个 Glance 桌面插件（今日课程 / 下节课倒计时）。
 - 设置页六个分组（学期与校区、课表外观、作息表、数据与同步、隐私、关于/诊断）已完整实现。
 - 测试以纯 JVM 单元测试为主，共约 **403 个**（见 [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md)）。
@@ -185,7 +185,7 @@ cp secrets.properties.example secrets.properties
 | `core-network` | OkHttpClient 工厂 + 网络状态监听 |
 | `core-database` | Room：实体、DAO、映射 |
 | `core-datastore` | DataStore 偏好 + Keystore 加密的会话/凭据 |
-| `core-ui` | 主题、通用组件、可离线单测的纯函数（WCAG 对比度、隐私打码） |
+| `core-ui` | 主题、通用组件、可离线单测的纯函数（WCAG 对比度、颜色转换） |
 | `data-repository` | 编排层：读路径 Flow → UI State、写路径多接口同步、手写 DI 容器 |
 | `feature-auth` | 登录页 |
 | `feature-schedule` | 课表页（周网格 / 日列表） |
@@ -205,7 +205,7 @@ cp secrets.properties.example secrets.properties
 | [`docs/00-architecture.md`](docs/00-architecture.md) | 模块依赖、四条核心决策（不用 WebView/Hilt/旧后端）、冷启动、线程模型、发布流程 |
 | [`docs/01-gdut-protocol.md`](docs/01-gdut-protocol.md) | ★ 学校接口完整逆向报告 + **已实测/未实测清单** |
 | [`docs/02-data-model.md`](docs/02-data-model.md) | Room 表结构、映射规则、开学日期四级优先级、迁移策略 |
-| [`docs/03-ui-spec.md`](docs/03-ui-spec.md) | 四页面交互、网格渲染、并排布局、WCAG 字色、打码、边界情况 |
+| [`docs/03-ui-spec.md`](docs/03-ui-spec.md) | 四页面交互、网格渲染、并排布局、WCAG 字色、边界情况 |
 | [`docs/04-widget-spec.md`](docs/04-widget-spec.md) | 插件尺寸/内容/空状态、数据驱动、分级刷新、Glance 限制 |
 | [`docs/05-agent-task-list.md`](docs/05-agent-task-list.md) | **待办任务清单**（含验收标准） |
 | [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md) | 逐模块测试统计、MockWebServer、缺失的测试、改接口回归流程 |

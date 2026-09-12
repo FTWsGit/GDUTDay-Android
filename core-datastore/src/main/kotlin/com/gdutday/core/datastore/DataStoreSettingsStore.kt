@@ -124,8 +124,6 @@ internal object SettingsKeys {
     const val FETCH_STRATEGY = "fetch_strategy"
     const val AUTO_SYNC_ON_LAUNCH = "auto_sync_on_launch"
     const val AUTO_SYNC_INTERVAL_HOURS = "auto_sync_interval_hours"
-    const val PRIVACY_BLUR_ENABLED = "privacy_blur_enabled"
-    const val PRIVACY_BLUR_IN_WIDGET = "privacy_blur_in_widget"
 }
 
 /**
@@ -165,8 +163,6 @@ internal object SettingsMapper {
             autoSyncOnLaunch = map.bool(SettingsKeys.AUTO_SYNC_ON_LAUNCH, defaults.autoSyncOnLaunch),
             autoSyncIntervalHours = map.int(SettingsKeys.AUTO_SYNC_INTERVAL_HOURS, defaults.autoSyncIntervalHours)
                 .coerceIn(0, MAX_SYNC_INTERVAL_HOURS),
-            privacyBlurEnabled = map.bool(SettingsKeys.PRIVACY_BLUR_ENABLED, defaults.privacyBlurEnabled),
-            privacyBlurInWidget = map.bool(SettingsKeys.PRIVACY_BLUR_IN_WIDGET, defaults.privacyBlurInWidget),
         )
     }
 
@@ -188,8 +184,6 @@ internal object SettingsMapper {
         map[SettingsKeys.FETCH_STRATEGY] = settings.fetchStrategy.name
         map[SettingsKeys.AUTO_SYNC_ON_LAUNCH] = settings.autoSyncOnLaunch
         map[SettingsKeys.AUTO_SYNC_INTERVAL_HOURS] = settings.autoSyncIntervalHours
-        map[SettingsKeys.PRIVACY_BLUR_ENABLED] = settings.privacyBlurEnabled
-        map[SettingsKeys.PRIVACY_BLUR_IN_WIDGET] = settings.privacyBlurInWidget
     }
 
     private fun putOrRemove(map: MutableMap<String, Any?>, key: String, value: String?) {

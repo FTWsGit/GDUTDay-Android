@@ -33,6 +33,8 @@ public data class CourseBlockColors(
     public val onBlockSecondary: Color,
     /** 已上完课程的遮罩色。 */
     public val finishedScrim: Color,
+    /** 已上完且置灰后**统一**使用的字色，与 [finishedScrim] 搭配保证对比度。 */
+    public val finishedText: Color,
     /** 正在上课的课程块描边色。 */
     public val ongoingBorder: Color,
     /** 考试块的底色（与普通课程区分）。 */
@@ -59,6 +61,7 @@ public val LocalGdutDayColors = androidx.compose.runtime.staticCompositionLocalO
             onBlock = Color.White,
             onBlockSecondary = Color(0xCCFFFFFF),
             finishedScrim = Color(0xFFB7B7B7),
+            finishedText = Color(0xFF3D3D3D),
             ongoingBorder = Color(0xFFFFC107),
             examTint = Color(0x33FF5252),
             customTint = Color(0x33000000),
@@ -126,6 +129,7 @@ private fun darkGdutDayColors() = GdutDayColors(
         onBlock = Color(0xFF1A1A1A),
         onBlockSecondary = Color(0xCC1A1A1A),
         finishedScrim = Color(0xFF4A4A4A),
+        finishedText = Color(0xFFEDEDED),
         ongoingBorder = Color(0xFFFFD54F),
         examTint = Color(0x33FF5252),
         customTint = Color(0x33FFFFFF),

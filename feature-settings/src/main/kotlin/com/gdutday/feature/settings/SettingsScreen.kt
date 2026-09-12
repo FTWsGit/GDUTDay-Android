@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -44,8 +46,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -115,6 +119,17 @@ fun SettingsScreen(
     var confirmClearAll by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
 
+    // 折叠的分组键。默认全部收起，点标题展开；用 rememberSaveable 跨配置变更保留。
+    val expandedSections = rememberSaveable(
+        saver = listSaver(
+            save = { it.toList() },
+            restore = { it.toMutableStateList() },
+        ),
+    ) { mutableStateListOf<String>() }
+    val toggleSection: (String) -> Unit = { key ->
+        if (key in expandedSections) expandedSections.remove(key) else expandedSections.add(key)
+    }
+
     // 退出登录后 isLoggedIn 变 false，交给 NavHost 跳转。
     LaunchedEffect(isLoggedIn) {
         if (!isLoggedIn) onLogout()
@@ -180,253 +195,210 @@ fun SettingsScreen(
             }
 
             // ---------------------------------------------------------- 学期与校区
-            item(key = "header_term") { SectionHeader(stringResource(R.string.settings_section_term_campus)) }
-
-            item(key = "campus") {
-                CampusSetting(
-                    selected = settings.campus,
-                    onSelect = viewModel::setCampus,
-                )
-            }
-
-            if (settings.campus == Campus.PANYU) {
-                item(key = "panyu_warning") {
-                    StatusBanner(
-                        message = stringResource(R.string.settings_campus_panyu_warning),
-                        tone = BannerTone.INFO,
+            item(key = "section_term") {
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_section_term_campus),
+                    expanded = "term" in expandedSections,
+                    onToggle = { toggleSection("term") },
+                ) {
+                    CampusSetting(
+                        selected = settings.campus,
+                        onSelect = viewModel::setCampus,
+                    )
+                    if (settings.campus == Campus.PANYU) {
+                        StatusBanner(
+                            message = stringResource(R.string.settings_campus_panyu_warning),
+                            tone = BannerTone.INFO,
+                        )
+                    }
+                    SemesterStartRow(
+                        date = scheduleState.calendar?.semesterStart,
+                        source = scheduleState.semesterStartSource,
+                        enabled = true, // 校准日期永远可用：即使从未同步过，用户也应能手动设置开学日期。
+                        onCalibrate = { showSemesterStartPicker = true },
                     )
                 }
             }
 
-            item(key = "semester_start") {
-                SemesterStartRow(
-                    date = scheduleState.calendar?.semesterStart,
-                    source = scheduleState.semesterStartSource,
-                    enabled = true, // 校准日期永远可用：即使从未同步过，用户也应能手动设置开学日期。
-                    onCalibrate = { showSemesterStartPicker = true },
-                )
-            }
-
             // ---------------------------------------------------------- 课表外观
-            item(key = "header_appearance") { SectionHeader(stringResource(R.string.settings_section_appearance)) }
-
-            item(key = "view_mode") {
-                ViewModeSetting(
-                    selected = settings.scheduleView,
-                    onSelect = viewModel::setScheduleView,
-                )
-            }
-
-            item(key = "alpha") {
-                AlphaSetting(
-                    alpha = settings.courseBlockAlpha,
-                    onAlphaChange = viewModel::setCourseBlockAlpha,
-                )
-            }
-
-            item(key = "dim_finished") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_dim_finished),
-                    checked = settings.dimFinishedCourses,
-                    onCheckedChange = viewModel::setDimFinishedCourses,
-                )
-            }
-
-            item(key = "text_color") {
-                TextColorSetting(
-                    selected = settings.courseTextColor,
-                    onSelect = viewModel::setCourseTextColor,
-                )
-            }
-
-            item(key = "background") {
-                BackgroundSetting(
-                    uri = settings.backgroundImageUri,
-                    blurDp = settings.backgroundBlurDp,
-                    onPick = {
-                        pickImage.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                        )
-                    },
-                    onClear = viewModel::clearBackgroundImage,
-                    onBlurChange = viewModel::setBackgroundBlur,
-                )
-            }
-
-            item(key = "show_teacher") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_show_teacher),
-                    checked = settings.showTeacher,
-                    onCheckedChange = viewModel::setShowTeacher,
-                )
-            }
-            item(key = "show_classroom") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_show_classroom),
-                    checked = settings.showClassroom,
-                    onCheckedChange = viewModel::setShowClassroom,
-                )
-            }
-            item(key = "show_extra") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_show_extra_sections),
-                    checked = settings.showExtraSections,
-                    onCheckedChange = viewModel::setShowExtraSections,
-                )
-            }
-            item(key = "show_weekend") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_show_weekend),
-                    checked = settings.showWeekend,
-                    onCheckedChange = viewModel::setShowWeekend,
-                )
+            item(key = "section_appearance") {
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_section_appearance),
+                    expanded = "appearance" in expandedSections,
+                    onToggle = { toggleSection("appearance") },
+                ) {
+                    ViewModeSetting(
+                        selected = settings.scheduleView,
+                        onSelect = viewModel::setScheduleView,
+                    )
+                    AlphaSetting(
+                        alpha = settings.courseBlockAlpha,
+                        onAlphaChange = viewModel::setCourseBlockAlpha,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.settings_dim_finished),
+                        checked = settings.dimFinishedCourses,
+                        onCheckedChange = viewModel::setDimFinishedCourses,
+                    )
+                    TextColorSetting(
+                        selected = settings.courseTextColor,
+                        onSelect = viewModel::setCourseTextColor,
+                    )
+                    BackgroundSetting(
+                        uri = settings.backgroundImageUri,
+                        blurDp = settings.backgroundBlurDp,
+                        onPick = {
+                            pickImage.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                            )
+                        },
+                        onClear = viewModel::clearBackgroundImage,
+                        onBlurChange = viewModel::setBackgroundBlur,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.settings_show_teacher),
+                        checked = settings.showTeacher,
+                        onCheckedChange = viewModel::setShowTeacher,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.settings_show_classroom),
+                        checked = settings.showClassroom,
+                        onCheckedChange = viewModel::setShowClassroom,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.settings_show_extra_sections),
+                        checked = settings.showExtraSections,
+                        onCheckedChange = viewModel::setShowExtraSections,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.settings_show_weekend),
+                        checked = settings.showWeekend,
+                        onCheckedChange = viewModel::setShowWeekend,
+                    )
+                }
             }
 
             // ---------------------------------------------------------- 作息表
-            item(key = "header_timetable") { SectionHeader(stringResource(R.string.settings_section_timetable)) }
-
-            item(key = "custom_toggle") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_custom_timetable),
-                    subtitle = stringResource(R.string.settings_custom_timetable_hint),
-                    checked = settings.customTimetableEnabled,
-                    onCheckedChange = viewModel::setCustomTimetableEnabled,
-                )
-            }
-
-            if (settings.customTimetableEnabled) {
-                item(key = "custom_editor") {
-                    TimetableEditor(
-                        campus = settings.campus,
-                        current = settings.customTimetable.ifEmpty {
-                            SettingsLogic.defaultTimetable(settings.campus)
-                        },
-                        onSave = viewModel::saveCustomTimetable,
-                        onRestore = viewModel::restoreDefaultTimetable,
+            item(key = "section_timetable") {
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_section_timetable),
+                    expanded = "timetable" in expandedSections,
+                    onToggle = { toggleSection("timetable") },
+                ) {
+                    SwitchRow(
+                        title = stringResource(R.string.settings_custom_timetable),
+                        subtitle = stringResource(R.string.settings_custom_timetable_hint),
+                        checked = settings.customTimetableEnabled,
+                        onCheckedChange = viewModel::setCustomTimetableEnabled,
                     )
+                    if (settings.customTimetableEnabled) {
+                        TimetableEditor(
+                            campus = settings.campus,
+                            current = settings.customTimetable.ifEmpty {
+                                SettingsLogic.defaultTimetable(settings.campus)
+                            },
+                            onSave = viewModel::saveCustomTimetable,
+                            onRestore = viewModel::restoreDefaultTimetable,
+                        )
+                    }
                 }
             }
 
             // ---------------------------------------------------------- 数据
-            item(key = "header_data") { SectionHeader(stringResource(R.string.settings_section_data)) }
-
-            item(key = "fetch_strategy") {
-                FetchStrategySetting(
-                    selected = settings.fetchStrategy,
-                    onSelect = viewModel::setFetchStrategy,
-                )
-            }
-
-            item(key = "auto_sync") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_auto_sync),
-                    subtitle = stringResource(R.string.settings_auto_sync_hint),
-                    checked = settings.autoSyncOnLaunch,
-                    onCheckedChange = viewModel::setAutoSyncOnLaunch,
-                )
-            }
-
-            item(key = "auto_sync_interval") {
-                SyncIntervalSetting(
-                    selected = settings.autoSyncIntervalHours,
-                    enabled = settings.autoSyncOnLaunch,
-                    onSelect = viewModel::setAutoSyncIntervalHours,
-                )
-            }
-
-            item(key = "manual_sync") {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_manual_sync)) },
-                    supportingContent = {
-                        Text(scheduleState.lastSync?.relativeTime() ?: stringResource(R.string.settings_never_synced))
-                    },
-                    trailingContent = {
-                        TextButton(onClick = viewModel::requestSync, enabled = !isSyncing) {
-                            Text(
-                                if (isSyncing) stringResource(R.string.settings_syncing)
-                                else stringResource(R.string.settings_sync_now),
-                            )
-                        }
-                    },
-                )
-            }
-
-            item(key = "reset_colors") {
-                ActionRow(
-                    title = stringResource(R.string.settings_reset_colors),
-                    subtitle = stringResource(R.string.settings_reset_colors_hint),
-                    onClick = { confirmResetColors = true },
-                )
-            }
-            item(key = "clear_custom") {
-                ActionRow(
-                    title = stringResource(R.string.settings_clear_custom_courses),
-                    subtitle = stringResource(R.string.settings_clear_custom_courses_hint),
-                    onClick = { confirmClearCourses = true },
-                )
-            }
-            item(key = "clear_all") {
-                ActionRow(
-                    title = stringResource(R.string.settings_clear_all),
-                    subtitle = stringResource(R.string.settings_clear_all_hint),
-                    onClick = { confirmClearAll = true },
-                    isDestructive = true,
-                )
+            item(key = "section_data") {
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_section_data),
+                    expanded = "data" in expandedSections,
+                    onToggle = { toggleSection("data") },
+                ) {
+                    FetchStrategySetting(
+                        selected = settings.fetchStrategy,
+                        onSelect = viewModel::setFetchStrategy,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.settings_auto_sync),
+                        subtitle = stringResource(R.string.settings_auto_sync_hint),
+                        checked = settings.autoSyncOnLaunch,
+                        onCheckedChange = viewModel::setAutoSyncOnLaunch,
+                    )
+                    SyncIntervalSetting(
+                        selected = settings.autoSyncIntervalHours,
+                        enabled = settings.autoSyncOnLaunch,
+                        onSelect = viewModel::setAutoSyncIntervalHours,
+                    )
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_manual_sync)) },
+                        supportingContent = {
+                            Text(scheduleState.lastSync?.relativeTime() ?: stringResource(R.string.settings_never_synced))
+                        },
+                        trailingContent = {
+                            TextButton(onClick = viewModel::requestSync, enabled = !isSyncing) {
+                                Text(
+                                    if (isSyncing) stringResource(R.string.settings_syncing)
+                                    else stringResource(R.string.settings_sync_now),
+                                )
+                            }
+                        },
+                    )
+                    ActionRow(
+                        title = stringResource(R.string.settings_reset_colors),
+                        subtitle = stringResource(R.string.settings_reset_colors_hint),
+                        onClick = { confirmResetColors = true },
+                    )
+                    ActionRow(
+                        title = stringResource(R.string.settings_clear_custom_courses),
+                        subtitle = stringResource(R.string.settings_clear_custom_courses_hint),
+                        onClick = { confirmClearCourses = true },
+                    )
+                    ActionRow(
+                        title = stringResource(R.string.settings_clear_all),
+                        subtitle = stringResource(R.string.settings_clear_all_hint),
+                        onClick = { confirmClearAll = true },
+                        isDestructive = true,
+                    )
+                }
             }
 
             // ---------------------------------------------------------- 隐私
-            item(key = "header_privacy") { SectionHeader(stringResource(R.string.settings_section_privacy)) }
-
-            item(key = "privacy_blur") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_privacy_blur),
-                    checked = settings.privacyBlurEnabled,
-                    onCheckedChange = viewModel::setPrivacyBlur,
-                )
-            }
-            item(key = "privacy_blur_widget") {
-                SwitchRow(
-                    title = stringResource(R.string.settings_privacy_blur_widget),
-                    checked = settings.privacyBlurInWidget,
-                    enabled = settings.privacyBlurEnabled,
-                    onCheckedChange = viewModel::setPrivacyBlurInWidget,
-                )
-            }
-            item(key = "remember_password") {
-                RememberPasswordRow(
-                    credentials = credentials,
-                    onClear = viewModel::clearRememberedPassword,
-                )
+            item(key = "section_privacy") {
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_section_privacy),
+                    expanded = "privacy" in expandedSections,
+                    onToggle = { toggleSection("privacy") },
+                ) {
+                    RememberPasswordRow(
+                        credentials = credentials,
+                        onClear = viewModel::clearRememberedPassword,
+                    )
+                }
             }
 
             // ---------------------------------------------------------- 关于 / 诊断
-            item(key = "header_about") { SectionHeader(stringResource(R.string.settings_section_about)) }
-
-            item(key = "version") {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_version)) },
-                    supportingContent = { Text(container.applicationContext.let { appVersionName(it) }) },
-                )
-            }
-            item(key = "licenses") {
-                ActionRow(
-                    title = stringResource(R.string.settings_licenses),
-                    onClick = { showLicenses = true },
-                )
-            }
-            item(key = "diagnostics") {
-                ActionRow(
-                    title = stringResource(R.string.settings_diagnostics),
-                    subtitle = stringResource(R.string.settings_diagnostics_hint),
-                    onClick = { showDiagnostics = true },
-                )
-            }
-            item(key = "logout") {
-                ActionRow(
-                    title = stringResource(R.string.settings_logout),
-                    onClick = { confirmLogout = true },
-                    isDestructive = true,
-                )
+            item(key = "section_about") {
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_section_about),
+                    expanded = "about" in expandedSections,
+                    onToggle = { toggleSection("about") },
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_version)) },
+                        supportingContent = { Text(container.applicationContext.let { appVersionName(it) }) },
+                    )
+                    ActionRow(
+                        title = stringResource(R.string.settings_licenses),
+                        onClick = { showLicenses = true },
+                    )
+                    ActionRow(
+                        title = stringResource(R.string.settings_diagnostics),
+                        subtitle = stringResource(R.string.settings_diagnostics_hint),
+                        onClick = { showDiagnostics = true },
+                    )
+                    ActionRow(
+                        title = stringResource(R.string.settings_logout),
+                        onClick = { confirmLogout = true },
+                        isDestructive = true,
+                    )
+                }
             }
         }
     }
@@ -505,14 +477,40 @@ fun SettingsScreen(
 // 分组与通用行
 // ============================================================================
 
+/**
+ * 可折叠的设置分组：点标题行展开/收起内容。
+ *
+ * 设置项有二十多个，默认全部收起，避免铺成一条要一直往下翻的长列表。
+ * 展开状态由调用方（[SettingsScreen]）持有，本组件无状态。
+ */
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
-    )
+private fun CollapsibleSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        ListItem(
+            headlineContent = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            },
+            trailingContent = {
+                Icon(
+                    // 展开时朝上、收起时朝下，是"还能再展开"的通用暗示。
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
+            modifier = Modifier.clickable(onClick = onToggle),
+        )
+        if (expanded) content()
+    }
 }
 
 @Composable

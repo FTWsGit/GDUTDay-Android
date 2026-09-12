@@ -79,12 +79,13 @@ public enum class ScheduleFetchStrategy(
     public val description: String,
 ) {
     /**
-     * 先试 `xsAllKbList`，失败或返回空则回退 `getDataList`。默认值。
+     * 先试 `getDataList`，失败或返回空则回退 `xsAllKbList`。默认值。
      *
-     * 优先 `xsAllKbList` 是因为它数据量小得多（约 10 行 vs 上百行），
-     * 一次请求就能拿全，没有分页取不全的风险。
+     * 优先 `getDataList` 是因为它**按周返回**，能还原"这门课第几周在哪个教室"，
+     * 并附带 `sknrjj`（授课内容）；`xsAllKbList` 只有整学期的教室列表，无法对应到周次。
+     * 代价是分页会多几次请求，但 `getDataList` 的资源消耗可以接受。
      */
-    AUTO("自动", "优先聚合接口，失败自动切换到分页接口"),
+    AUTO("自动", "优先分页接口，失败自动切换到聚合接口"),
 
     /** 只用 `xsAllKbList`。失败就失败，不回退。用于确认是不是这个接口挂了。 */
     ONLY_ALL_KB_LIST("仅聚合接口", "只用 xsAllKbList，失败不回退"),

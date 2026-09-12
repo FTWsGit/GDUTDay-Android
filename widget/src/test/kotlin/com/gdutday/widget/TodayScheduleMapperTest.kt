@@ -3,7 +3,6 @@ package com.gdutday.widget
 import com.gdutday.core.common.BlockStatus
 import com.gdutday.core.common.CourseBlock
 import com.gdutday.core.common.CourseColors
-import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.Term
 import com.gdutday.data.repository.ScheduleUiState
@@ -49,11 +48,9 @@ class TodayScheduleMapperTest {
         totalWeeks = 20,
     )
 
-    private val noBlur = UserSettings()
-
     @Test
     fun `仓库还没给出数据时是加载中`() {
-        val result = TodayScheduleMapper.map(null, loggedIn = false, settings = noBlur, today = wednesday)
+        val result = TodayScheduleMapper.map(null, loggedIn = false, today = wednesday)
         assertThat(result.phase).isEqualTo(TodayPhase.LOADING)
     }
 
@@ -62,7 +59,6 @@ class TodayScheduleMapperTest {
         val result = TodayScheduleMapper.map(
             ScheduleUiState(),
             loggedIn = false,
-            settings = noBlur,
             today = wednesday,
         )
         assertThat(result.phase).isEqualTo(TodayPhase.NOT_LOGGED_IN)
@@ -70,7 +66,7 @@ class TodayScheduleMapperTest {
 
     @Test
     fun `今天没有课时是空状态`() {
-        val result = TodayScheduleMapper.map(state(emptyList()), loggedIn = true, settings = noBlur, today = wednesday)
+        val result = TodayScheduleMapper.map(state(emptyList()), loggedIn = true, today = wednesday)
         assertThat(result.phase).isEqualTo(TodayPhase.NO_CLASS)
         assertThat(result.rows).isEmpty()
     }
@@ -80,7 +76,6 @@ class TodayScheduleMapperTest {
         val result = TodayScheduleMapper.map(
             state(listOf(block(BlockStatus.FINISHED), block(BlockStatus.FINISHED))),
             loggedIn = true,
-            settings = noBlur,
             today = wednesday,
         )
         assertThat(result.phase).isEqualTo(TodayPhase.ALL_FINISHED)
@@ -91,7 +86,6 @@ class TodayScheduleMapperTest {
         val result = TodayScheduleMapper.map(
             state(listOf(block(BlockStatus.FINISHED), block(BlockStatus.ONGOING))),
             loggedIn = true,
-            settings = noBlur,
             today = wednesday,
         )
         assertThat(result.phase).isEqualTo(TodayPhase.HAS_CLASS)
@@ -100,32 +94,17 @@ class TodayScheduleMapperTest {
     }
 
     @Test
-    fun `打码只作用于课程名和老师，时间与教室保持可读`() {
-        val blur = UserSettings(privacyBlurEnabled = true, privacyBlurInWidget = true)
+    fun `课程名-老师-教室与时间照常显示`() {
         val result = TodayScheduleMapper.map(
             state(listOf(block(BlockStatus.UPCOMING))),
             loggedIn = true,
-            settings = blur,
-            today = wednesday,
-        )
-        val row = result.rows.single()
-        assertThat(row.name).isEqualTo("····")
-        assertThat(row.teacher).isEqualTo("···")
-        assertThat(row.classroom).isEqualTo("教5-301")
-        assertThat(row.startClock).isEqualTo("08:30")
-    }
-
-    @Test
-    fun `关闭打码时显示真实姓名`() {
-        val result = TodayScheduleMapper.map(
-            state(listOf(block(BlockStatus.UPCOMING))),
-            loggedIn = true,
-            settings = noBlur,
             today = wednesday,
         )
         val row = result.rows.single()
         assertThat(row.name).isEqualTo("高等数学")
         assertThat(row.teacher).isEqualTo("张老师")
+        assertThat(row.classroom).isEqualTo("教5-301")
+        assertThat(row.startClock).isEqualTo("08:30")
     }
 
     @Test
@@ -133,7 +112,6 @@ class TodayScheduleMapperTest {
         val result = TodayScheduleMapper.map(
             state(listOf(block(BlockStatus.UPCOMING))),
             loggedIn = false,
-            settings = noBlur,
             today = wednesday,
         )
         assertThat(result.phase).isEqualTo(TodayPhase.HAS_CLASS)
@@ -141,7 +119,7 @@ class TodayScheduleMapperTest {
 
     @Test
     fun `表头包含日期星期与周次`() {
-        val result = TodayScheduleMapper.map(state(emptyList()), loggedIn = true, settings = noBlur, today = wednesday)
+        val result = TodayScheduleMapper.map(state(emptyList()), loggedIn = true, today = wednesday)
         assertThat(result.dateLine).isEqualTo("9月10日 周三 · 第2周")
     }
 }

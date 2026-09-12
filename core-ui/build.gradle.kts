@@ -42,7 +42,7 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // 纯逻辑（WCAG 相对亮度、隐私打码）的 JVM 单测。
+    // 纯逻辑（WCAG 相对亮度、颜色转换）的 JVM 单测。
     // 这些函数刻意不依赖 Android/Compose，测试无需 Robolectric。
     testImplementation(libs.junit)
     testImplementation(libs.truth)

@@ -22,7 +22,6 @@ import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.ui.LocalGdutDayColors
 import com.gdutday.core.ui.ScheduleBlockText
 import com.gdutday.core.ui.autoTextColorFor
-import com.gdutday.core.ui.privacyMasked
 import com.gdutday.core.ui.toComposeColor
 
 private val BLOCK_SHAPE = RoundedCornerShape(6.dp)
@@ -49,7 +48,7 @@ internal fun CourseBlockItem(
     modifier: Modifier = Modifier,
 ) {
     val courseBlockColors = LocalGdutDayColors.current.courseBlock
-    val textColor = resolveTextColor(settings, block)
+    val textColor = resolveTextColor(settings, block, courseBlockColors.finishedText)
 
     val background = block.color.toComposeColor().copy(alpha = settings.courseBlockAlpha)
     val ongoingBorder = if (block.status == BlockStatus.ONGOING) {
@@ -76,15 +75,19 @@ internal fun CourseBlockItem(
         }
 
         Column(Modifier.padding(horizontal = 3.dp, vertical = 1.dp)) {
+            // 普通课程的时间由所占节次唯一决定（作息表固定），格子里的起止时刻是冗余信息，
+            // 删掉腾出空间给课程名。考试的时间来自考试安排、未必与作息对齐，仍然保留。
+            if (block.isExam) {
+                Text(
+                    text = "${block.startClock}-${block.endClock}",
+                    style = ScheduleBlockText.timeRange,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
-                text = "${block.startClock}-${block.endClock}",
-                style = ScheduleBlockText.timeRange,
-                color = textColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = block.course.name.maskIfNeeded(settings),
+                text = block.course.name,
                 style = ScheduleBlockText.courseName,
                 color = textColor,
                 maxLines = ScheduleBlockText.COURSE_NAME_MAX_LINES,
@@ -92,7 +95,6 @@ internal fun CourseBlockItem(
             )
             if (settings.showClassroom && block.course.classroom.isNotBlank()) {
                 Text(
-                    // 教室不打码：打码后仍要能认出上课地点（见 privacyBlurEnabled 的注释）。
                     text = block.course.classroom,
                     style = ScheduleBlockText.detail,
                     color = textColor,
@@ -102,7 +104,7 @@ internal fun CourseBlockItem(
             }
             if (settings.showTeacher && block.course.teacher.isNotBlank()) {
                 Text(
-                    text = block.course.teacher.maskIfNeeded(settings),
+                    text = block.course.teacher,
                     style = ScheduleBlockText.detail,
                     color = textColor,
                     maxLines = 1,
@@ -117,9 +119,19 @@ internal fun CourseBlockItem(
  * 按设置决定字体色；`AUTO` 走 WCAG 相对亮度（纯函数在 core-ui）。
  *
  * 纯白在浅色色块上对比度过高、刺眼。未上课（UPCOMING）的色块把白色调暗一档，
- * 让"还没上的课"视觉上更柔和，同时不改变黑字与正在上课/已上完的语义。
+ * 让"还没上的课"视觉上更柔和，同时不改变黑字与正在上课的语义。
+ *
+ * 已上完且开了置灰时，背景会被统一的灰色遮罩盖住，字色也统一换成主题里配好的
+ * [finishedText]——否则浅色课程原本的黑字/白字落在灰底上对比度都可能不够。
  */
-internal fun resolveTextColor(settings: UserSettings, block: CourseBlock): Color {
+internal fun resolveTextColor(
+    settings: UserSettings,
+    block: CourseBlock,
+    finishedText: Color,
+): Color {
+    if (block.status == BlockStatus.FINISHED && settings.dimFinishedCourses) {
+        return finishedText
+    }
     val base = when (settings.courseTextColor) {
         CourseTextColor.AUTO -> autoTextColorFor(block.color.argb)
         CourseTextColor.WHITE -> Color.White
@@ -134,7 +146,3 @@ internal fun resolveTextColor(settings: UserSettings, block: CourseBlock): Color
 
 /** 未上课色块的柔化白。 */
 private val DIMMED_WHITE = Color(0xE6FFFFFF)
-
-/** 打码只针对姓名类文本；空串保持空串。 */
-internal fun String.maskIfNeeded(settings: UserSettings): String =
-    if (settings.privacyBlurEnabled) privacyMasked() else this

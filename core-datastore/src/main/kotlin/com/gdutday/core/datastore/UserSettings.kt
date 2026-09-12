@@ -111,8 +111,8 @@ public data class UserSettings(
     // ---------------------------------------------------------------- 数据源
 
     /**
-     * 课表抓取策略。默认 [ScheduleFetchStrategy.AUTO]：先试 `xsAllKbList`，
-     * 失败或为空则回退 `getDataList`。
+     * 课表抓取策略。默认 [ScheduleFetchStrategy.AUTO]：先试 `getDataList`（按周返回，
+     * 能还原每周对应的教室与授课内容），失败或为空则回退 `xsAllKbList`。
      *
      * 暴露给用户的理由是排查与自救：如果某天课表突然空了，
      * 让用户切到另一个接口能立刻恢复，不必等我们发版。
@@ -124,19 +124,6 @@ public data class UserSettings(
 
     /** 自动同步的最小间隔（小时）。防止用户反复重启 App 打爆教务系统。 */
     public val autoSyncIntervalHours: Int = 6,
-
-    // ---------------------------------------------------------------- 隐私
-
-    /**
-     * 是否在课表页对课程名/老师名打码。
-     *
-     * 场景：在公共场合（教室投屏、地铁）查看课表又不想让别人看到。
-     * 旧小程序没有这个功能，是本项目新增的。
-     */
-    public val privacyBlurEnabled: Boolean = false,
-
-    /** 桌面插件是否也应用打码。默认跟随 [privacyBlurEnabled]。 */
-    public val privacyBlurInWidget: Boolean = true,
 ) {
 
     public companion object {
@@ -219,6 +206,4 @@ public interface SettingsStore {
     }
 
     public suspend fun setFetchStrategy(strategy: ScheduleFetchStrategy) = update { it.copy(fetchStrategy = strategy) }
-
-    public suspend fun setPrivacyBlur(enabled: Boolean) = update { it.copy(privacyBlurEnabled = enabled) }
 }

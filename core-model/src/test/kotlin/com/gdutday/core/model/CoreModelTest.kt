@@ -451,13 +451,14 @@ class SnapshotAndGradeTest {
     }
 
     @Test
-    fun `countsTowardsGpa 要求分数至少 60-绩点-学分`() {
+    fun `countsTowardsGpa 计入挂科但不计入等级制-缺绩点-零学分`() {
         fun g(score: Double?, gpa: Double?, credit: Double?) = Grade(
             termName = "T", courseName = "C", score = score, gpa = gpa, credit = credit,
         )
         assertThat(g(87.0, 3.7, 5.0).countsTowardsGpa).isTrue()
         assertThat(g(60.0, 1.0, 3.0).countsTowardsGpa).isTrue()     // 60 分及格
-        assertThat(g(59.0, 0.0, 3.0).countsTowardsGpa).isFalse()    // 挂科不计入绩点
+        assertThat(g(59.0, 0.0, 3.0).countsTowardsGpa).isTrue()     // 挂科：0 绩点也是平均绩点的一部分
+        assertThat(g(30.0, 0.0, 4.0).countsTowardsGpa).isTrue()     // 低分挂科同样计入
         assertThat(g(null, null, 1.0).countsTowardsGpa).isFalse()   // 等级制
         assertThat(g(87.0, null, 5.0).countsTowardsGpa).isFalse()   // 没给绩点
         assertThat(g(87.0, 3.7, 0.0).countsTowardsGpa).isFalse()    // 零学分
@@ -485,6 +486,19 @@ class SnapshotAndGradeTest {
         // 缓考既不算过也不算挂
         assertThat(g(text = "缓考").isPassed).isFalse()
         assertThat(g(text = "缓考").isFailed).isFalse()
+    }
+
+    @Test
+    fun `加权绩点计入挂科的 0 绩点`() {
+        val summary = TermGradeSummary(
+            termName = "T",
+            grades = listOf(
+                Grade(termName = "T", courseName = "A", score = 90.0, gpa = 4.0, credit = 3.0),
+                Grade(termName = "T", courseName = "B", score = 50.0, gpa = 0.0, credit = 1.0), // 挂科
+            ),
+        )
+        // (4.0*3 + 0.0*1) / (3+1) = 12/4 = 3.0，挂科把绩点拉低
+        assertThat(summary.weightedGpa!!).isWithin(0.001).of(3.0)
     }
 
     @Test

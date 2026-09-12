@@ -178,7 +178,7 @@ private fun DayBlockRow(
                     if (block.isExam) Badge(text = stringResource(R.string.schedule_badge_exam))
                     if (block.isCustom) Badge(text = stringResource(R.string.schedule_badge_custom))
                     Text(
-                        text = block.course.name.maskIfNeeded(settings),
+                        text = block.course.name,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -188,7 +188,7 @@ private fun DayBlockRow(
                         add(block.course.classroom)
                     }
                     if (settings.showTeacher && block.course.teacher.isNotBlank()) {
-                        add(block.course.teacher.maskIfNeeded(settings))
+                        add(block.course.teacher)
                     }
                     add(block.sectionLabel)
                 }

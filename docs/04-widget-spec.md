@@ -57,8 +57,8 @@ App Widget 运行在**主 App 进程**（没有声明 `android:process`），所
 ```text
 ┌──────────────────────────────────────┐
 │ 9月10日 周三 · 第2周            刷新 │  ← 表头
-│ ▌ 08:30  高等数学                    │  ← 时间 / 课程名（可能打码）
-│          教5-301 · 张三              │  ← 教室（永不打码）· 老师（可能打码）
+│ ▌ 08:30  高等数学                    │  ← 时间 / 课程名
+│          教5-301 · 张三              │  ← 教室 · 老师
 │ ▌ 10:25  大学英语                    │
 │          教1-205                     │
 └──────────────────────────────────────┘
@@ -174,10 +174,9 @@ internal class TodayScheduleWidgetStateDefinition : GlanceStateDefinition<TodayS
         return FlowDataStore {
             combine(
                 container.scheduleRepository.observeScheduleUiState(),
-                container.settingsStore.settings,
                 container.authRepository.isLoggedIn,
-            ) { ui, settings, loggedIn ->
-                TodayScheduleMapper.map(ui, loggedIn, settings, LocalDate.now())
+            ) { ui, loggedIn ->
+                TodayScheduleMapper.map(ui, loggedIn, LocalDate.now())
             }
         }
     }

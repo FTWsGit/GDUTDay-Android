@@ -45,14 +45,15 @@ public data class Grade(
     /**
      * 是否计入绩点。
      *
-     * 规则（广工本科）：数值成绩 ≥ 60 且学分 > 0 才计入。
+     * 规则（广工本科）：有数值成绩、有绩点值、学分 > 0 即计入。
+     *
+     * **挂科也计入**：绩点 0 是平均绩点的一部分。早期实现漏掉了 `score < 60` 的课，
+     * 会让加权绩点虚高，与教务系统的算法不一致。
+     *
      * 等级制成绩（优秀/良好/合格/不合格）不参与绩点计算，`cjjd` 通常为空。
      */
     public val countsTowardsGpa: Boolean
-        get() {
-            val s = score ?: return false
-            return s >= 60.0 && gpa != null && (credit ?: 0.0) > 0.0
-        }
+        get() = score != null && gpa != null && (credit ?: 0.0) > 0.0
 
     /**
      * 是否通过（学分是否计入总学分）。

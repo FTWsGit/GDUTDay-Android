@@ -467,9 +467,16 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 
 `ScheduleEndpoint.AUTO`（默认）策略：
 
-1. 先试 `xsAllKbList`（数据量小得多）；
-2. 抛异常或返回空 → 回退 `getDataList`（分页取满）；
+1. 先试 `getDataList`（**按周返回**，能还原"这门课第几周在哪个教室"，并带 `sknrjj` 授课内容）；
+2. 抛异常或返回空 → 回退 `xsAllKbList`（一次请求拿全，但 `jxcdmcs` 只有整学期的教室列表，
+   无法对应到具体周次，也没有 `sknrjj`）；
 3. 两个都失败 → 抛 `Parse`，detail 里**同时附上两次的失败原因**。
+
+> 顺序曾经是"聚合优先"（`xsAllKbList` 数据量小）。但实践发现：换教室的课在
+> `xsAllKbList` 里会把整个学期的教室拼成一串（如 `实4-401、实4-403、实4-407`），
+> 无法知道某周到底在哪，详情页的"授课内容"也是空的。只有 `getDataList` 按周给出
+> `jxcdmc`，配合 `CourseNormalizer` 把换教室的课拆成多条（键含 `classroom`），
+> 每个周次才只会命中正确的教室。
 
 ⚠ **会话失效不会被回退逻辑吞掉**：换接口也一样会失效，直接抛出 `SessionExpired` 让上层重登。
 

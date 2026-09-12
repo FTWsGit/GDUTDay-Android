@@ -185,7 +185,6 @@ private fun TodayCourseRow(row: WidgetCourseRow) {
                 style = TextStyle(color = textColor, fontSize = 12.sp, fontWeight = nameWeight),
                 maxLines = 1,
             )
-            // 老师名同样可能被打码；教室永远可读（打码是为了防偷窥，不是让插件失效）。
             val detail = listOf(row.teacher, row.classroom)
                 .filter { it.isNotBlank() }
                 .joinToString(" · ")

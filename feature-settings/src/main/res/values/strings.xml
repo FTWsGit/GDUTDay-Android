@@ -77,8 +77,6 @@
 
     <!-- 隐私 -->
     <string name="settings_section_privacy">隐私</string>
-    <string name="settings_privacy_blur">课表打码</string>
-    <string name="settings_privacy_blur_widget">桌面插件同步打码</string>
     <string name="settings_remember_password">记住密码</string>
     <string name="settings_remember_password_on">已记住 %1$s 的密码（加密保存在本机）</string>
     <string name="settings_remember_password_off">未记住；如需会话过期后自动重登，请在登录页勾选</string>

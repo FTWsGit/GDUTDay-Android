@@ -27,7 +27,7 @@ import java.io.IOException
 public enum class ScheduleEndpoint(
     public val displayName: String,
 ) {
-    /** 先试 `xsAllKbList`（HTML），失败或返回空则回退 `getDataList`（JSON）。默认。 */
+    /** 先试 `getDataList`（JSON，按周返回），失败或返回空则回退 `xsAllKbList`（HTML）。默认。 */
     AUTO("自动"),
 
     /** 只用 `xsAllKbList`。 */
@@ -170,14 +170,16 @@ public class JxfwClient(
      * 抓取某学期的课表。
      *
      * [ScheduleEndpoint.AUTO] 策略：
-     * 1. 先试 `xsAllKbList`（数据量小、天然带周次集合）
-     * 2. 它抛异常或返回空 → 回退 `getDataList`（分页取满）
+     * 1. 先试 `getDataList`（按周返回，能给出"每周对应的教室"与授课内容）
+     * 2. 它抛异常或返回空 → 回退 `xsAllKbList`（一次请求拿全，但只有整学期的教室列表）
      * 3. 两个都失败 → 抛 [GdutException.Parse]，detail 里**同时附上两次的失败原因**
      *
-     * 之所以先试 `xsAllKbList`：它是 2022 年 F# 库逆向的，**本次未能联网验证是否仍存活**；
-     * 而 `getDataList` 是 2024 年 Java 后端在用的，几乎肯定可用。
-     * 万一 `xsAllKbList` 已经下线，AUTO 会自动落到 `getDataList`，用户无感。
-     * 设置里可以强制指定其中一个，便于排查。
+     * 之所以优先 `getDataList`：只有它按周返回 `jxcdmc`，才能把"某门课第几周在哪个教室"
+     * 还原出来；`xsAllKbList` 的 `jxcdmcs` 是整个学期的教室列表，无法对应到具体周次。
+     * 它同时提供 `sknrjj`（授课内容），详情页缺的也是这个字段。
+     *
+     * 代价是分页要多发几次请求；但 [JxfwClient] 会读 `total` 并翻页取满，
+     * 不会像旧后端那样固定 `rows=300` 静默截断。设置里可以强制指定其中一个，便于排查。
      *
      * @throws GdutException.SessionExpired 会话失效
      * @throws GdutException.EmptySchedule 两个接口都返回空
@@ -186,9 +188,9 @@ public class JxfwClient(
     public fun fetchSchedule(term: Term): ScheduleFetchResult {
         var firstError: Throwable? = null
 
-        if (config.scheduleEndpoint != ScheduleEndpoint.DATA_LIST) {
+        if (config.scheduleEndpoint != ScheduleEndpoint.ALL_KB_LIST) {
             try {
-                val result = fetchViaAllKbList(term)
+                val result = fetchViaDataList(term)
                 if (result.rows.isNotEmpty()) return result
                 firstError = GdutException.EmptySchedule(term)
             } catch (e: GdutException) {
@@ -198,17 +200,17 @@ public class JxfwClient(
             }
         }
 
-        if (config.scheduleEndpoint != ScheduleEndpoint.ALL_KB_LIST) {
+        if (config.scheduleEndpoint != ScheduleEndpoint.DATA_LIST) {
             try {
-                return fetchViaDataList(term)
+                return fetchViaAllKbList(term)
             } catch (e: GdutException) {
                 if (e.shouldRetryLogin) throw e
                 if (firstError != null) {
                     throw GdutException.Parse(
                         what = "课表",
                         snippet = "两个接口都失败了。\n" +
-                            "[xsAllKbList] ${firstError.message}\n" +
-                            "[getDataList] ${e.message}",
+                            "[getDataList] ${firstError.message}\n" +
+                            "[xsAllKbList] ${e.message}",
                         cause = e,
                     )
                 }

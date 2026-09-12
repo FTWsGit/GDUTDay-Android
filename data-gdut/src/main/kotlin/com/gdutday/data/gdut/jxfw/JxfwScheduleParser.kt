@@ -41,7 +41,7 @@ import kotlinx.serialization.json.JsonObject
  * | `teaxms` | 授课教师 | **可能逗号分隔多值** |
  *
  * ⚠ **本次未联网验证该接口是否仍存活**（无可用账号）。所以
- * [JxfwClient.fetchSchedule] 默认先试它、失败自动回退到接口 B，并把实际命中的接口
+ * [JxfwClient.fetchSchedule] 默认先试接口 B（按周返回、能还原每周教室），失败自动回退到本接口，并把实际命中的接口
  * 记进 `ScheduleSnapshot.source`。
  *
  * ⚠ 该接口是 **GET**，且必须带

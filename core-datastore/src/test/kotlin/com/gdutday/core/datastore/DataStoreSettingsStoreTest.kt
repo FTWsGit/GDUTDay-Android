@@ -64,8 +64,6 @@ class DataStoreSettingsStoreTest {
         fetchStrategy = ScheduleFetchStrategy.ONLY_DATA_LIST,
         autoSyncOnLaunch = false,
         autoSyncIntervalHours = 3,
-        privacyBlurEnabled = true,
-        privacyBlurInWidget = false,
     )
 
     @Test

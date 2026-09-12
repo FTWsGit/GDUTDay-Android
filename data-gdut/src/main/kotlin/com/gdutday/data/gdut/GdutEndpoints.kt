@@ -144,8 +144,9 @@ public object GdutEndpoints {
      * ⚠ **必须带 `Referer: https://jxfw.gdut.edu.cn/xsgrkbcx!getXsgrbkList.action`**
      * （F# 版 `GDUT.ClassSchedule/Library.fs` 里专门写了 `// TODO: 重要！需要记录`）。
      *
-     * 状态：2022 年逆向所得，**未在本次实测中验证是否仍然存活**，
-     * 因此 `JxfwClient` 默认先试它、失败自动回退到 [JXFW_SCHEDULE_DATA_LIST]。
+     * 状态：2022 年逆向所得，**未在本次实测中验证是否仍然存活**。
+     * 它的 `jxcdmcs` 只有整学期的教室列表、也没有 `sknrjj`，所以 `JxfwClient` 默认先试
+     * [JXFW_SCHEDULE_DATA_LIST]，失败或为空时才回退到本接口。
      */
     public const val JXFW_SCHEDULE_ALL_KB_LIST: String =
         "https://jxfw.gdut.edu.cn/xsgrkbcx!xsAllKbList.action"

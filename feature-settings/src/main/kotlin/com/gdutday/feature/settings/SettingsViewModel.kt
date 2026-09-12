@@ -247,14 +247,6 @@ public class SettingsViewModel(
 
     // ---------------------------------------------------------------- 隐私
 
-    public fun setPrivacyBlur(enabled: Boolean) {
-        viewModelScope.launch { settingsStore.setPrivacyBlur(enabled) }
-    }
-
-    public fun setPrivacyBlurInWidget(enabled: Boolean) {
-        viewModelScope.launch { settingsStore.update { it.copy(privacyBlurInWidget = enabled) } }
-    }
-
     /** 关闭"记住密码"时必须真的擦除本机凭据，不能只是改个开关。 */
     public fun clearRememberedPassword() {
         viewModelScope.launch { credentialStore.clear() }
