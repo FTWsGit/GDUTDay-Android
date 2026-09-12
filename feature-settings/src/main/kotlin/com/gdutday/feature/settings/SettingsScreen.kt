@@ -703,12 +703,16 @@ private fun TextColorSetting(selected: CourseTextColor, onSelect: (CourseTextCol
 
 @Composable
 private fun AlphaSetting(alpha: Float, onAlphaChange: (Float) -> Unit) {
+    // 拖动过程只更新本地状态做实时预览，onValueChangeFinished 才落盘：
+    // 否则每帧一次 DataStore 写 + Flow 回环重组，滑杆会又卡又费电（N3）。
+    var dragAlpha by remember(alpha) { mutableStateOf(alpha) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Text(stringResource(R.string.settings_alpha), style = MaterialTheme.typography.bodyMedium)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Slider(
-                value = alpha,
-                onValueChange = onAlphaChange,
+                value = dragAlpha,
+                onValueChange = { dragAlpha = it },
+                onValueChangeFinished = { onAlphaChange(dragAlpha) },
                 valueRange = UserSettings.ALPHA_RANGE,
                 modifier = Modifier.weight(1f),
             )
@@ -718,7 +722,7 @@ private fun AlphaSetting(alpha: Float, onAlphaChange: (Float) -> Unit) {
                     .padding(start = 12.dp)
                     .size(width = 56.dp, height = 32.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(CourseColors.DEFAULT.toComposeColor().copy(alpha = alpha)),
+                    .background(CourseColors.DEFAULT.toComposeColor().copy(alpha = dragAlpha)),
             )
         }
     }

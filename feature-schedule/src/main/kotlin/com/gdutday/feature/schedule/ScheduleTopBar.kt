@@ -154,10 +154,15 @@ internal fun ScheduleTopBar(
 }
 
 /** `第 12 周（11/17 - 11/23）`。周历缺失时只显示周次。 */
+@Composable
 private fun weekLabel(state: ScheduleUiState): String {
     val week = state.selectedWeek
-    val calendar = state.calendar ?: return "第 $week 周"
+    val calendar = state.calendar
+        ?: return stringResource(R.string.schedule_week_plain, week)
     val monday = calendar.mondayOf(week)
     val sunday = calendar.sundayOf(week)
-    return "第 $week 周（${monday.monthValue}/${monday.dayOfMonth} - ${sunday.monthValue}/${sunday.dayOfMonth}）"
+    return stringResource(
+        R.string.schedule_week_with_date,
+        week, monday.monthValue, monday.dayOfMonth, sunday.monthValue, sunday.dayOfMonth,
+    )
 }

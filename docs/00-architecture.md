@@ -177,16 +177,37 @@ graph TD
 // app/.../GdutDayApplication.kt
 override fun onCreate() {
     super.onCreate()
-    container = DefaultAppContainer(
+    val built = DefaultAppContainer(
         context = this,
         destructiveMigrationFallback = BuildConfig.DEBUG,
         logHttp = BuildConfig.DEBUG,
     )
+    container = built
+    AppContainerHolder.install(built)
+    SyncListeners.register { /* 同步完成 → 刷新桌面插件 */ }
+    CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        built.authRepository.reloginSilently()
+    }
 }
 ```
 
-**只做一件事：构造容器对象。** `DefaultAppContainer` 的构造函数体里只有一次
-`context.applicationContext` 读取，不碰磁盘、不开数据库、不建网络连接。
+实际是**四步**，每步都是 O(1) 或已移出关键路径：
+
+1. **构造容器对象**：`DefaultAppContainer` 的构造函数体里只有一次
+   `context.applicationContext` 读取，不碰磁盘、不开数据库、不建网络连接。
+   所有字段都是 `by lazy`，第一个字段被访问时才构造，零启动开销。
+
+2. **注册到 `AppContainerHolder`**：widget 模块拿不到 `GdutDayApplication` 这个类型
+   （app 依赖 widget，反向依赖会成环），所以容器还要注册到 data-repository 的
+   进程级 holder。只是一次静态字段赋值，O(1)。
+
+3. **注册同步完成监听（`SyncListeners.register`）**：同步完成后刷新桌面插件。
+   这个接线必须放在 app 模块：data-repository 不能引用 widget（会成环），widget
+   也不知道"同步"何时发生。注册只是往 `CopyOnWriteArrayList` 加一个 lambda，O(1)。
+
+4. **后台静默重登（`reloginSilently`）**：在 `Dispatchers.IO` 协程里执行，
+   **不阻塞** `onCreate`。内部只对 UNIFIED_AUTH 生效且有 `runCatching` 兜底；
+   Session 恢复后 `isLoggedIn → true`，NavHost 自动跳回课表页。
 
 明确**不做**的事（每一项都会拖慢冷启动，且都可推迟）：
 

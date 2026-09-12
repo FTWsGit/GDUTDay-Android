@@ -175,8 +175,8 @@ private fun DayBlockRow(
         ) {
             Column(Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (block.isExam) Badge(text = "考试")
-                    if (block.isCustom) Badge(text = "自定义")
+                    if (block.isExam) Badge(text = stringResource(R.string.schedule_badge_exam))
+                    if (block.isCustom) Badge(text = stringResource(R.string.schedule_badge_custom))
                     Text(
                         text = block.course.name.maskIfNeeded(settings),
                         style = MaterialTheme.typography.titleMedium,

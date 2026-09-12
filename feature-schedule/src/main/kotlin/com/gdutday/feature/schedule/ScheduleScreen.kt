@@ -170,9 +170,6 @@ fun ScheduleScreen(
 
                         settings.scheduleView == ScheduleView.DAY -> {
                             val selectedDate = state.today.plusDays(dayOffset.toLong())
-                            val dayBlocks = remember(state.grid, selectedDate) {
-                                state.grid?.days?.find { it.date == selectedDate }?.blocks.orEmpty()
-                            }
                             // 稳定引用：onSwipeDay 是 pointerInput 的 key，
                             // 每次重组都换新引用会让正在进行的滑动手势被重启。
                             val onSwipeDay = remember(viewModel) { viewModel::selectDay }

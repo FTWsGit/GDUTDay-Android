@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gdutday.core.model.Grade
+import com.gdutday.core.model.Term
 import com.gdutday.core.model.TermGradeSummary
 import com.gdutday.core.ui.EmptyState
 import com.gdutday.data.repository.AppContainer
@@ -132,7 +133,14 @@ fun GradeScreen(
                 }
 
                 else -> {
-                    val effectiveTerm = selectedTerm ?: termNames.firstOrNull()
+                    // 默认学期 = 时间序最新的学期（Term.parse + Comparable），
+                    // 而不是 termNames.first() 的字典序巧合——"2025-2026..." 这类名字
+                    // 字典序恰巧与时间序同向，但"2024-2025学年第二学期"会排错。
+                    val effectiveTerm = selectedTerm
+                        ?: summaries.mapNotNull { it.term }.maxOrNull()?.let { latest ->
+                            termNames.firstOrNull { name -> Term.parse(name) == latest }
+                        }
+                        ?: termNames.firstOrNull()
                     val summary = summaries.firstOrNull { it.termName == effectiveTerm }
                         ?: summaries.first()
                     Column(Modifier.fillMaxSize()) {
