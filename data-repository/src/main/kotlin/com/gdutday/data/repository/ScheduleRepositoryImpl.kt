@@ -116,32 +116,39 @@ public class ScheduleRepositoryImpl(
     // ------------------------------------------------------------------ 同步
 
     override suspend fun sync(term: Term?): SyncInfo = syncMutex.withLock {
-        syncing.value = true
-        try {
-            val info = doSync(term)
-            // 通知监听者（桌面插件刷新等）。放在数据落库**之后**，
-            // 这样监听者读到的一定是最新数据。
-            // 它自己会吞掉监听者的异常，不会因为插件刷新失败而让同步报错。
-            SyncListeners.notifyCompleted(info)
-            info
-        } catch (e: GdutException) {
-            recordFailure(e.userMessage)
-            // 失败也要通知：插件上的"上次更新"时间、"正在同步"指示都需要收敛。
-            SyncListeners.notifyCompleted(
-                SyncInfo(at = java.time.Instant.now(), term = term, success = false, error = e.userMessage),
-            )
-            throw e
-        } catch (e: Exception) {
-            // OkHttp/Room 之外的非预期异常也要记进 sync_state，否则 UI 上会显示
-            // "上次同步成功"，与用户实际遇到的失败矛盾。
-            val wrapped = GdutException.Local("同步失败", e.message ?: e.javaClass.simpleName, e)
-            recordFailure(wrapped.userMessage)
-            SyncListeners.notifyCompleted(
-                SyncInfo(at = java.time.Instant.now(), term = term, success = false, error = wrapped.userMessage),
-            )
-            throw wrapped
-        } finally {
-            syncing.value = false
+        // 整个同步流程（OkHttp 阻塞调用 + Room 写入）必须离开调用方线程：
+        // viewModelScope 默认在主线程收集，直接在这里发同步请求会抛
+        // NetworkOnMainThreadException，被下面的 catch 包成一句没有信息量的"同步失败"
+        //（成绩页"同步考试安排"按钮曾因此 100% 失败，而走 WorkManager 的课表刷新正常）。
+        // 与 GradeRepositoryImpl.sync 的 withContext(IO) 同理。
+        withContext(Dispatchers.IO) {
+            syncing.value = true
+            try {
+                val info = doSync(term)
+                // 通知监听者（桌面插件刷新等）。放在数据落库**之后**，
+                // 这样监听者读到的一定是最新数据。
+                // 它自己会吞掉监听者的异常，不会因为插件刷新失败而让同步报错。
+                SyncListeners.notifyCompleted(info)
+                info
+            } catch (e: GdutException) {
+                recordFailure(e.userMessage)
+                // 失败也要通知：插件上的"上次更新"时间、"正在同步"指示都需要收敛。
+                SyncListeners.notifyCompleted(
+                    SyncInfo(at = java.time.Instant.now(), term = term, success = false, error = e.userMessage),
+                )
+                throw e
+            } catch (e: Exception) {
+                // OkHttp/Room 之外的非预期异常也要记进 sync_state，否则 UI 上会显示
+                // "上次同步成功"，与用户实际遇到的失败矛盾。
+                val wrapped = GdutException.Local("同步失败", e.message ?: e.javaClass.simpleName, e)
+                recordFailure(wrapped.userMessage)
+                SyncListeners.notifyCompleted(
+                    SyncInfo(at = java.time.Instant.now(), term = term, success = false, error = wrapped.userMessage),
+                )
+                throw wrapped
+            } finally {
+                syncing.value = false
+            }
         }
     }
 
