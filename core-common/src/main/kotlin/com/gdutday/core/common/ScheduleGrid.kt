@@ -85,6 +85,42 @@ public data class DayColumn(
     /** 节次标签（左侧那一列的 "1 2 3 …"）由 UI 用 [CampusTimetable] 自行生成，此处不重复。 */
 }
 
+/** 一天内相互重叠的 N 门课。UI 对 ≥3 门做堆叠角标渲染。 */
+public data class ConflictCluster(
+    public val blocks: List<CourseBlock>,
+) {
+    /** 簇内最先开始的一门，堆叠渲染时只画它。 */
+    public val primary: CourseBlock get() = blocks.first()
+
+    /** 被 primary 盖住、只以角标体现的门数。 */
+    public val overflowCount: Int get() = blocks.size - 1
+}
+
+/**
+ * 把一列色块按"传递时间重叠"聚成簇，与 [ScheduleGridBuilder.layout] 的分簇口径一致：
+ * 下一块的开始早于当前簇的最晚结束就并入。输入已按开始时间升序时结果稳定。
+ */
+public fun List<CourseBlock>.buildConflictClusters(): List<ConflictCluster> {
+    if (isEmpty()) return emptyList()
+    val sorted = sortedWith(compareBy({ it.startMinute }, { -it.endMinute }))
+    val clusters = mutableListOf<ConflictCluster>()
+    var current = mutableListOf(sorted.first())
+    var clusterEnd = sorted.first().endMinute
+    for (b in sorted.drop(1)) {
+        if (b.startMinute < clusterEnd) {
+            current += b
+            if (b.endMinute > clusterEnd) clusterEnd = b.endMinute
+        } else {
+            clusters += ConflictCluster(current.toList())
+            current = mutableListOf(b)
+            clusterEnd = b.endMinute
+        }
+    }
+    clusters += ConflictCluster(current.toList())
+    return clusters
+}
+
+internal fun DayColumn.buildConflictClusters(): List<ConflictCluster> = blocks.buildConflictClusters()
 /**
  * 一周的课表网格。
  *

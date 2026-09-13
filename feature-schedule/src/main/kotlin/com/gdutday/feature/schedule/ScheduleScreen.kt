@@ -15,12 +15,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
@@ -90,6 +94,17 @@ fun ScheduleScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showCalibrateDialog by remember { mutableStateOf(false) }
+    var conflictListBlocks by remember { mutableStateOf<List<com.gdutday.core.common.CourseBlock>?>(null) }
+    val addCourseSheetVisible by viewModel.addCourseSheetVisible.collectAsStateWithLifecycle()
+    val addCourseForm by viewModel.addCourseForm.collectAsStateWithLifecycle()
+
+    // 新增课程始终允许冲突（force = true），这里只提示一次语义，不做拦截。
+    val conflictToast = stringResource(R.string.schedule_add_conflict_toast)
+    LaunchedEffect(addCourseSheetVisible) {
+        if (addCourseSheetVisible) {
+            snackbarHostState.showSnackbar(conflictToast)
+        }
+    }
 
     // 同步失败的提示。state.errorMessage 在下次同步前一直存在，
     // 但这里以它为 key，只在值变化时弹一次，不会反复打扰。
@@ -120,9 +135,17 @@ fun ScheduleScreen(
                         )
                     },
                     onSync = viewModel::refresh,
+                    onAddCourse = viewModel::showAddCourseSheet,
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
+            floatingActionButton = {
+                ExtendedFloatingActionButton(
+                    onClick = viewModel::showAddCourseSheet,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.schedule_menu_add_course)) },
+                )
+            },
         ) { innerPadding ->
             PullToRefreshBox(
                 isRefreshing = state.isSyncing,
@@ -214,6 +237,7 @@ fun ScheduleScreen(
                                     isCurrentWeek = state.isViewingCurrentWeek,
                                     onBlockClick = viewModel::openBlock,
                                     onSwipeWeek = viewModel::selectWeek,
+                                    onOpenConflictList = { conflictListBlocks = it },
                                 )
                             }
                         }
@@ -244,6 +268,28 @@ fun ScheduleScreen(
             currentWeek = state.selectedWeek,
             onDismiss = viewModel::closeEdit,
             onSave = { edited, scope -> viewModel.saveEdit(edited, scope) },
+        )
+    }
+
+    // 新增课程弹窗。保存始终 force = true，冲突由网格降级呈现。
+    if (addCourseSheetVisible) {
+        AddCourseSheet(
+            form = addCourseForm,
+            currentWeek = state.selectedWeek,
+            totalWeeks = state.totalWeeks,
+            // Sheet 每次回调传入完整的新表单快照，直接整体替换。
+            onFormChange = { newForm -> viewModel.updateAddCourseForm { newForm } },
+            onDismiss = viewModel::dismissAddCourseSheet,
+            onSave = { viewModel.addCourse() },
+        )
+    }
+
+    // ≥3 门重叠时点 `+N` 角标弹出的完整列表；点单条进入普通课程详情。
+    conflictListBlocks?.let { blocks ->
+        ConflictCourseListSheet(
+            blocks = blocks,
+            onDismiss = { conflictListBlocks = null },
+            onPick = viewModel::openBlock,
         )
     }
 

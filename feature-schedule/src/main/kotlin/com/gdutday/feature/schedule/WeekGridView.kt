@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -39,12 +40,15 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.gdutday.core.common.ConflictCluster
 import com.gdutday.core.common.CourseBlock
 import com.gdutday.core.common.Period
 import com.gdutday.core.common.WeekGrid
+import com.gdutday.core.common.buildConflictClusters
 import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.ui.LocalGdutDayColors
 import com.gdutday.core.ui.ScheduleBlockText
+import com.gdutday.core.ui.toComposeColor
 import java.time.LocalDate
 
 /**
@@ -106,6 +110,7 @@ public fun WeekGridView(
     onBlockClick: (CourseBlock) -> Unit,
     onSwipeWeek: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenConflictList: (List<CourseBlock>) -> Unit = {},
 ) {
     val density = LocalDensity.current
     val periodHeightPx = with(density) { PERIOD_HEIGHT.toPx() }
@@ -204,6 +209,7 @@ public fun WeekGridView(
                             placed = placed,
                             settings = settings,
                             onBlockClick = onBlockClick,
+                            onOpenConflictList = onOpenConflictList,
                         )
                     }
                 }
@@ -387,30 +393,64 @@ private fun formatClock(time: java.time.LocalTime): String =
  *
  * 这是整个页面唯一会"按数据量增长"的节点来源（每门课一个），
  * 而非按网格尺寸增长（12×7）。
+ *
+ * ≥3 门重叠的堆叠降级：只渲染每簇的 primary，宽度恢复满列，
+ * 右上角 `+N` 角标；被盖住的块仍占位（露出 2dp 边缘暗示可展开），
+ * 点击角标弹出完整冲突列表。
  */
 @Composable
 private fun CourseBlockLayer(
     placed: List<PlacedBlock>,
     settings: UserSettings,
     onBlockClick: (CourseBlock) -> Unit,
+    onOpenConflictList: (List<CourseBlock>) -> Unit,
 ) {
+    // 簇内 ≥3 门时切换到堆叠渲染。同一天同几何的块天然相邻（blocks 已按时间排序），
+    // 这里直接按"彼此在对方所在簇"重算一次，不依赖 builder 的内部分列结果。
+    val stacked: Map<PlacedBlock, ConflictCluster> = remember(placed) {
+        val clusters = placed.map { it.block }.buildConflictClusters()
+            .filter { it.blocks.size >= STACK_THRESHOLD }
+        val byName = clusters.associateBy { it.primary }
+        placed.mapNotNull { placedItem ->
+            byName[placedItem.block]?.let { placedItem to it }
+        }.toMap()
+    }
+
     Layout(
         modifier = Modifier.fillMaxSize(),
         content = {
             placed.forEach { item ->
+                val cluster = stacked[item]
+                if (cluster != null && item.block != cluster.primary) {
+                    // 被盖住的块：不渲染内容，只留 2dp 的边缘暗示底下还有课。
+                    Box(
+                        Modifier
+                            .padding(top = 2.dp)
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(item.block.color.toComposeColor()),
+                    )
+                    return@forEach
+                }
+                val isPrimary = cluster != null
                 CourseBlockItem(
                     block = item.block,
                     settings = settings,
                     onClick = { onBlockClick(item.block) },
+                    overlapCount = if (isPrimary) cluster!!.overflowCount else 0,
+                    onOverflowClick = { onOpenConflictList(cluster!!.blocks) },
                 )
             }
         },
     ) { measurables, constraints ->
         val placeables = measurables.mapIndexed { index, measurable ->
             val item = placed[index]
+            // 主块按满列宽绘制（width = 并排宽 × 列数）；其余保持 builder 算出的并排宽。
+            val overflow = stacked[item]?.overflowCount ?: 0
+            val width = if (overflow > 0) item.width * item.block.columnCount else item.width
             measurable.measure(
                 Constraints.fixed(
-                    width = item.width.toInt().coerceAtLeast(1),
+                    width = width.toInt().coerceAtLeast(1),
                     height = item.height.toInt().coerceAtLeast(1),
                 ),
             )
@@ -418,7 +458,14 @@ private fun CourseBlockLayer(
         layout(constraints.maxWidth, constraints.maxHeight) {
             placeables.forEachIndexed { index, placeable ->
                 val item = placed[index]
-                placeable.place(item.x.toInt(), item.y.toInt())
+                // 主块从其并排列位置回到列首。
+                val overflow = stacked[item]?.overflowCount ?: 0
+                val x = if (overflow > 0) {
+                    item.x - item.width * item.block.columnIndex
+                } else {
+                    item.x
+                }
+                placeable.place(x.toInt(), item.y.toInt())
             }
         }
     }

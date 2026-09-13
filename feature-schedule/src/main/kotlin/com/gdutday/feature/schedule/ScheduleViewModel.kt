@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -65,6 +66,16 @@ public class ScheduleViewModel(
 
     /** 正在编辑的课程（详情页点了"编辑"）。非 null 时弹出 [CourseEditSheet]。 */
     public val editingCourse: StateFlow<Course?> = _editingCourse.asStateFlow()
+
+    private val _addCourseSheetVisible = MutableStateFlow(false)
+
+    /** "新增课程" Sheet 是否打开。 */
+    public val addCourseSheetVisible: StateFlow<Boolean> = _addCourseSheetVisible.asStateFlow()
+
+    private val _addCourseForm = MutableStateFlow(AddCourseForm())
+
+    /** 新增课程的表单快照。Sheet 每次输入都整体替换。 */
+    public val addCourseForm: StateFlow<AddCourseForm> = _addCourseForm.asStateFlow()
 
     private val _guessedBannerDismissed = MutableStateFlow(false)
 
@@ -151,6 +162,37 @@ public class ScheduleViewModel(
 
     public fun dismissGuessedBanner() {
         _guessedBannerDismissed.value = true
+    }
+
+    public fun showAddCourseSheet() {
+        _addCourseForm.value = AddCourseForm()
+        _addCourseSheetVisible.value = true
+    }
+
+    public fun dismissAddCourseSheet() {
+        _addCourseSheetVisible.value = false
+    }
+
+    public fun updateAddCourseForm(transform: (AddCourseForm) -> AddCourseForm) {
+        _addCourseForm.value = transform(_addCourseForm.value)
+    }
+
+    /**
+     * 保存新增课程。始终 `force = true`：自定义课程允许与已有课程冲突，
+     * 冲突由网格的并排 / 堆叠降级呈现（见 `ConflictCluster`）。
+     */
+    public fun addCourse() {
+        viewModelScope.launch {
+            // 不读 uiState.value：stateIn(WhileSubscribed) 在无人订阅时保持初始值，
+            // 学期/周次可能还没被算出来。直接从 Repository 拿一次当前状态；
+            // 状态流为空（从未同步）时按无学期处理，不做任何写入。
+            val state = runCatching { repository.observeScheduleUiState().first() }.getOrNull()
+                ?: ScheduleUiState()
+            val term = state.term ?: return@launch
+            val course = _addCourseForm.value.toCourse(term, state.selectedWeek, state.totalWeeks)
+            repository.addCustomCourse(course, force = true)
+            _addCourseSheetVisible.value = false
+        }
     }
 
     public fun dismissCampusBanner() {

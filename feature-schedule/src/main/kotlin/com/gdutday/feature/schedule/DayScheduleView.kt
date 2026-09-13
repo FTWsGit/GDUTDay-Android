@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.common.BlockStatus
 import com.gdutday.core.common.CourseBlock
+import com.gdutday.core.common.buildConflictClusters
 import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.ui.EmptyState
 import com.gdutday.core.ui.LocalGdutDayColors
@@ -88,6 +89,14 @@ public fun DayScheduleView(
         return
     }
 
+    // ≥3 门重叠的堆叠角标：在 LazyColumn 外面先算好，item lambda 里不做记忆化。
+    val overflowByIdentifier = remember(blocks) {
+        blocks.buildConflictClusters()
+            .filter { it.blocks.size >= STACK_THRESHOLD }
+            .flatMap { cluster -> cluster.blocks.drop(1).map { it.identifier() to cluster.overflowCount } }
+            .toMap()
+    }
+
     LazyColumn(
         modifier = containerModifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -106,15 +115,27 @@ public fun DayScheduleView(
         // （考试块 course.id == 0），Compose 抛 "Multiple instances...same key" 直接崩溃。
         // 考试块的 naturalKey 也不含课程名，无法区分并行考试，所以这里交给下标。
         itemsIndexed(blocks) { _, block ->
-            DayBlockRow(block = block, settings = settings, onClick = { onBlockClick(block) })
+            DayBlockRow(
+                block = block,
+                settings = settings,
+                overlapCount = overflowByIdentifier[block.identifier()] ?: 0,
+                onClick = { onBlockClick(block) },
+            )
         }
     }
 }
+
+/** 日视图里识别同一条目的轻量键（id 为 0 的考试块用自然键兜底）。 */
+private fun CourseBlock.identifier(): Pair<Long, String> = course.id to course.naturalKey
+
+/** 日视图与周视图共用的堆叠阈值：≥3 门重叠才降级为角标。 */
+internal const val STACK_THRESHOLD: Int = 3
 
 @Composable
 private fun DayBlockRow(
     block: CourseBlock,
     settings: UserSettings,
+    overlapCount: Int = 0,
     onClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -162,6 +183,7 @@ private fun DayBlockRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (block.isExam) Badge(text = stringResource(R.string.schedule_badge_exam))
                     if (block.isCustom) Badge(text = stringResource(R.string.schedule_badge_custom))
+                    if (overlapCount > 0) Badge(text = "+$overlapCount")
                     Text(
                         text = block.course.name,
                         style = MaterialTheme.typography.titleMedium,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
@@ -53,6 +54,7 @@ internal fun ScheduleTopBar(
     onBackToCurrentWeek: () -> Unit,
     onToggleView: () -> Unit,
     onSync: () -> Unit,
+    onAddCourse: () -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     modifier: Modifier = Modifier,
 ) {
@@ -116,6 +118,14 @@ internal fun ScheduleTopBar(
                     Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.schedule_more))
                 }
                 DropdownMenu(expanded = actionMenuOpen, onDismissRequest = { actionMenuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.schedule_menu_add_course)) },
+                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                        onClick = {
+                            actionMenuOpen = false
+                            onAddCourse()
+                        },
+                    )
                     DropdownMenuItem(
                         text = {
                             Text(

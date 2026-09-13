@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -45,6 +47,8 @@ internal fun CourseBlockItem(
     block: CourseBlock,
     settings: UserSettings,
     onClick: () -> Unit,
+    overlapCount: Int = 0,
+    onOverflowClick: () -> Unit = onClick,
     modifier: Modifier = Modifier,
 ) {
     val courseBlockColors = LocalGdutDayColors.current.courseBlock
@@ -112,8 +116,25 @@ internal fun CourseBlockItem(
                 )
             }
         }
+
+        // ≥3 门重叠的堆叠角标：点开列出全部冲突课程。
+        if (overlapCount > 0) {
+            Text(
+                text = "+$overlapCount",
+                style = MaterialTheme.typography.labelMedium,
+                color = textColor,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .clip(BadgeShape)
+                    .background(textColor.copy(alpha = 0.24f))
+                    .clickable(onClick = onOverflowClick)
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+            )
+        }
     }
 }
+
+private val BadgeShape = RoundedCornerShape(4.dp)
 
 /**
  * 按设置决定字体色；`AUTO` 走 WCAG 相对亮度（纯函数在 core-ui）。

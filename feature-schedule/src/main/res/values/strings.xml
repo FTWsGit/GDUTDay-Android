@@ -68,4 +68,18 @@
     <string name="schedule_edit_scope_weeks_hint">逗号分隔，如 3,4,5</string>
     <string name="schedule_edit_scope_all">全部周次</string>
     <string name="schedule_edit_color">课程颜色</string>
+
+    <!-- 新增课程 -->
+    <string name="schedule_menu_add_course">增加课程</string>
+    <string name="schedule_add_title">新增课程</string>
+    <string name="schedule_add_week_mode">生效周次</string>
+    <string name="schedule_add_week_current">仅本周（第 %1$d 周）</string>
+    <string name="schedule_add_week_single">指定单周</string>
+    <string name="schedule_add_week_range">连续周范围</string>
+    <string name="schedule_add_week_all">全学期每周</string>
+    <string name="schedule_add_single_week">周次（1-%1$d）</string>
+    <string name="schedule_add_range_start">起始周</string>
+    <string name="schedule_add_range_end">结束周</string>
+    <string name="schedule_add_conflict_toast">新增课程允许与已有课程冲突</string>
+    <string name="schedule_conflict_title">该时段有 %1$d 门课重叠</string>
 </resources>
