@@ -809,4 +809,38 @@ class ScheduleGridBuilderTest {
         val grid = builder.buildWeek(listOf(course("高数", 1, 1, 2)), week = 2, now = nowInWeek2)
         assertThat(grid.day(1).blocks.single().color).isEqualTo(CourseColors.DEFAULT)
     }
+
+    @Test
+    fun `设置了绝对时间时直接按分钟定位而不是查作息表`() {
+        val patched = course("高数", 1, 1, 2).copy(
+            startMinute = 8 * 60 + 30,
+            endMinute = 9 * 60 + 15, // 45 分钟，不可能由整节得出
+        )
+        val grid = builder.buildWeek(listOf(patched), week = 2, now = nowInWeek2)
+        val block = grid.day(1).blocks.single()
+        assertThat(block.startMinute).isEqualTo(8 * 60 + 30)
+        assertThat(block.endMinute).isEqualTo(9 * 60 + 15)
+        assertThat(block.durationMinutes).isEqualTo(45)
+        // 节次信息保留，时间标签回退到时刻显示
+        assertThat(block.sectionLabel).isEqualTo("08:30-09:15")
+    }
+
+    @Test
+    fun `绝对时间与节次课程混排时各自用各自的时间源`() {
+        val patched = course("改过时间的课", 1, 1, 2).copy(startMinute = 7 * 60, endMinute = 7 * 60 + 30)
+        val normal = course("高数", 1, 1, 2)
+        val grid = builder.buildWeek(listOf(patched, normal), week = 2, now = nowInWeek2)
+        val blocks = grid.day(1).blocks.associateBy { it.course.name }
+        // 早于第 1 节的补丁照常落格，节次课仍按作息表
+        assertThat(blocks.getValue("改过时间的课").startMinute).isEqualTo(7 * 60)
+        assertThat(blocks.getValue("高数").startMinute).isEqualTo(8 * 60 + 30)
+        assertThat(blocks.getValue("高数").sectionLabel).isEqualTo("1-2节")
+    }
+
+    @Test
+    fun `verticalRange 被更早的绝对时间撑大`() {
+        val early = course("早课", 1, 1, 1).copy(startMinute = 7 * 60, endMinute = 7 * 60 + 40)
+        val grid = builder.buildWeek(listOf(early), week = 2, now = nowInWeek2)
+        assertThat(grid.verticalRange.first).isEqualTo(7 * 60)
+    }
 }

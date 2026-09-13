@@ -18,6 +18,7 @@ import com.gdutday.core.model.Campus
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.GdutException
+import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.ScheduleFetchStrategy
 import com.gdutday.core.model.Term
 import com.gdutday.data.gdut.jxfw.JxfwClient
@@ -240,6 +241,9 @@ public class ScheduleRepositoryImpl(
             targetTerm.shortCode,
             with(Mappers) { schoolCourses.map { it.toEntity() } },
         )
+        // 同步把教务课程整体换成了新版，用户的补丁必须重新覆盖上去，
+        // 否则"改过的教室/时间"会被这一次同步悄悄还原。
+        applyUserOverrides(targetTerm)
         // 只有成功拿到考试数据才替换；失败时保留上一次的考试安排（存量数据不动）。
         if (!examFetchFailed) {
             examDao.replaceByTerm(
@@ -371,10 +375,52 @@ public class ScheduleRepositoryImpl(
     }
 
     override suspend fun updateCustomCourse(course: Course): List<Course> {
+        // updateCustomCourse 同时承接 CUSTOM 与 OVERRIDE 行的直接编辑：
+        // OVERRIDE 行的用户改色/改备注不需要重新走一遍补丁生成。
         val existing = existingCourses(course.term)
         val conflicts = findScheduleConflicts(existing, course)
         if (conflicts.isNotEmpty()) return conflicts
-        courseDao.upsert(with(Mappers) { course.copy(source = CourseSource.CUSTOM).toEntity() })
+        val source = if (course.source == CourseSource.OVERRIDE) CourseSource.OVERRIDE else CourseSource.CUSTOM
+        courseDao.upsert(with(Mappers) { course.copy(source = source).toEntity() })
+        return emptyList()
+    }
+
+    override suspend fun saveSchoolOverride(
+        original: Course,
+        editedFields: Course,
+        scope: OverrideScope,
+    ): List<Course> {
+        require(original.source == CourseSource.SCHOOL) {
+            "saveSchoolOverride 只接受教务课程，收到 ${original.source}"
+        }
+        val all = existingCourses(original.term)
+        val conflicts = findScheduleConflicts(all, editedFields)
+        if (conflicts.isNotEmpty()) return conflicts
+
+        // 作用周次 = 按范围从原课程里拆出来的那部分；scope=ALL 时是全部周次。
+        val affectedWeeks: Set<Int> = when (scope) {
+            OverrideScope.ALL -> original.weeks
+            else -> editedFields.weeks intersect original.weeks
+        }
+        if (affectedWeeks.isEmpty()) return emptyList()
+
+        // 原课程被作用周次之外的部分保留原样；全被覆盖时整行删除。
+        val remaining = original.weeks - affectedWeeks
+        if (remaining.isEmpty()) {
+            courseDao.deleteById(original.id)
+        } else {
+            courseDao.upsert(with(Mappers) { original.copy(weeks = remaining).toEntity() })
+        }
+
+        val patch = editedFields.copy(
+            id = 0L, // 补丁是新行，不复用教务课程的 id
+            source = CourseSource.OVERRIDE,
+            weeks = affectedWeeks,
+            overrideScope = scope,
+            overrideTargetNaturalKey = original.naturalKey,
+            overrideWeeks = affectedWeeks,
+        )
+        courseDao.upsert(with(Mappers) { patch.toEntity() })
         return emptyList()
     }
 
@@ -384,6 +430,42 @@ public class ScheduleRepositoryImpl(
 
     override suspend fun deleteAllCustomCourses() {
         courseDao.deleteAllCustom()
+        // 补丁也是"用户自己弄出来的课"，清空自定义课程时必须一并清掉，
+        // 否则下次同步它们又会把教务课程拆一遍，看起来像没删干净。
+        courseDao.deleteAllOverrides()
+    }
+
+    override suspend fun restoreOriginal(overrideId: Long) {
+        val entity = courseDao.getById(overrideId) ?: return
+        val patch = with(Mappers) { entity.toDomain() } ?: run {
+            courseDao.deleteById(overrideId)
+            return
+        }
+        if (patch.source != CourseSource.OVERRIDE) return
+
+        courseDao.deleteById(overrideId)
+        val term = patch.term
+        // 还原 = 把被补丁接管的周次还给教务课程。教务行可能已经没有周次可用
+        // （ALL 范围的补丁把原行删了），此时只能等下次同步重建教务版本。
+        val school = courseDao.getSchoolCourses(term.shortCode)
+        val target = school.firstOrNull { with(Mappers) { it.toDomain() }?.naturalKey == patch.overrideTargetNaturalKey }
+            ?: return
+        val domain = with(Mappers) { target.toDomain() } ?: return
+        courseDao.upsert(with(Mappers) { domain.copy(weeks = domain.weeks + patch.overrideWeeks).toEntity() })
+    }
+
+    override fun observeCustomAndOverrideCourses(): Flow<Map<Term, List<Course>>> =
+        courseDao.observeCustomAndOverride().map { entities ->
+            entities.mapNotNull { with(Mappers) { it.toDomain() } }
+                .groupBy { it.term }
+        }
+
+    override suspend fun isOverrideEffective(override: Course): Boolean {
+        if (override.source != CourseSource.OVERRIDE) return true
+        val nk = override.overrideTargetNaturalKey ?: return false
+        return courseDao.getSchoolCourses(override.term.shortCode).any {
+            with(Mappers) { it.toDomain() }?.naturalKey == nk
+        }
     }
 
     override suspend fun setCourseColor(courseName: String, colorKey: String) {
@@ -432,6 +514,39 @@ public class ScheduleRepositoryImpl(
     }
 
     // ------------------------------------------------------------------ 内部
+
+    /**
+     * 把用户的 [CourseSource.OVERRIDE] 补丁重新覆盖到同步来的教务课程上。
+     *
+     * 必须在 `replaceSchoolCourses` **之后**调用：同步刚把教务课程整体换掉，
+     * 补丁此刻才有新目标可匹配。匹配键是 `override_target_nk`（原课程的自然键）。
+     *
+     * 匹配不到（教务改了课、调了节次等）的补丁**保留在库里**不删除 ——
+     * 那是用户的数据，只能由用户在设置页里删除；UI 通过
+     * [isOverrideEffective] 把它标成"未生效"。
+     *
+     * 周次拆分语义（见 plan-003 3.3）：
+     * - ALL：整行替换原教务课程；
+     * - THIS_WEEK / WEEK_RANGE：原课程让出被覆盖的周次，补丁接管这些周次。
+     */
+    private suspend fun applyUserOverrides(term: Term) {
+        val overrides = courseDao.getOverrides(term.shortCode)
+        if (overrides.isEmpty()) return
+        val school = courseDao.getSchoolCourses(term.shortCode)
+            .mapNotNull { with(Mappers) { it.toDomain() } }
+        val patches = overrides.mapNotNull { with(Mappers) { it.toDomain() } }
+        // 拆分语义集中在 applyUserOverrides 纯函数里（可单测）；这里只负责落库。
+        val desired = applyUserOverrides(school, patches)
+        val existingIds = school.map { it.id }.toSet()
+        for (course in desired) {
+            if (course.id in existingIds && course in school) continue
+            // 补丁行 upsert 保留原 id；教务行被删/被改时这里分别对应 INSERT/UPDATE。
+            courseDao.upsert(with(Mappers) { course.toEntity() })
+        }
+        // 教务行若在 desired 里消失（被 ALL 补丁整行替换 / 周次被拆空），删除它。
+        val desiredIds = desired.filter { it.id in existingIds }.map { it.id }.toSet()
+        for (id in existingIds - desiredIds) courseDao.deleteById(id)
+    }
 
     private suspend fun existingCourses(term: Term): List<Course> =
         courseDao.getByTerm(term.shortCode).mapNotNull { with(Mappers) { it.toDomain() } }

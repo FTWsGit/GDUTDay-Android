@@ -54,8 +54,12 @@ public data class CourseBlock(
 
     /** `"1-2节 · 教5-301"` 这样的紧凑摘要，Widget 里直接用。 */
     public val sectionLabel: String
-        get() = if (course.sectionCount == 1) "${course.startSection}节"
-        else "${course.startSection}-${course.endSection}节"
+        get() = when {
+            // 非整节边界的补丁没有"第几节"可说，直接显示时刻
+            course.startMinute >= 0 -> "$startClock-$endClock"
+            course.sectionCount == 1 -> "${course.startSection}节"
+            else -> "${course.startSection}-${course.endSection}节"
+        }
 
     public companion object {
         public fun clockToMinute(clock: LocalTime): Int = clock.hour * 60 + clock.minute
@@ -169,9 +173,12 @@ public class ScheduleGridBuilder(
         for (c in courses) {
             if (!c.occursInWeek(week)) continue
             if (c.dayOfWeek !in 1..7) continue
-            val start = timetable.periodOf(c.startSection).start
-            val end = timetable.periodOf(c.endSection).end
-            byDay[c.dayOfWeek] += RawBlock(c, CourseBlock.clockToMinute(start), CourseBlock.clockToMinute(end))
+            // 绝对时间（用户改到非整节边界）优先；否则按节次查作息表。
+            val startMin = if (c.startMinute >= 0) c.startMinute
+            else CourseBlock.clockToMinute(timetable.periodOf(c.startSection).start)
+            val endMin = if (c.endMinute >= 0) c.endMinute
+            else CourseBlock.clockToMinute(timetable.periodOf(c.endSection).end)
+            byDay[c.dayOfWeek] += RawBlock(c, startMin, endMin)
         }
 
         for (e in exams) {

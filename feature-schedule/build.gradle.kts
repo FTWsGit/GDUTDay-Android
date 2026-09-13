@@ -46,4 +46,5 @@ dependencies {
     // 网格几何（分钟 → 坐标、周末列映射、周次钳制）是纯函数，直接跑 JVM 单测。
     testImplementation(libs.junit)
     testImplementation(libs.truth)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

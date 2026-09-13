@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * 应用数据库。
@@ -51,7 +53,21 @@ public abstract class GdutDatabase : RoomDatabase() {
     public abstract fun syncStateDao(): SyncStateDao
 
     public companion object {
-        public const val VERSION: Int = 1
+        public const val VERSION: Int = 2
+
+        /** 1 → 2：`course` 表新增补丁相关列（绝对时间 + OVERRIDE 元数据）。 */
+        public val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE course ADD COLUMN start_minute INTEGER NOT NULL DEFAULT -1")
+                db.execSQL("ALTER TABLE course ADD COLUMN end_minute INTEGER NOT NULL DEFAULT -1")
+                db.execSQL("ALTER TABLE course ADD COLUMN override_scope TEXT")
+                db.execSQL("ALTER TABLE course ADD COLUMN override_target_nk TEXT")
+                db.execSQL("ALTER TABLE course ADD COLUMN override_weeks TEXT")
+            }
+        }
+
+        /** 全部迁移。构建时按顺序注册。 */
+        public val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
 
         /** 数据库文件名。改名等于让所有老用户的数据消失，**不要轻易动**。 */
         public const val FILE_NAME: String = "gdutday.db"
@@ -72,6 +88,7 @@ public abstract class GdutDatabase : RoomDatabase() {
                 GdutDatabase::class.java,
                 FILE_NAME,
             )
+                .addMigrations(*ALL_MIGRATIONS)
                 // 课表查询很频繁且都是小结果集，Room 的查询缓存收益有限，
                 // 但默认开启没有额外成本，保留。
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)

@@ -159,10 +159,46 @@ class CourseTest {
         assertThat(a.naturalKey).isEqualTo(b.naturalKey)
         // 但换了教室不该改变 naturalKey（教室不在键里）—— 换教室由 CourseNormalizer 在聚合阶段处理
         assertThat(a.naturalKey).isEqualTo(a.copy(classroom = "别的教室").naturalKey)
-        // 换了星期/节次/来源就必须不同
+        // 换了星期/节次就必须不同
         assertThat(a.naturalKey).isNotEqualTo(a.copy(dayOfWeek = 2).naturalKey)
         assertThat(a.naturalKey).isNotEqualTo(a.copy(startSection = 3).naturalKey)
-        assertThat(a.naturalKey).isNotEqualTo(a.copy(source = CourseSource.CUSTOM).naturalKey)
+    }
+
+    @Test
+    fun `naturalKey 不含来源与周次，OVERRIDE 补丁才能在同步后匹配回教务课程`() {
+        // 补丁的 overrideTargetNaturalKey 存的是原教务课程的自然键；
+        // 若键里含 source，补丁（OVERRIDE）永远匹配不到原课程（SCHOOL）。
+        val a = course()
+        assertThat(a.naturalKey).isEqualTo(a.copy(source = CourseSource.CUSTOM).naturalKey)
+        assertThat(a.naturalKey).isEqualTo(a.copy(source = CourseSource.OVERRIDE).naturalKey)
+        assertThat(a.naturalKey).isEqualTo(a.copy(weeks = setOf(5, 6, 7)).naturalKey)
+    }
+
+    @Test
+    fun `补丁相关字段的默认值`() {
+        val c = course()
+        // 默认 -1 = 未设置绝对时间，网格仍走"节次 → 作息表"换算
+        assertThat(c.startMinute).isEqualTo(-1)
+        assertThat(c.endMinute).isEqualTo(-1)
+        assertThat(c.overrideScope).isNull()
+        assertThat(c.overrideTargetNaturalKey).isNull()
+        assertThat(c.overrideWeeks).isEmpty()
+    }
+
+    @Test
+    fun `设置绝对时间与补丁字段后可整体拷贝`() {
+        val c = course().copy(
+            startMinute = 8 * 60 + 30,
+            endMinute = 9 * 60 + 15,
+            source = CourseSource.OVERRIDE,
+            overrideScope = OverrideScope.WEEK_RANGE,
+            overrideTargetNaturalKey = "高数|||1|1|2",
+            overrideWeeks = setOf(3, 4),
+        )
+        assertThat(c.startMinute).isEqualTo(510)
+        assertThat(c.endMinute).isEqualTo(555)
+        assertThat(c.overrideScope).isEqualTo(OverrideScope.WEEK_RANGE)
+        assertThat(c.overrideWeeks).containsExactly(3, 4)
     }
 
     @Test

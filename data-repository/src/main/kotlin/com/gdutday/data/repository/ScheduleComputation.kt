@@ -12,7 +12,9 @@ import com.gdutday.core.database.TermMetaEntity
 import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.model.Campus
 import com.gdutday.core.model.Course
+import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.Exam
+import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.ScheduleSnapshot
 import com.gdutday.core.model.ScheduleSource
 import com.gdutday.core.model.Term
@@ -180,6 +182,49 @@ internal fun findScheduleConflicts(
 /** 两个闭区间 `[aStart, aEnd]` 与 `[bStart, bEnd]` 是否相交。 */
 internal fun sectionRangesOverlap(aStart: Int, aEnd: Int, bStart: Int, bEnd: Int): Boolean =
     maxOf(aStart, bStart) <= minOf(aEnd, bEnd)
+
+/**
+ * [applyUserOverrides] 的纯计算部分：把补丁按作用范围拆到教务课程集合上。
+ *
+ * 返回值是**同步后的目标集合**——教务课程行（周次可能被拆掉）加补丁行。
+ * 匹配不到目标的补丁原样返回（UI 通过 `isOverrideEffective` 标"未生效"），绝不丢弃。
+ *
+ * 语义（见 plan-003 3.3）：
+ * - [OverrideScope.ALL]（"这种"）：所有同自然键的教务行退场，补丁顶上；
+ * - [OverrideScope.THIS_WEEK] / [OverrideScope.WEEK_RANGE]：原课程让出被覆盖的周次，
+ *   补丁接管这些周次；原课程周次被拆空时整行删除。
+ */
+internal fun applyUserOverrides(
+    school: List<Course>,
+    overrides: List<Course>,
+): List<Course> {
+    val result = school.toMutableList()
+    for (patch in overrides) {
+        if (patch.source != CourseSource.OVERRIDE) continue
+        val targetNk = patch.overrideTargetNaturalKey ?: continue
+        val target = result.firstOrNull { it.naturalKey == targetNk } ?: continue
+
+        when (patch.overrideScope) {
+            OverrideScope.ALL -> {
+                result.removeAll { it.naturalKey == targetNk }
+                result += patch
+            }
+
+            OverrideScope.THIS_WEEK, OverrideScope.WEEK_RANGE -> {
+                val taken = patch.overrideWeeks intersect target.weeks
+                if (taken.isEmpty()) continue
+                val remaining = target.weeks - taken
+                result[result.indexOf(target)] =
+                    if (remaining.isEmpty()) patch.copy(weeks = taken)
+                    else target.copy(weeks = remaining)
+                if (remaining.isNotEmpty()) result += patch.copy(weeks = taken)
+            }
+
+            null -> {}
+        }
+    }
+    return result
+}
 
 /**
  * 计算"下一节课"。

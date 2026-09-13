@@ -113,6 +113,7 @@ fun SettingsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showDiagnostics by rememberSaveable { mutableStateOf(false) }
+    var showMyCourses by rememberSaveable { mutableStateOf(false) }
     var showSemesterStartPicker by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var confirmResetColors by remember { mutableStateOf(false) }
@@ -164,6 +165,16 @@ fun SettingsScreen(
         DiagnosticsScreen(
             diagnostics = viewModel.diagnostics(),
             onBack = { showDiagnostics = false },
+        )
+        return
+    }
+
+    if (showMyCourses) {
+        MyCoursesScreen(
+            coursesByTerm = viewModel.customAndOverrideCourses.collectAsStateWithLifecycle().value,
+            onBack = { showMyCourses = false },
+            onDelete = viewModel::deleteCourse,
+            onRestore = viewModel::restoreOriginal,
         )
         return
     }
@@ -340,6 +351,11 @@ fun SettingsScreen(
                                 )
                             }
                         },
+                    )
+                    ActionRow(
+                        title = stringResource(R.string.settings_my_courses),
+                        subtitle = stringResource(R.string.settings_my_courses_hint),
+                        onClick = { showMyCourses = true },
                     )
                     ActionRow(
                         title = stringResource(R.string.settings_reset_colors),

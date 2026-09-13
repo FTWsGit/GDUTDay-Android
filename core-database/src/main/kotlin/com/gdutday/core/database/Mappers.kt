@@ -5,6 +5,7 @@ import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.Exam
 import com.gdutday.core.model.Grade
+import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.Term
 import java.time.Instant
 import java.time.LocalDate
@@ -51,6 +52,11 @@ public object Mappers {
         colorKey = colorKey,
         classDates = encodeDates(classDates),
         updatedAt = updatedAt,
+        startMinute = startMinute,
+        endMinute = endMinute,
+        overrideScope = overrideScope?.name,
+        overrideTargetNaturalKey = overrideTargetNaturalKey,
+        overrideWeeks = encodeWeeks(overrideWeeks).ifEmpty { null },
     )
 
     /**
@@ -81,6 +87,13 @@ public object Mappers {
                 val w = decodeWeeks(weeks)
                 if (dates.size == w.size) dates.sorted() else emptyList()
             },
+            startMinute = startMinute,
+            endMinute = endMinute,
+            overrideScope = overrideScope?.let { name ->
+                OverrideScope.entries.firstOrNull { it.name == name }
+            },
+            overrideTargetNaturalKey = overrideTargetNaturalKey,
+            overrideWeeks = overrideWeeks?.let { decodeWeeks(it) }.orEmpty(),
         )
     }
 

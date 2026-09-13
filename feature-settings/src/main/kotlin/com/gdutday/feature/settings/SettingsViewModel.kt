@@ -16,6 +16,8 @@ import com.gdutday.core.datastore.SettingsStore
 import com.gdutday.core.datastore.StoredCredentials
 import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.model.Campus
+import com.gdutday.core.model.Course
+import com.gdutday.core.model.Term
 import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.AuthRepository
 import com.gdutday.data.repository.ScheduleRepository
@@ -244,6 +246,30 @@ public class SettingsViewModel(
             _events.value = SettingsEvent.CustomCoursesCleared
         }
     }
+
+    // ---------------------------------------------------------------- 我的课程
+
+    /**
+     * 用户添加 / 修改过的全部课程（CUSTOM + OVERRIDE），按学期分组。
+     * "我添加/修改的课程"页面的唯一数据源。
+     */
+    public val customAndOverrideCourses: StateFlow<Map<Term, List<Course>>> =
+        scheduleRepository.observeCustomAndOverrideCourses()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** 删除一条自定义课程或补丁。补丁删除后还原为教务版本。 */
+    public fun deleteCourse(id: Long) {
+        viewModelScope.launch { scheduleRepository.deleteCourse(id) }
+    }
+
+    /** 还原一条教务补丁：删除补丁行，把被接管的周次还给教务课程。 */
+    public fun restoreOriginal(overrideId: Long) {
+        viewModelScope.launch { scheduleRepository.restoreOriginal(overrideId) }
+    }
+
+    /** 判断补丁是否仍匹配得到教务课程（false = 未生效，UI 标灰提示）。 */
+    public suspend fun isOverrideEffective(override: Course): Boolean =
+        scheduleRepository.isOverrideEffective(override)
 
     // ---------------------------------------------------------------- 工具
 

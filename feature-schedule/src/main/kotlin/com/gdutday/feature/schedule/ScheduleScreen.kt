@@ -232,6 +232,18 @@ fun ScheduleScreen(
             onDismiss = viewModel::closeBlockDetail,
             onPickColor = { key -> viewModel.setCourseColor(gridBlock.course.name, key) },
             onDelete = { viewModel.deleteCourse(gridBlock.course.id) },
+            onEdit = { viewModel.openEdit(gridBlock.course) },
+        )
+    }
+
+    // 编辑弹窗：优先于详情弹窗（点"编辑"时详情已关，两者不会同时出现）。
+    val editingCourse by viewModel.editingCourse.collectAsStateWithLifecycle()
+    editingCourse?.let { editing ->
+        CourseEditSheet(
+            course = editing,
+            currentWeek = state.selectedWeek,
+            onDismiss = viewModel::closeEdit,
+            onSave = { edited, scope -> viewModel.saveEdit(edited, scope) },
         )
     }
 

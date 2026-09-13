@@ -9,6 +9,9 @@ import com.gdutday.core.common.CourseBlock
 import com.gdutday.core.datastore.ScheduleView
 import com.gdutday.core.datastore.SettingsStore
 import com.gdutday.core.datastore.UserSettings
+import com.gdutday.core.model.Course
+import com.gdutday.core.model.CourseSource
+import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.Term
 import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.ScheduleRepository
@@ -57,6 +60,11 @@ public class ScheduleViewModel(
 
     /** 当前弹出的课程详情。null 表示没有弹窗。 */
     public val selectedBlock: StateFlow<CourseBlock?> = _selectedBlock.asStateFlow()
+
+    private val _editingCourse = MutableStateFlow<Course?>(null)
+
+    /** 正在编辑的课程（详情页点了"编辑"）。非 null 时弹出 [CourseEditSheet]。 */
+    public val editingCourse: StateFlow<Course?> = _editingCourse.asStateFlow()
 
     private val _guessedBannerDismissed = MutableStateFlow(false)
 
@@ -114,6 +122,31 @@ public class ScheduleViewModel(
 
     public fun closeBlockDetail() {
         _selectedBlock.value = null
+    }
+
+    /** 详情页点"编辑"：关掉详情，弹出编辑 Sheet。 */
+    public fun openEdit(course: Course) {
+        _selectedBlock.value = null
+        _editingCourse.value = course
+    }
+
+    public fun closeEdit() {
+        _editingCourse.value = null
+    }
+
+    /**
+     * 保存编辑。CUSTOM 行直接更新；SCHOOL 行生成 OVERRIDE 补丁。
+     * [scope] 只对教务课程有意义，自定义课程一律直接 upsert。
+     */
+    public fun saveEdit(course: Course, scope: OverrideScope) {
+        val original = _editingCourse.value ?: return
+        viewModelScope.launch {
+            when (original.source) {
+                CourseSource.SCHOOL -> repository.saveSchoolOverride(original, course, scope)
+                else -> repository.updateCustomCourse(course)
+            }
+            _editingCourse.value = null
+        }
     }
 
     public fun dismissGuessedBanner() {

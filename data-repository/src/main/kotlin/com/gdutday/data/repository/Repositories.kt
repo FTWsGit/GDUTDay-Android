@@ -3,6 +3,7 @@ package com.gdutday.data.repository
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.Exam
 import com.gdutday.core.model.Grade
+import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.StudentProfile
 import com.gdutday.core.model.Term
 import com.gdutday.core.model.TermGradeSummary
@@ -175,10 +176,39 @@ public interface ScheduleRepository {
 
     public suspend fun updateCustomCourse(course: Course): List<Course>
 
+    /**
+     * 保存对教务课程的修改，形成 [CourseSource.OVERRIDE] 补丁。
+     *
+     * 补丁行持有 [Course.overrideTargetNaturalKey]（原教务课程的自然键），
+     * 每次同步后按它重新覆盖到同步结果上。
+     *
+     * @param editedFields 用户在编辑页改好的字段（名称/老师/教室/星期/节次或绝对时间等），
+     *   其 `weeks` 必须是**被作用的周次**（按 [scope] 拆出的那部分）。
+     * @param scope 作用范围：全部周次 / 单周 / 周范围。
+     * @return 冲突的已有课程。非空表示没有保存。
+     */
+    public suspend fun saveSchoolOverride(
+        original: Course,
+        editedFields: Course,
+        scope: OverrideScope,
+    ): List<Course>
+
     /** 删除课程。[Course.source] 为 SCHOOL 时同样允许删（用户可能不想看某门课）。 */
     public suspend fun deleteCourse(id: Long)
 
     public suspend fun deleteAllCustomCourses()
+
+    /**
+     * 删除一条教务课程补丁，还原为教务版本：删除 OVERRIDE 行并重新应用同步结果
+     * （把被该补丁接管的周次还给原课程 —— 直接触发一次本地"应用补丁"的还原逻辑）。
+     */
+    public suspend fun restoreOriginal(overrideId: Long)
+
+    /** 用户添加/修改的全部课程（CUSTOM + OVERRIDE），按学期分组，设置页列表用。 */
+    public fun observeCustomAndOverrideCourses(): Flow<Map<Term, List<Course>>>
+
+    /** 判断某条 OVERRIDE 补丁当前是否匹配得到教务课程（不匹配即"未生效"，UI 提示）。 */
+    public suspend fun isOverrideEffective(override: Course): Boolean
 
     /** 为某门课指定颜色。会持久化，之后的自动配色不会覆盖它。 */
     public suspend fun setCourseColor(courseName: String, colorKey: String)

@@ -46,4 +46,26 @@
     <string name="schedule_detail_content">授课内容</string>
     <string name="schedule_detail_color">课程颜色</string>
     <string name="schedule_detail_delete">删除课程</string>
+    <string name="schedule_detail_edit">编辑</string>
+
+    <!-- 课程编辑 -->
+    <string name="schedule_edit_title">编辑课程</string>
+    <string name="schedule_edit_name">课程名称</string>
+    <string name="schedule_edit_teacher">老师</string>
+    <string name="schedule_edit_classroom">教室</string>
+    <string name="schedule_edit_day">星期</string>
+    <string name="schedule_edit_time_section">按节次</string>
+    <string name="schedule_edit_time_real">按具体时间</string>
+    <string name="schedule_edit_start_time">开始 HH:mm</string>
+    <string name="schedule_edit_end_time">结束 HH:mm</string>
+    <string name="schedule_edit_time_real_hint">非整节边界的时间按分钟比例绘制</string>
+    <string name="schedule_edit_start_section">起始节次</string>
+    <string name="schedule_edit_section_count">节数</string>
+    <string name="schedule_edit_scope">作用范围（教务课程）</string>
+    <string name="schedule_edit_scope_this_week">仅第 %1$d 周</string>
+    <string name="schedule_edit_scope_week_range">指定周范围</string>
+    <string name="schedule_edit_scope_weeks">作用的周次</string>
+    <string name="schedule_edit_scope_weeks_hint">逗号分隔，如 3,4,5</string>
+    <string name="schedule_edit_scope_all">全部周次</string>
+    <string name="schedule_edit_color">课程颜色</string>
 </resources>

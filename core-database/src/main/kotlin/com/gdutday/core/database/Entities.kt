@@ -109,6 +109,37 @@ public data class CourseEntity(
     /** 本行最后写入时刻，用于诊断。 */
     @ColumnInfo(name = "updated_at", defaultValue = "0")
     public val updatedAt: Long = 0L,
+
+    /**
+     * 绝对开始分钟（08:30 = 510）。-1 表示未设置，读取时仍走"节次 → 作息表"换算。
+     * 用户把课程时间改成非整节边界（如 08:30–09:15）时写入。
+     */
+    @ColumnInfo(name = "start_minute", defaultValue = "-1")
+    public val startMinute: Int = -1,
+
+    /** 绝对结束分钟。-1 表示未设置，读取时仍走"节次 → 作息表"换算。 */
+    @ColumnInfo(name = "end_minute", defaultValue = "-1")
+    public val endMinute: Int = -1,
+
+    /**
+     * [CourseSource.OVERRIDE] 行的作用范围，存 [com.gdutday.core.model.OverrideScope] 的名字；
+     * 非 OVERRIDE 行为 null。
+     */
+    @ColumnInfo(name = "override_scope")
+    public val overrideScope: String? = null,
+
+    /**
+     * OVERRIDE 行覆盖的目标课程自然键（见 `Course.naturalKey`）。
+     * 同步后按它把补丁重新覆盖到教务课程上；非 OVERRIDE 行为 null。
+     */
+    @ColumnInfo(name = "override_target_nk")
+    public val overrideTargetNaturalKey: String? = null,
+
+    /**
+     * OVERRIDE 行接管的周次，逗号分隔（如 `"3,4,5"`）；非 OVERRIDE 行为 null。
+     */
+    @ColumnInfo(name = "override_weeks")
+    public val overrideWeeks: String? = null,
 )
 
 /**

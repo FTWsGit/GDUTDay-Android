@@ -208,4 +208,181 @@ class ScheduleComputationTest {
         // 大学城第 1 节 8:30，参照 8:00 → 还有 30 分钟
         assertThat(next.startsInMinutes).isEqualTo(30)
     }
+
+    // ------------------------------------------------------------ 补丁应用（OVERRIDE）
+
+    private fun schoolCourse(
+        id: Long,
+        name: String = "高等数学",
+        weeks: Set<Int> = setOf(1, 2, 3, 4, 5, 6, 7, 8),
+        dayOfWeek: Int = 1,
+        startSection: Int = 1,
+        sectionCount: Int = 2,
+        classroom: String = "教1-101",
+        teacher: String = "张三",
+    ): Course = Course(
+        id = id,
+        term = term,
+        name = name,
+        teacher = teacher,
+        classroom = classroom,
+        dayOfWeek = dayOfWeek,
+        startSection = startSection,
+        sectionCount = sectionCount,
+        weeks = weeks,
+        courseCode = "CS101",
+        teachingClass = "1班",
+        source = com.gdutday.core.model.CourseSource.SCHOOL,
+    )
+
+    private fun patch(
+        id: Long = 100L,
+        target: Course,
+        scope: com.gdutday.core.model.OverrideScope,
+        weeks: Set<Int> = target.weeks,
+        classroom: String = "教5-301",
+        teacher: String = "张三",
+    ): Course = Course(
+        id = id,
+        term = target.term,
+        name = target.name,
+        teacher = teacher,
+        classroom = classroom,
+        dayOfWeek = target.dayOfWeek,
+        startSection = target.startSection,
+        sectionCount = target.sectionCount,
+        weeks = weeks,
+        courseCode = target.courseCode,
+        teachingClass = target.teachingClass,
+        source = com.gdutday.core.model.CourseSource.OVERRIDE,
+        overrideScope = scope,
+        overrideTargetNaturalKey = target.naturalKey,
+        overrideWeeks = weeks,
+    )
+
+    @Test
+    fun `全部范围补丁替换整门课`() {
+        val school = listOf(schoolCourse(id = 1L))
+        val p = patch(target = school.first(), scope = com.gdutday.core.model.OverrideScope.ALL, classroom = "教5-999")
+
+        val result = applyUserOverrides(school, listOf(p))
+
+        // 教务行退场，只剩补丁行
+        assertThat(result).hasSize(1)
+        val only = result.single()
+        assertThat(only.source).isEqualTo(com.gdutday.core.model.CourseSource.OVERRIDE)
+        assertThat(only.classroom).isEqualTo("教5-999")
+        assertThat(only.weeks).isEqualTo(school.first().weeks)
+    }
+
+    @Test
+    fun `单周补丁拆走一周其余周次保留原课程`() {
+        val school = listOf(schoolCourse(id = 1L))
+        val p = patch(
+            target = school.first(),
+            scope = com.gdutday.core.model.OverrideScope.THIS_WEEK,
+            weeks = setOf(3),
+            classroom = "教5-301",
+        )
+
+        val result = applyUserOverrides(school, listOf(p))
+
+        assertThat(result).hasSize(2)
+        val remaining = result.first { it.source == com.gdutday.core.model.CourseSource.SCHOOL }
+        assertThat(remaining.weeks).containsExactly(1, 2, 4, 5, 6, 7, 8)
+        val override = result.first { it.source == com.gdutday.core.model.CourseSource.OVERRIDE }
+        assertThat(override.weeks).containsExactly(3)
+        assertThat(override.classroom).isEqualTo("教5-301")
+    }
+
+    @Test
+    fun `周范围补丁拆走连续周次`() {
+        val school = listOf(schoolCourse(id = 1L))
+        val p = patch(
+            target = school.first(),
+            scope = com.gdutday.core.model.OverrideScope.WEEK_RANGE,
+            weeks = setOf(3, 4, 5),
+            teacher = "李四",
+        )
+
+        val result = applyUserOverrides(school, listOf(p))
+
+        val remaining = result.first { it.source == com.gdutday.core.model.CourseSource.SCHOOL }
+        assertThat(remaining.weeks).containsExactly(1, 2, 6, 7, 8)
+        val override = result.first { it.source == com.gdutday.core.model.CourseSource.OVERRIDE }
+        assertThat(override.weeks).containsExactly(3, 4, 5)
+        assertThat(override.teacher).isEqualTo("李四")
+    }
+
+    @Test
+    fun `补丁接走全部周次后原课程整行消失`() {
+        val school = listOf(schoolCourse(id = 1L))
+        val p = patch(
+            target = school.first(),
+            scope = com.gdutday.core.model.OverrideScope.THIS_WEEK,
+            weeks = school.first().weeks,
+        )
+
+        val result = applyUserOverrides(school, listOf(p))
+
+        assertThat(result).hasSize(1)
+        assertThat(result.single().source).isEqualTo(com.gdutday.core.model.CourseSource.OVERRIDE)
+    }
+
+    @Test
+    fun `匹配不到目标的补丁不影响教务课程`() {
+        val school = listOf(schoolCourse(id = 1L))
+        // 教务改了节次 → 自然键不再匹配
+        val orphan = patch(
+            target = schoolCourse(id = 9L, startSection = 5, sectionCount = 2),
+            scope = com.gdutday.core.model.OverrideScope.ALL,
+        )
+
+        val result = applyUserOverrides(school, listOf(orphan))
+
+        // 教务课程原样保留（孤儿补丁由设置页提示"未生效"，数据层不删）
+        assertThat(result.map { it.id }).containsExactly(1L)
+    }
+
+    @Test
+    fun `多条补丁按顺序应用`() {
+        val school = listOf(schoolCourse(id = 1L))
+        val all = patch(
+            id = 101L,
+            target = school.first(),
+            scope = com.gdutday.core.model.OverrideScope.WEEK_RANGE,
+            weeks = setOf(1, 2),
+            classroom = "A",
+        )
+        val range = patch(
+            id = 102L,
+            target = school.first(),
+            scope = com.gdutday.core.model.OverrideScope.WEEK_RANGE,
+            weeks = setOf(5, 6),
+            classroom = "B",
+        )
+
+        val result = applyUserOverrides(school, listOf(all, range))
+
+        val remaining = result.first { it.source == com.gdutday.core.model.CourseSource.SCHOOL }
+        assertThat(remaining.weeks).containsExactly(3, 4, 7, 8)
+        val classrooms = result
+            .filter { it.source == com.gdutday.core.model.CourseSource.OVERRIDE }
+            .map { it.classroom }
+        assertThat(classrooms).containsExactly("A", "B").inOrder()
+    }
+
+    @Test
+    fun `非 OVERRIDE 条目被忽略`() {
+        val school = listOf(schoolCourse(id = 1L))
+        val custom = Course(
+            id = 50L, term = term, name = "社团", dayOfWeek = 6, startSection = 10,
+            sectionCount = 2, weeks = setOf(1),
+            source = com.gdutday.core.model.CourseSource.CUSTOM,
+        )
+
+        val result = applyUserOverrides(school, listOf(custom))
+
+        assertThat(result.map { it.id }).containsExactly(1L)
+    }
 }

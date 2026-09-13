@@ -3,6 +3,23 @@ package com.gdutday.core.model
 import java.time.LocalDate
 
 /**
+ * 用户修改教务课程（补丁）的作用范围。
+ *
+ * 补丁生效时，原教务课程的周次按此范围被拆走：未涉及的周次保留原样，
+ * 涉及的周次由补丁行接管。见 data-repository 的 `applyUserOverrides`。
+ */
+public enum class OverrideScope {
+    /** 覆盖原课程的全部周次。 */
+    ALL,
+
+    /** 只覆盖一个单独的周（周次在 overrideWeeks 里）。 */
+    THIS_WEEK,
+
+    /** 覆盖一个连续周次范围（周次在 overrideWeeks 里）。 */
+    WEEK_RANGE,
+}
+
+/**
  * 一条课程条目 = **某学期 · 某教学班 · 某星期几 · 一段连续节次 · 一组周次**。
  *
  * ## 为什么是"连续节次段"而不是"节次集合"
@@ -54,6 +71,16 @@ public data class Course(
     public val source: CourseSource = CourseSource.SCHOOL,
     public val colorKey: String? = null,
     public val classDates: List<LocalDate> = emptyList(),
+    /** 绝对开始分钟（08:30 = 510）。-1 表示未设置，仍走节次 → 作息表换算。 */
+    public val startMinute: Int = -1,
+    /** 绝对结束分钟。-1 表示未设置，仍走节次 → 作息表换算。 */
+    public val endMinute: Int = -1,
+    /** `source == OVERRIDE` 时的作用范围；其余来源恒为 null。 */
+    public val overrideScope: OverrideScope? = null,
+    /** 该补丁覆盖的目标教务课程的自然键。非 OVERRIDE 行为 null。 */
+    public val overrideTargetNaturalKey: String? = null,
+    /** 该补丁接管的周次（THIS_WEEK / WEEK_RANGE 时写入）。 */
+    public val overrideWeeks: Set<Int> = emptySet(),
 ) {
     init {
         require(dayOfWeek in 1..7) { "dayOfWeek 必须在 1..7，收到 $dayOfWeek" }
@@ -65,19 +92,19 @@ public data class Course(
     public val endSection: Int get() = startSection + sectionCount - 1
 
     /**
-     * 去重用的自然键。**不含** [id]、[colorKey]、[classDates]，
-     * 这样同一门课在两次同步之间可以稳定比对（用于检测"课表变了"）。
+     * 去重用的自然键。**不含** [id]、[colorKey]、[weeks]、[source]、[classDates]
+     * —— 这些都会被用户修改，包含它们会让补丁在同步后匹配不到目标课程。
+     * 字段：名称、教学班、课程编号、星期、起始节次、节数。
      */
     public val naturalKey: String
-        get() = buildString {
-            append(term.shortCode).append('|')
-            append(courseCode).append('|')
-            append(teachingClass).append('|')
-            append(dayOfWeek).append('|')
-            append(startSection).append('|')
-            append(sectionCount).append('|')
-            append(source.name)
-        }
+        get() = listOf(
+            name,
+            teachingClass,
+            courseCode,
+            dayOfWeek.toString(),
+            startSection.toString(),
+            sectionCount.toString(),
+        ).joinToString("|")
 
     /** 该课程在指定周次是否上课。 */
     public fun occursInWeek(week: Int): Boolean = week in weeks

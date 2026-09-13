@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +53,7 @@ internal fun CourseDetailSheet(
     onDismiss: () -> Unit,
     onPickColor: (String) -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit = {},
 ) {
     val course = block.course
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -130,20 +132,39 @@ internal fun CourseDetailSheet(
                     onPickColor = onPickColor,
                 )
 
-                TextButton(
-                    onClick = onDelete,
-                    modifier = Modifier.padding(top = 8.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = stringResource(R.string.schedule_detail_delete),
-                        modifier = Modifier.padding(start = 6.dp),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                    TextButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.schedule_detail_edit),
+                            modifier = Modifier.padding(start = 6.dp),
+                        )
+                    }
+                    TextButton(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.schedule_detail_delete),
+                            modifier = Modifier.padding(start = 6.dp),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }

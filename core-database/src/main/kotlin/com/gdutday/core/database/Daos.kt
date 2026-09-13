@@ -87,6 +87,22 @@ public interface CourseDao {
 
     @Query("DELETE FROM course WHERE term_code = :termCode AND source = 'SCHOOL'")
     public suspend fun deleteSchoolCourses(termCode: String)
+
+    /** 某学期的全部用户补丁（OVERRIDE）。同步后逐条重新应用到教务课程上。 */
+    @Query("SELECT * FROM course WHERE term_code = :termCode AND source = 'OVERRIDE' ORDER BY id")
+    public suspend fun getOverrides(termCode: String): List<CourseEntity>
+
+    /** 某学期的全部教务课程。补丁应用时按 `override_target_nk` 在其中找目标。 */
+    @Query("SELECT * FROM course WHERE term_code = :termCode AND source = 'SCHOOL'")
+    public suspend fun getSchoolCourses(termCode: String): List<CourseEntity>
+
+    /** 设置页"我添加/修改的课程"列表：用户手动加的 + 对教务课程的补丁。 */
+    @Query("SELECT * FROM course WHERE source IN ('CUSTOM', 'OVERRIDE') ORDER BY term_code, name")
+    public fun observeCustomAndOverride(): Flow<List<CourseEntity>>
+
+    /** 清空自定义课程时把补丁一并清掉，否则它们会在下次同步时重新写回。 */
+    @Query("DELETE FROM course WHERE source = 'OVERRIDE'")
+    public suspend fun deleteAllOverrides(): Int
 }
 
 @Dao

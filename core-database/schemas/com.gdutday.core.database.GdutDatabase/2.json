@@ -1,0 +1,542 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "e95b0e5806cfd40b3dc51e4b52f1f4c8",
+    "entities": [
+      {
+        "tableName": "course",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `term_code` TEXT NOT NULL, `name` TEXT NOT NULL, `teacher` TEXT NOT NULL DEFAULT '', `classroom` TEXT NOT NULL DEFAULT '', `day_of_week` INTEGER NOT NULL, `start_section` INTEGER NOT NULL, `section_count` INTEGER NOT NULL, `weeks` TEXT NOT NULL DEFAULT '', `description` TEXT NOT NULL DEFAULT '', `teaching_class` TEXT NOT NULL DEFAULT '', `course_code` TEXT NOT NULL DEFAULT '', `source` TEXT NOT NULL DEFAULT 'SCHOOL', `color_key` TEXT, `class_dates` TEXT NOT NULL DEFAULT '', `updated_at` INTEGER NOT NULL DEFAULT 0, `start_minute` INTEGER NOT NULL DEFAULT -1, `end_minute` INTEGER NOT NULL DEFAULT -1, `override_scope` TEXT, `override_target_nk` TEXT, `override_weeks` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "termCode",
+            "columnName": "term_code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "teacher",
+            "columnName": "teacher",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "classroom",
+            "columnName": "classroom",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "dayOfWeek",
+            "columnName": "day_of_week",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startSection",
+            "columnName": "start_section",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sectionCount",
+            "columnName": "section_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weeks",
+            "columnName": "weeks",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "teachingClass",
+            "columnName": "teaching_class",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "courseCode",
+            "columnName": "course_code",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'SCHOOL'"
+          },
+          {
+            "fieldPath": "colorKey",
+            "columnName": "color_key",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "classDates",
+            "columnName": "class_dates",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "startMinute",
+            "columnName": "start_minute",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "-1"
+          },
+          {
+            "fieldPath": "endMinute",
+            "columnName": "end_minute",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "-1"
+          },
+          {
+            "fieldPath": "overrideScope",
+            "columnName": "override_scope",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "overrideTargetNaturalKey",
+            "columnName": "override_target_nk",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "overrideWeeks",
+            "columnName": "override_weeks",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_course_term_code",
+            "unique": false,
+            "columnNames": [
+              "term_code"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_course_term_code` ON `${TABLE_NAME}` (`term_code`)"
+          },
+          {
+            "name": "index_course_term_code_day_of_week",
+            "unique": false,
+            "columnNames": [
+              "term_code",
+              "day_of_week"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_course_term_code_day_of_week` ON `${TABLE_NAME}` (`term_code`, `day_of_week`)"
+          },
+          {
+            "name": "index_course_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_course_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_course_source",
+            "unique": false,
+            "columnNames": [
+              "source"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_course_source` ON `${TABLE_NAME}` (`source`)"
+          }
+        ]
+      },
+      {
+        "tableName": "exam",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `term_code` TEXT NOT NULL, `course_name` TEXT NOT NULL, `course_code` TEXT NOT NULL DEFAULT '', `date` TEXT NOT NULL, `start_time` TEXT, `end_time` TEXT, `classroom` TEXT NOT NULL DEFAULT '', `campus` TEXT NOT NULL DEFAULT 'UNKNOWN', `category` TEXT NOT NULL DEFAULT '', `arrangement_type` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "termCode",
+            "columnName": "term_code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "courseName",
+            "columnName": "course_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "courseCode",
+            "columnName": "course_code",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "start_time",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "endTime",
+            "columnName": "end_time",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "classroom",
+            "columnName": "classroom",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "campus",
+            "columnName": "campus",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'UNKNOWN'"
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "arrangementType",
+            "columnName": "arrangement_type",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_exam_term_code",
+            "unique": false,
+            "columnNames": [
+              "term_code"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exam_term_code` ON `${TABLE_NAME}` (`term_code`)"
+          },
+          {
+            "name": "index_exam_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exam_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "grade",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `term_name` TEXT NOT NULL, `term_code` TEXT, `course_name` TEXT NOT NULL, `course_category` TEXT NOT NULL DEFAULT '', `course_sub_category` TEXT NOT NULL DEFAULT '', `study_mode` TEXT NOT NULL DEFAULT '', `score_text` TEXT NOT NULL DEFAULT '', `score` REAL, `gpa` REAL, `credit` REAL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "termName",
+            "columnName": "term_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "termCode",
+            "columnName": "term_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "courseName",
+            "columnName": "course_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "courseCategory",
+            "columnName": "course_category",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "courseSubCategory",
+            "columnName": "course_sub_category",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "studyMode",
+            "columnName": "study_mode",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "scoreText",
+            "columnName": "score_text",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "gpa",
+            "columnName": "gpa",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "credit",
+            "columnName": "credit",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_grade_term_name",
+            "unique": false,
+            "columnNames": [
+              "term_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_grade_term_name` ON `${TABLE_NAME}` (`term_name`)"
+          },
+          {
+            "name": "index_grade_term_code",
+            "unique": false,
+            "columnNames": [
+              "term_code"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_grade_term_code` ON `${TABLE_NAME}` (`term_code`)"
+          }
+        ]
+      },
+      {
+        "tableName": "term_meta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`term_code` TEXT NOT NULL, `xnxqdm` TEXT NOT NULL DEFAULT '', `display_name` TEXT NOT NULL DEFAULT '', `is_current` INTEGER NOT NULL DEFAULT 0, `semester_start` TEXT NOT NULL, `start_source` TEXT NOT NULL DEFAULT 'GUESSED', `updated_at` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`term_code`))",
+        "fields": [
+          {
+            "fieldPath": "termCode",
+            "columnName": "term_code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "xnxqdm",
+            "columnName": "xnxqdm",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "display_name",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "isCurrent",
+            "columnName": "is_current",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "semesterStart",
+            "columnName": "semester_start",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startSource",
+            "columnName": "start_source",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'GUESSED'"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "term_code"
+          ]
+        }
+      },
+      {
+        "tableName": "course_color",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`course_name` TEXT NOT NULL, `color_key` TEXT NOT NULL, `is_user_chosen` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`course_name`))",
+        "fields": [
+          {
+            "fieldPath": "courseName",
+            "columnName": "course_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "colorKey",
+            "columnName": "color_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isUserChosen",
+            "columnName": "is_user_chosen",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "course_name"
+          ]
+        }
+      },
+      {
+        "tableName": "sync_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `last_sync_at` INTEGER, `last_term_code` TEXT, `last_success` INTEGER NOT NULL DEFAULT 1, `last_error` TEXT NOT NULL DEFAULT '', `last_schedule_source` TEXT NOT NULL DEFAULT '', `last_warnings` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSyncAt",
+            "columnName": "last_sync_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastTermCode",
+            "columnName": "last_term_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastSuccess",
+            "columnName": "last_success",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "last_error",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "lastScheduleSource",
+            "columnName": "last_schedule_source",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "lastWarnings",
+            "columnName": "last_warnings",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e95b0e5806cfd40b3dc51e4b52f1f4c8')"
+    ]
+  }
+}

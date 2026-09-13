@@ -75,6 +75,15 @@
     <string name="settings_custom_cleared">自定义课程已清空</string>
     <string name="settings_all_cleared">本地数据已清空</string>
 
+    <!-- 我添加/修改的课程 -->
+    <string name="settings_my_courses">我添加/修改的课程</string>
+    <string name="settings_my_courses_hint">手动添加的课程与对教务课程的修改</string>
+    <string name="settings_my_courses_empty">还没有添加或修改过课程</string>
+    <string name="settings_my_courses_badge_custom">自定义</string>
+    <string name="settings_my_courses_badge_override">修改补丁</string>
+    <string name="settings_my_courses_restore">还原</string>
+    <string name="settings_my_courses_delete">删除</string>
+
     <!-- 隐私 -->
     <string name="settings_section_privacy">隐私</string>
     <string name="settings_remember_password">记住密码</string>
