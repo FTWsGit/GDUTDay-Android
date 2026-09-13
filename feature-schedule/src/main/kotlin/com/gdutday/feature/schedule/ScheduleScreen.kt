@@ -1,8 +1,6 @@
 package com.gdutday.feature.schedule
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -100,6 +98,11 @@ fun ScheduleScreen(
     var conflictListBlocks by remember { mutableStateOf<List<com.gdutday.core.common.CourseBlock>?>(null) }
     val addCourseSheetVisible by viewModel.addCourseSheetVisible.collectAsStateWithLifecycle()
     val addCourseForm by viewModel.addCourseForm.collectAsStateWithLifecycle()
+
+    // 周视图三页预渲染的相邻周网格。仅在周次/数据变化时重建，拖动过程中不重算。
+    val neighborGrids = remember(state.grid, state.selectedWeek) {
+        buildNeighborWeekGrids(state, java.time.LocalDateTime.now())
+    }
 
     // 新增课程始终允许冲突（force = true），这里只提示一次语义，不做拦截。
     val conflictToast = stringResource(R.string.schedule_add_conflict_toast)
@@ -224,15 +227,13 @@ fun ScheduleScreen(
                                 // 稳定引用：onSwipeDay 是 pointerInput 的 key，
                                 // 每次重组都换新引用会让正在进行的滑动手势被重启。
                                 val onSwipeDay = remember(viewModel) { viewModel::selectDay }
-                                // 切天的平滑过渡：按新旧日期的先后决定滑入方向。
+                                // 切天无淡入淡出：保留轻微横向滑动，方向按新旧日期的先后决定。
                                 AnimatedContent(
                                     targetState = selectedDate,
                                     transitionSpec = {
                                         val direction = if (targetState > initialState) 1 else -1
-                                        (slideInHorizontally { full -> full * direction } + fadeIn())
-                                            .togetherWith(
-                                                slideOutHorizontally { full -> -full * direction } + fadeOut(),
-                                            )
+                                        slideInHorizontally { full -> full * direction } togetherWith
+                                            slideOutHorizontally { full -> -full * direction }
                                     },
                                     label = "daySwitch",
                                 ) { date ->
@@ -256,6 +257,8 @@ fun ScheduleScreen(
                                     isCurrentWeek = state.isViewingCurrentWeek,
                                     onBlockClick = viewModel::openBlock,
                                     onSwipeWeek = viewModel::selectWeek,
+                                    prevWeekGrid = neighborGrids?.prev,
+                                    nextWeekGrid = neighborGrids?.next,
                                     onOpenConflictList = { conflictListBlocks = it },
                                 )
                             }

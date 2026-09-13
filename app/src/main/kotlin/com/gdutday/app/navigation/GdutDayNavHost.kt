@@ -1,5 +1,7 @@
 package com.gdutday.app.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
@@ -146,7 +148,11 @@ fun GdutDayNavHost(
             startDestination = Routes.SCHEDULE,
             modifier = Modifier.padding(innerPadding),
         ) {
-            composable(Routes.SCHEDULE) {
+            composable(
+                Routes.SCHEDULE,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+            ) {
                 ScheduleScreen(
                     container = container,
                     onOpenSettings = {
@@ -158,13 +164,25 @@ fun GdutDayNavHost(
                     },
                 )
             }
-            composable(Routes.GRADE) {
+            composable(
+                Routes.GRADE,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+            ) {
                 GradeScreen(container = container)
             }
-            composable(Routes.TOOLBOX) {
+            composable(
+                Routes.TOOLBOX,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+            ) {
                 ToolboxScreen(container = container)
             }
-            composable(Routes.SETTINGS) {
+            composable(
+                Routes.SETTINGS,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+            ) {
                 SettingsScreen(
                     container = container,
                     onLogout = {
