@@ -214,4 +214,117 @@ public object JxfwScheduleParser {
 
     /** 接口 B 必须的 Referer（就是首页）。 */
     public fun dataListReferer(hosts: GdutHosts): String = hosts.jxfwDefaultReferer
+
+    // ================================================================ 班级课表（xsbjkbcx，实测 2026-09-12）
+
+    /** 班级课表 `getKbRq` 响应里周日期数组的字段名（`"xqmc"` = 周次，`"rq"` = 日期）。 */
+    public const val CLASS_WEEK_DATE_MARKER: String = "rq"
+
+    /**
+     * 班级课表 `getKbRq` 的查询参数。
+     *
+     * ⚠ 实测参数只认 URL 查询串（POST body 一律返回空）。
+     *
+     * @param zc null = 全学期（实测不分页）；传周次则只取该周。
+     */
+    public fun classScheduleGetKbRqQuery(term: Term, bjdm: String, zc: Int? = null): Map<String, String> =
+        linkedMapOf(
+            "xnxqdm" to term.xnxqdm,
+            "bjdm" to bjdm,
+        ).let { if (zc != null) it + ("zc" to zc.toString()) else it }
+
+    /** 班级课表 `xsAllKbList`（备接口）的查询参数。同样只认 URL 查询串。 */
+    public fun classScheduleAllKbListQuery(term: Term, bjdm: String): Map<String, String> = linkedMapOf(
+        "xnxqdm" to term.xnxqdm,
+        "bjdm" to bjdm,
+    )
+
+    /**
+     * 解析班级课表主接口（`getKbRq`）的 JSON 响应。
+     *
+     * 响应是一个两元素数组：`[课表rows, 周日期rows]`。
+     * - `rows[0]`：每周每教学班一行，`jcdm` 是两位拼接格式（`"0102"` = 第 1、2 节），
+     *   `zc` 是单个周次 —— 粒度与个人课表 `getDataList` 同构；
+     * - `rows[1]`：`[{"xqmc":"1","rq":"2026-08-31"}, …]`，该查询周周一至周日的真实日期，
+     *   周一的 `rq` 即该周开学日。解析为 [ClassWeekDate] 返回，供反推开学日期。
+     *
+     * 两个元素都做容错：缺失 / 非数组 / 元素是脏数据都不抛异常，能解析多少是多少。
+     *
+     * @throws GdutException.SessionExpired 响应是登录页 HTML（会话失效）
+     * @throws GdutException.Parse 响应不是合法的 JSON 数组
+     */
+    public fun parseClassScheduleGetKbRq(body: String, term: Term): ClassScheduleGetKbRq {
+        if (LenientJson.looksLikeHtml(body) && body.contains("pwdEncryptSalt", ignoreCase = true)) {
+            throw GdutException.SessionExpired(detail = "请求班级课表（getKbRq）时被导回统一认证登录页")
+        }
+        val root = LenientJson.parseOrNull(body)
+            as? JsonArray
+            ?: throw GdutException.Parse(
+                what = "班级课表（getKbRq）",
+                snippet = "期望 JSON 数组 [课表rows, 周日期rows]。${LenientJson.snippet(body, 300)}",
+            )
+
+        val scheduleRows = root.getOrNull(0) as? JsonArray
+        val weekDates = root.getOrNull(1) as? JsonArray
+
+        val rows = scheduleRows.orEmpty().mapNotNull { element ->
+            (element as? JsonObject)?.let { rowFromGetKbRq(it) }
+        }
+        return ClassScheduleGetKbRq(
+            rows = rows,
+            weekDates = weekDates.orEmpty().mapNotNull { element ->
+                (element as? JsonObject)?.let { weekDateFrom(it) }
+            },
+        )
+    }
+
+    /** `getKbRq` 的解析结果。 */
+    public data class ClassScheduleGetKbRq(
+        /** 课表原始行（已归一到 [RawScheduleRow]，`jcdm` 按两位拼接解析）。 */
+        public val rows: List<RawScheduleRow>,
+        /** `rows[1]` 的周日期。`rq` 为空 / 非法的元素被丢弃。 */
+        public val weekDates: List<ClassWeekDate>,
+    )
+
+    private fun rowFromGetKbRq(row: JsonObject): RawScheduleRow? {
+        val name = row.str("kcmc").trim()
+        if (name.isEmpty()) return null
+        val day = row.int("xq") ?: row.str("xq").trim().toIntOrNull() ?: return null
+        return RawScheduleRow(
+            courseName = name,
+            courseCode = row.str("kcbh").ifBlank { row.str("kcdm") },
+            teachingClass = CourseNormalizer.normalizeMultiValue(row.str("jxbmc")),
+            classroom = CourseNormalizer.normalizeClassroom(row.str("jxcdmc")),
+            teacher = CourseNormalizer.normalizeMultiValue(row.str("teaxms")),
+            dayOfWeek = day,
+            // jcdm 是两位拼接格式（"0102" = 第 1、2 节），与个人课表 getDataList 一致
+            sectionsRaw = row.str("jcdm"),
+            sectionsPaired = true,
+            // zc 是单个周次；用 parseWeeks 兼容可能的聚合写法
+            weeks = Course.parseWeeks(row.str("zc")),
+            description = row.str("sknrjj"),
+            classDate = CourseNormalizer.parseDateLenient(row.str("pkrs").ifBlank { row.str("pkrq") }),
+        )
+    }
+
+    private fun weekDateFrom(row: JsonObject): ClassWeekDate? {
+        val week = row.int("xqmc") ?: row.str("xqmc").trim().toIntOrNull() ?: return null
+        val date = CourseNormalizer.parseDateLenient(row.str("rq")) ?: return null
+        return ClassWeekDate(week = week, date = date)
+    }
+
+    /**
+     * 解析班级课表备接口（`xsAllKbList`）的 HTML 响应。
+     *
+     * 字段与个人课表 A 完全一致（`var kbxx = [...]`，`jcdm2` 逗号分隔、`zcs` 聚合），
+     * 直接复用 [parseAllKbList] 的实现。
+     */
+    public fun parseClassScheduleAllKbList(html: String, term: Term): List<RawScheduleRow> =
+        parseAllKbList(html, term)
+
+    /** `getKbRq` 的 Referer。实测非必需，用首页即可。 */
+    public fun classScheduleGetKbRqReferer(hosts: GdutHosts): String = hosts.jxfwClassScheduleReferer
+
+    /** `xsAllKbList`（班级）的 Referer。实测非必需，用首页即可。 */
+    public fun classScheduleAllKbListReferer(hosts: GdutHosts): String = hosts.jxfwClassScheduleReferer
 }

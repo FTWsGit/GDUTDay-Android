@@ -347,6 +347,135 @@ class JxfwScheduleParserTest {
         assertThat(CourseNormalizer.normalizeClassroom(null)).isEmpty()
     }
 
+    // ================================================================== 班级课表：getKbRq / xsAllKbList
+
+    @Test
+    fun `班级课表getKbRq能解析两元素数组并取课表行`() {
+        val result = JxfwScheduleParser.parseClassScheduleGetKbRq(classGetKbRqJson, term)
+        // 4 行课表：高数 ×2（第1、2周）、英语 ×1、程序设计 ×1
+        assertThat(result.rows).hasSize(4)
+        val math = result.rows.first()
+        assertThat(math.courseName).isEqualTo("高等数学A(上)")
+        assertThat(math.courseCode).isEqualTo("1001")
+        assertThat(math.dayOfWeek).isEqualTo(1)
+        assertThat(math.weeks).containsExactly(1)
+        // jcdm 是两位拼接格式
+        assertThat(math.sectionsPaired).isTrue()
+        assertThat(math.sectionsRaw).isEqualTo("0102")
+        assertThat(math.classroom).isEqualTo("教5-301")
+        assertThat(math.teacher).isEqualTo("张三")
+        assertThat(math.description).isEqualTo("极限与连续")
+        // pkrs 上课日期被解析
+        assertThat(math.classDate).isEqualTo(java.time.LocalDate.of(2025, 9, 1))
+    }
+
+    @Test
+    fun `班级课表getKbRq的周日期数组被完整保留`() {
+        val result = JxfwScheduleParser.parseClassScheduleGetKbRq(classGetKbRqJson, term)
+        assertThat(result.weekDates).hasSize(7)
+        // 周一的 rq 即该周开学日 —— 反推开学日期的关键输入
+        assertThat(result.weekDates.first().week).isEqualTo(1)
+        assertThat(result.weekDates.first().date).isEqualTo(java.time.LocalDate.of(2025, 9, 1))
+    }
+
+    @Test
+    fun `班级课表getKbRq从fixture文件解析成功`() {
+        val body = readFixture("class_schedule_get_kb_rq.json")
+        val result = JxfwScheduleParser.parseClassScheduleGetKbRq(body, Term(2026, 1))
+        assertThat(result.rows).hasSize(4)
+        assertThat(result.weekDates).hasSize(7)
+    }
+
+    @Test
+    fun `班级课表getKbRq缺失周日期数组时返回空而不抛异常`() {
+        val body = """[[{"kcmc":"高等数学","xq":"1","zc":"1","jcdm":"0102"}]]"""
+        val result = JxfwScheduleParser.parseClassScheduleGetKbRq(body, term)
+        assertThat(result.rows).hasSize(1)
+        assertThat(result.weekDates).isEmpty()
+    }
+
+    @Test
+    fun `班级课表getKbRq响应不是数组时抛Parse`() {
+        val e = assertThrows(GdutException.Parse::class.java) {
+            JxfwScheduleParser.parseClassScheduleGetKbRq("""{"total":1}""", term)
+        }
+        assertThat(e.userMessage).contains("班级课表")
+    }
+
+    @Test
+    fun `班级课表归一化结果与个人课表一致`() {
+        val rows = JxfwScheduleParser.parseClassScheduleGetKbRq(classGetKbRqJson, term).rows
+        val outcome = CourseNormalizer.normalize(rows, term)
+        assertThat(outcome.courses).hasSize(3)
+        assertThat(outcome.droppedRows).isEqualTo(0)
+        assertThat(outcome.courses.all { it.source == CourseSource.SCHOOL }).isTrue()
+        val math = outcome.courses.single { it.name.startsWith("高等数学") }
+        // 两行（第 1、2 周）被合并成一条，周次聚合
+        assertThat(math.weeks).containsExactly(1, 2)
+        assertThat(math.startSection).isEqualTo(1)
+        assertThat(math.sectionCount).isEqualTo(2)
+        // pkrs 与周次同序，可参与开学日期反推
+        assertThat(math.classDates).hasSize(2)
+    }
+
+    @Test
+    fun `班级课表xsAllKbList复用个人课表的kbxx解析`() {
+        val html = readFixture("class_schedule_all_kb_list.html")
+        val rows = JxfwScheduleParser.parseClassScheduleAllKbList(html, term)
+        assertThat(rows).hasSize(2)
+        assertThat(rows[0].courseName).isEqualTo("高等数学A(上)")
+        assertThat(rows[0].sectionsPaired).isFalse()
+        assertThat(rows[0].weeks).containsExactlyElementsIn(1..16)
+    }
+
+    @Test
+    fun `班级课表查询参数使用长码与班级代码`() {
+        val query = JxfwScheduleParser.classScheduleGetKbRqQuery(term, "116523137", zc = 1)
+        assertThat(query["xnxqdm"]).isEqualTo("202501")
+        assertThat(query["bjdm"]).isEqualTo("116523137")
+        assertThat(query["zc"]).isEqualTo("1")
+        // zc 缺省 = 全学期
+        val full = JxfwScheduleParser.classScheduleGetKbRqQuery(term, "116523137")
+        assertThat(full.containsKey("zc")).isFalse()
+        assertThat(JxfwScheduleParser.classScheduleAllKbListQuery(term, "116523137"))
+            .containsExactlyEntriesIn(linkedMapOf("xnxqdm" to "202501", "bjdm" to "116523137"))
+    }
+
+    @Test
+    fun `班级课表Referer实测非必需走首页`() {
+        val hosts = com.gdutday.data.gdut.GdutHosts.PRODUCTION
+        assertThat(JxfwScheduleParser.classScheduleGetKbRqReferer(hosts)).isEqualTo("https://jxfw.gdut.edu.cn/")
+        assertThat(JxfwScheduleParser.classScheduleAllKbListReferer(hosts)).isEqualTo("https://jxfw.gdut.edu.cn/")
+    }
+
+    private val classGetKbRqJson = """
+        [
+          [
+            {"kcmc":"高等数学A(上)","kcbh":"1001","kcdm":"MATH1001","teaxms":"张三","jxbmc":"高数A-01",
+             "xnxqdm":"202501","zc":"1","jcdm":"0102","jcdm2":"01,02","xq":"1","jxcdmc":"教5-301",
+             "sknrjj":"极限与连续","pkrs":"2025-09-01"},
+            {"kcmc":"高等数学A(上)","kcbh":"1001","kcdm":"MATH1001","teaxms":"张三","jxbmc":"高数A-01",
+             "xnxqdm":"202501","zc":"2","jcdm":"0102","jcdm2":"01,02","xq":"1","jxcdmc":"教5-301",
+             "sknrjj":"导数与微分","pkrs":"2025-09-08"},
+            {"kcmc":"大学英语(二)","kcbh":"1002","teaxms":"李四","jxbmc":"英语2班",
+             "xnxqdm":"202501","zc":"1","jcdm":"0304","jcdm2":"03,04","xq":"3","jxcdmc":"文科楼-202",
+             "sknrjj":"Unit 1","pkrs":"2025-09-03"},
+            {"kcmc":"程序设计基础","kcbh":"1003","teaxms":"王五","jxbmc":"计科1班",
+             "xnxqdm":"202501","zc":"1","jcdm":"0506","jcdm2":"05,06","xq":"5","jxcdmc":"实验楼-401",
+             "sknrjj":"C 语言基础","pkrs":"2025-09-05"}
+          ],
+          [
+            {"xqmc":"1","rq":"2025-09-01"},
+            {"xqmc":"2","rq":"2025-09-02"},
+            {"xqmc":"3","rq":"2025-09-03"},
+            {"xqmc":"4","rq":"2025-09-04"},
+            {"xqmc":"5","rq":"2025-09-05"},
+            {"xqmc":"6","rq":"2025-09-06"},
+            {"xqmc":"7","rq":"2025-09-07"}
+          ]
+        ]
+    """.trimIndent()
+
     private fun readFixture(name: String): String =
         javaClass.classLoader.getResourceAsStream("fixtures/$name")
             ?.bufferedReader(Charsets.UTF_8)?.readText()

@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gdutday.core.datastore.ScheduleView
 import com.gdutday.core.model.Campus
+import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.ui.BannerTone
 import com.gdutday.core.ui.EmptyState
 import com.gdutday.core.ui.StatusBanner
@@ -88,12 +89,14 @@ fun ScheduleScreen(
     val selectedBlock by viewModel.selectedBlock.collectAsStateWithLifecycle()
     val guessedDismissed by viewModel.guessedBannerDismissed.collectAsStateWithLifecycle()
     val campusDismissed by viewModel.campusBannerDismissed.collectAsStateWithLifecycle()
+    val syncSourceDismissed by viewModel.syncSourceBannerDismissed.collectAsStateWithLifecycle()
     val dayOffset by viewModel.selectedDayOffset.collectAsStateWithLifecycle()
     val isLoggedIn by container.authRepository.isLoggedIn
         .collectAsStateWithLifecycle(initialValue = true)
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showCalibrateDialog by remember { mutableStateOf(false) }
+    var showSyncSourceDialog by remember { mutableStateOf(false) }
     var conflictListBlocks by remember { mutableStateOf<List<com.gdutday.core.common.CourseBlock>?>(null) }
     val addCourseSheetVisible by viewModel.addCourseSheetVisible.collectAsStateWithLifecycle()
     val addCourseForm by viewModel.addCourseForm.collectAsStateWithLifecycle()
@@ -136,6 +139,7 @@ fun ScheduleScreen(
                     },
                     onSync = viewModel::refresh,
                     onAddCourse = viewModel::showAddCourseSheet,
+                    onOpenSyncSource = { showSyncSourceDialog = true },
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -153,6 +157,21 @@ fun ScheduleScreen(
                 modifier = Modifier.padding(innerPadding).fillMaxSize(),
             ) {
                 Column(Modifier.fillMaxSize()) {
+                    // 班级课表同步源：提示当前显示的不是本人课表，避免误认为是自己的课。
+                    if (settings.syncSourceType == SyncSourceType.CLASS_SCHEDULE &&
+                        !syncSourceDismissed
+                    ) {
+                        StatusBanner(
+                            message = stringResource(
+                                R.string.schedule_sync_source_current_class,
+                                settings.classScheduleClassName.ifBlank { settings.classScheduleBjdm },
+                            ),
+                            tone = BannerTone.INFO,
+                            actionLabel = stringResource(R.string.schedule_menu_sync_source),
+                            onAction = { showSyncSourceDialog = true },
+                            onDismiss = viewModel::dismissSyncSourceBanner,
+                        )
+                    }
                     // 开学日期是推测的：这是全屏里最该被看见的提示，日期错了周次全错。
                     if (state.semesterStartSource.needsUserConfirmation && !guessedDismissed) {
                         StatusBanner(
@@ -290,6 +309,22 @@ fun ScheduleScreen(
             blocks = blocks,
             onDismiss = { conflictListBlocks = null },
             onPick = viewModel::openBlock,
+        )
+    }
+
+    // 同步源切换：选班级并确认后由 ViewModel 触发一次加急同步。
+    if (showSyncSourceDialog) {
+        SyncSourceDialog(
+            settings = settings,
+            onDismiss = { showSyncSourceDialog = false },
+            onSelectPersonal = {
+                showSyncSourceDialog = false
+                viewModel.switchSyncSourceType(SyncSourceType.PERSONAL)
+            },
+            onSelectClass = { bjdm, className ->
+                showSyncSourceDialog = false
+                viewModel.setClassSchedule(bjdm, className)
+            },
         )
     }
 

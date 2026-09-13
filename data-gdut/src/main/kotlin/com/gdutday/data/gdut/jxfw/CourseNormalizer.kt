@@ -40,6 +40,17 @@ public data class RawScheduleRow(
 )
 
 /**
+ * 班级课表 `getKbRq` 响应 `rows[1]` 里的一行周日期。
+ *
+ * @property week 周次（响应里的 `xqmc`）。
+ * @property date 该周对应日期（响应里的 `rq`）。
+ */
+public data class ClassWeekDate(
+    public val week: Int,
+    public val date: LocalDate,
+)
+
+/**
  * 把 [RawScheduleRow] 归一成 [Course]。
  *
  * ## 做两件事

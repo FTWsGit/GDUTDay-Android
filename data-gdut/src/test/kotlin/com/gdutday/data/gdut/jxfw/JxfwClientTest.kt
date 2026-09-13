@@ -58,6 +58,8 @@ class JxfwClientTest {
         const val ALL_KB_LIST_PATH = "/xsgrkbcx!xsAllKbList.action"
         const val SCHEDULE_DATA_LIST_PATH = "/xsgrkbcx!getDataList.action"
         const val SCORE_DATA_LIST_PATH = "/xskccjxx!getDataList.action"
+        const val CLASS_GET_KB_RQ_PATH = "/xsbjkbcx!getKbRq.action"
+        const val CLASS_ALL_KB_LIST_PATH = "/xsbjkbcx!xsAllKbList.action"
     }
 
     /** 一次测试会触发的接口响应。默认全部成功，各测试只改自己关心的那一环。 */
@@ -68,6 +70,10 @@ class JxfwClientTest {
         var scheduleDataList: (page: Int) -> MockResponse = { ok(dataListBody(rows = emptyList(), total = 0)) },
         /** 成绩接口（JSON 分页）。 */
         var scoreDataList: (page: Int) -> MockResponse = { ok(dataListBody(rows = emptyList(), total = 0)) },
+        /** 班级课表主接口（getKbRq，JSON 数组 `[课表rows, 周日期rows]`）。 */
+        var classGetKbRq: () -> MockResponse = { ok(classGetKbRqBody()) },
+        /** 班级课表备接口（xsAllKbList，HTML `var kbxx`）。 */
+        var classAllKbList: () -> MockResponse = { ok(allKbListHtml(allKbListRow(name = "班级英语"))) },
     )
 
     @Before
@@ -102,6 +108,8 @@ class JxfwClientTest {
                 script.scheduleDataList(parseForm(body)["page"]?.toIntOrNull() ?: -1)
             path.startsWith(SCORE_DATA_LIST_PATH) ->
                 script.scoreDataList(parseForm(body)["page"]?.toIntOrNull() ?: -1)
+            path.startsWith(CLASS_GET_KB_RQ_PATH) -> script.classGetKbRq()
+            path.startsWith(CLASS_ALL_KB_LIST_PATH) -> script.classAllKbList()
             else -> MockResponse().setResponseCode(404).setBody("unexpected: ${request.method} $path")
         }
     }
@@ -140,6 +148,22 @@ class JxfwClientTest {
     /** 构造一条 `kbxx` 行（接口 A 的粒度：节次逗号分隔、周次聚合）。 */
     private fun allKbListRow(name: String = "高等数学", sections: String = "1,2", weeks: String = "1,2,3"): String =
         """{"kcmc":"$name","kcbh":"1001","jxbmc":"${name}1班","kcrwdm":"T1","jcdm2":"$sections","zcs":"$weeks","xq":"1","jxcdmcs":"教5-301","teaxms":"张三"}"""
+
+    /** 班级课表主接口（getKbRq）的两元素 JSON 数组：`[课表rows, 周日期rows]`。 */
+    private fun classGetKbRqBody(vararg weeks: Int = intArrayOf(1)): String {
+        val rows = weeks.joinToString(",") { w ->
+            """{"kcmc":"班级高等数学","kcbh":"1001","jxbmc":"高数A-01","xnxqdm":"202501","zc":"$w",""" +
+                """"jcdm":"0102","jcdm2":"01,02","xq":"1","jxcdmc":"教5-301","sknrjj":"极限与连续","pkrs":"2025-09-01"}"""
+        }
+        val dates = (1..7).joinToString(",") { d ->
+            """{"xqmc":"$d","rq":"2025-09-${d.toString().padStart(2, '0')}"}"""
+        }
+        return "[[$rows],[$dates]]"
+    }
+
+    /** 构造一条班级课表 `getKbRq` 行。 */
+    private fun classGetKbRqRow(name: String = "班级高等数学", week: Int, day: Int = 1): String =
+        """{"kcmc":"$name","kcbh":"1001","jxbmc":"${name}1班","xnxqdm":"202501","zc":"$week","jcdm":"0102","xq":"$day","jxcdmc":"教5-301","teaxms":"张三"}"""
 
     private fun gradeRow(
         name: String,
@@ -366,5 +390,104 @@ class JxfwClientTest {
         // 成绩保持为空（缺口如实呈现），且只发了一次请求
         assertThat(result.grades.single().scoreText).isEmpty()
         assertThat(recorded.count { it.request.path?.startsWith(SCORE_DATA_LIST_PATH) == true }).isEqualTo(1)
+    }
+
+    // ================================================================== 班级课表：fetchClassSchedule
+
+    @Test
+    fun `班级课表主接口可用时直接命中且带周日期`() {
+        val result = newClient().fetchClassSchedule(term, bjdm = "116523137")
+
+        assertThat(result.endpoint).isEqualTo(ScheduleEndpoint.CLASS_SCHEDULE_DATA_LIST)
+        assertThat(result.rows).hasSize(1)
+        assertThat(result.courses).hasSize(1)
+        assertThat(result.courses[0].name).isEqualTo("班级高等数学")
+        assertThat(result.courses[0].weeks).containsExactly(1)
+        // rows[1] 的周日期被完整保留 —— 反推开学日期的关键输入
+        assertThat(result.classWeekDates).hasSize(7)
+        assertThat(result.classWeekDates!!.first().date.toString()).isEqualTo("2025-09-01")
+
+        // 回退接口一次都不该碰
+        assertThat(recorded.none { it.request.path?.startsWith(CLASS_ALL_KB_LIST_PATH) == true }).isTrue()
+        // 参数只认 URL 查询串：GET 请求的 query 必须带长码与 bjdm
+        val req = recorded.single { it.request.path?.startsWith(CLASS_GET_KB_RQ_PATH) == true }
+        val query = req.request.path!!.substringAfter('?')
+        assertThat(query).contains("xnxqdm=202501")
+        assertThat(query).contains("bjdm=116523137")
+    }
+
+    @Test
+    fun `班级课表主接口失败后回退xsAllKbList`() {
+        script.classGetKbRq = { MockResponse().setResponseCode(503) }
+
+        val result = newClient().fetchClassSchedule(term, bjdm = "116523137")
+
+        assertThat(result.endpoint).isEqualTo(ScheduleEndpoint.CLASS_SCHEDULE_ALL_KB_LIST)
+        assertThat(result.courses).hasSize(1)
+        assertThat(result.courses[0].name).isEqualTo("班级英语")
+        // 备接口没有周日期
+        assertThat(result.classWeekDates).isNull()
+        // 请求顺序：先主接口后备接口
+        val paths = recorded.map { it.request.path?.substringBefore('?') }
+        assertThat(paths).containsExactly(CLASS_GET_KB_RQ_PATH, CLASS_ALL_KB_LIST_PATH).inOrder()
+    }
+
+    @Test
+    fun `班级课表主接口返回空数据时也回退xsAllKbList`() {
+        script.classGetKbRq = { ok("""[[],[]]""") }
+
+        val result = newClient().fetchClassSchedule(term, bjdm = "116523137")
+
+        assertThat(result.endpoint).isEqualTo(ScheduleEndpoint.CLASS_SCHEDULE_ALL_KB_LIST)
+        assertThat(result.courses).hasSize(1)
+    }
+
+    @Test
+    fun `班级课表两个接口都失败时抛Parse并附上两次原因`() {
+        script.classGetKbRq = { MockResponse().setResponseCode(500) }
+        script.classAllKbList = { MockResponse().setResponseCode(503) }
+
+        val e = assertThrows(GdutException.Parse::class.java) {
+            newClient().fetchClassSchedule(term, bjdm = "116523137")
+        }
+        assertThat(e.detail).contains("[getKbRq]")
+        assertThat(e.detail).contains("[xsAllKbList]")
+    }
+
+    @Test
+    fun `班级课表会话失效时不回退直接抛SessionExpired`() {
+        script.classGetKbRq = {
+            MockResponse().setResponseCode(302)
+                .setHeader("Location", "https://authserver.gdut.edu.cn/authserver/login?service=x")
+        }
+
+        val e = assertThrows(GdutException.SessionExpired::class.java) {
+            newClient().fetchClassSchedule(term, bjdm = "116523137")
+        }
+        assertThat(e.shouldRetryLogin).isTrue()
+        assertThat(recorded.none { it.request.path?.startsWith(CLASS_ALL_KB_LIST_PATH) == true }).isTrue()
+    }
+
+    @Test
+    fun `强制班级备接口策略时不请求getKbRq`() {
+        val result = newClient().fetchClassSchedule(
+            term, bjdm = "116523137", preferredEndpoint = ScheduleEndpoint.CLASS_SCHEDULE_ALL_KB_LIST,
+        )
+
+        assertThat(result.endpoint).isEqualTo(ScheduleEndpoint.CLASS_SCHEDULE_ALL_KB_LIST)
+        assertThat(recorded.none { it.request.path?.startsWith(CLASS_GET_KB_RQ_PATH) == true }).isTrue()
+    }
+
+    @Test
+    fun `config带classCode时fetchSchedule直接走班级课表`() {
+        val config = JxfwConfig(hosts = hosts, classCode = "116523137")
+
+        val result = newClient(config).fetchSchedule(term)
+
+        assertThat(result.endpoint).isEqualTo(ScheduleEndpoint.CLASS_SCHEDULE_DATA_LIST)
+        assertThat(result.courses[0].name).isEqualTo("班级高等数学")
+        // 个人课表接口一次都不该碰
+        assertThat(recorded.none { it.request.path?.startsWith(SCHEDULE_DATA_LIST_PATH) == true }).isTrue()
+        assertThat(recorded.none { it.request.path?.startsWith(ALL_KB_LIST_PATH) == true }).isTrue()
     }
 }

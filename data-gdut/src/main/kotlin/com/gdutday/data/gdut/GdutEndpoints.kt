@@ -182,6 +182,71 @@ public object GdutEndpoints {
     public const val JXFW_EXAM_DATA_LIST: String =
         "https://jxfw.gdut.edu.cn/xsksap!getDataList.action"
 
+    // ------------------------------------------------------------------ 班级课表（实测 2026-09-12）
+
+    /**
+     * 班级课表主接口。
+     *
+     * 实测（2026-09-12，bash 脚本 + curl）：
+     * `GET /xsbjkbcx!getKbRq.action?xnxqdm=<长码>&bjdm=<班级代码>&zc=<周次>`
+     * - `zc` 缺省 = 返回全学期（实测 324 行不分页）；超范围（如 20）不报错，返回校历外日期 + 空课表。
+     * - Referer / X-Requested-With 均非必需（与个人课表 A 的特殊 Referer 要求不同）。
+     * - 响应为 JSON 数组 `[课表rows, 周日期rows]`：
+     *   `rows[0]` 每周每教学班一行，24 字段：`kcmc kcbh kcdm teaxms teadms jxbdm jxbmc xnxqdm
+     *   zc(单周次) jcdm("0102"两位拼接) jcdm2("01,02"逗号) xq jxcdmc sknrjj xs zxs pkrs kxh
+     *   flfzmc jxhjmc tkbz dgksdm kbdm`；
+     *   `rows[1]` = `[{"xqmc":"1","rq":"2026-08-31"}, …]`，该周周一至周日的真实日期，
+     *   周一的 `rq` 即该周开学日，可反推学期开学日期。
+     * - ⚠ 参数只认 URL 查询串；响应头 Content-Type 不可信（`text/html` 包 JSON 体）。
+     */
+    public const val JXFW_CLASS_SCHEDULE_GET_KB_RQ: String = "xsbjkbcx!getKbRq.action"
+
+    /**
+     * 班级课表备接口（回退用）。
+     *
+     * 实测（2026-09-12）：`GET /xsbjkbcx!xsAllKbList.action?xnxqdm=<长码>&bjdm=<班级代码>`，
+     * 返回 HTML 内嵌 `var kbxx = [...]`（用 `JsonExtractor` 括号配对扫描提取）。
+     * 每行 9 字段：`kcmc kcbh jxbmc kcrwdm jcdm2 zcs("1,2,…,16"逗号) xq jxcdmcs teaxms` ——
+     * 与个人课表 A 的字段表完全一致。
+     * ⚠ 缺 `bjdm` 时**静默返回空数组，不报错**；参数只认 URL 查询串（POST body 传参会返回空）。
+     */
+    public const val JXFW_CLASS_SCHEDULE_ALL_KB_LIST: String = "xsbjkbcx!xsAllKbList.action"
+
+    /**
+     * 班级选择级联接口。
+     *
+     * 实测（2026-09-12）：`POST /xsbjkbcx!getFind.action`，
+     * `Content-Type: application/x-www-form-urlencoded`，
+     * body: `guid=<下级字段名>&xnxqdm=<长码>&xqdm=&rxnf=&xsyxdm=<学院>&zydm=<专业>`。
+     * 按 `guid` 逐级下钻（`xsyxdm` → 专业；`zydm` → 班级，`dm` 即 `bjdm`），
+     * 响应为 `text`，格式 `<guid>^getFind:<JSON数组>`，**需先 split 再 parseJSON**。
+     */
+    public const val JXFW_CLASS_SCHEDULE_FIND: String = "xsbjkbcx!getFind.action"
+
+    /**
+     * 班级课表查询主页面。
+     *
+     * 实测（2026-09-12）：`GET /xsbjkbcx!xsbjkbMain.action`，
+     * 页面里服务端渲染了全部班级 `<option>`（value = bjdm），
+     * 一次 GET 即可拿全班级列表，无需走 [JXFW_CLASS_SCHEDULE_FIND] 级联。
+     */
+    public const val JXFW_CLASS_SCHEDULE_MAIN: String = "xsbjkbcx!xsbjkbMain.action"
+
+    /**
+     * 单门课程上课信息明细（EasyUI `{total, rows}`，可选实现）。
+     *
+     * 实测（2026-09-12）：`POST /xsbjkbcx!getSkxxDataList.action`，
+     * body: `kcrwdm=<课程任务代码>&bjdm=&page=1&rows=100`。
+     * ⚠ **必须带 Referer `https://jxfw.gdut.edu.cn/xsbjkbcx!xsAllKbList.action`**，
+     * 否则 total=0（类似个人课表 A 的专用 Referer，但值不同）。
+     * 字段：`kxh zc xq jcdm2 kcmc sknrjj jxbmc jxcdmc jxhjmc teaxms`。
+     */
+    public const val JXFW_CLASS_SCHEDULE_DETAIL: String = "xsbjkbcx!getSkxxDataList.action"
+
+    /** 访问 [JXFW_CLASS_SCHEDULE_DETAIL] 必须带的 Referer。 */
+    public const val JXFW_CLASS_SCHEDULE_DETAIL_REFERER: String =
+        "$JXFW_BASE/xsbjkbcx!xsAllKbList.action"
+
     /**
      * 成绩。POST，参数：
      * `xnxqdm`(空=全部学期，或具体长码) `jhlxdm`(空) `sort=xnxqdm` `order=asc` `page` `rows`

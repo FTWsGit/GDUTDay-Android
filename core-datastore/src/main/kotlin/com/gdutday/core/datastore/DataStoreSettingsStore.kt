@@ -14,6 +14,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.gdutday.core.model.Campus
 import com.gdutday.core.model.ScheduleFetchStrategy
+import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.model.Term
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -122,6 +123,9 @@ internal object SettingsKeys {
     const val CUSTOM_TIMETABLE_ENABLED = "custom_timetable_enabled"
     const val CUSTOM_TIMETABLE = "custom_timetable"
     const val FETCH_STRATEGY = "fetch_strategy"
+    const val SYNC_SOURCE_TYPE = "sync_source_type"
+    const val CLASS_SCHEDULE_BJDM = "class_schedule_bjdm"
+    const val CLASS_SCHEDULE_CLASS_NAME = "class_schedule_class_name"
     const val AUTO_SYNC_ON_LAUNCH = "auto_sync_on_launch"
     const val AUTO_SYNC_INTERVAL_HOURS = "auto_sync_interval_hours"
     const val LIBRARY_QR_STUDENT_ID = "library_qr_student_id"
@@ -161,6 +165,11 @@ internal object SettingsMapper {
             customTimetableEnabled = map.bool(SettingsKeys.CUSTOM_TIMETABLE_ENABLED, defaults.customTimetableEnabled),
             customTimetable = parseTimetable(map[SettingsKeys.CUSTOM_TIMETABLE]),
             fetchStrategy = ScheduleFetchStrategy.fromName(map[SettingsKeys.FETCH_STRATEGY] as? String),
+            syncSourceType = SyncSourceType.fromName(map[SettingsKeys.SYNC_SOURCE_TYPE] as? String),
+            classScheduleBjdm = map[SettingsKeys.CLASS_SCHEDULE_BJDM] as? String
+                ?: defaults.classScheduleBjdm,
+            classScheduleClassName = map[SettingsKeys.CLASS_SCHEDULE_CLASS_NAME] as? String
+                ?: defaults.classScheduleClassName,
             autoSyncOnLaunch = map.bool(SettingsKeys.AUTO_SYNC_ON_LAUNCH, defaults.autoSyncOnLaunch),
             autoSyncIntervalHours = map.int(SettingsKeys.AUTO_SYNC_INTERVAL_HOURS, defaults.autoSyncIntervalHours)
                 .coerceIn(0, MAX_SYNC_INTERVAL_HOURS),
@@ -184,6 +193,13 @@ internal object SettingsMapper {
         map[SettingsKeys.CUSTOM_TIMETABLE_ENABLED] = settings.customTimetableEnabled
         map[SettingsKeys.CUSTOM_TIMETABLE] = encodeTimetable(settings.customTimetable)
         map[SettingsKeys.FETCH_STRATEGY] = settings.fetchStrategy.name
+        map[SettingsKeys.SYNC_SOURCE_TYPE] = settings.syncSourceType.name
+        putOrRemove(map, SettingsKeys.CLASS_SCHEDULE_BJDM, settings.classScheduleBjdm.takeIf { it.isNotBlank() })
+        putOrRemove(
+            map,
+            SettingsKeys.CLASS_SCHEDULE_CLASS_NAME,
+            settings.classScheduleClassName.takeIf { it.isNotBlank() },
+        )
         map[SettingsKeys.AUTO_SYNC_ON_LAUNCH] = settings.autoSyncOnLaunch
         map[SettingsKeys.AUTO_SYNC_INTERVAL_HOURS] = settings.autoSyncIntervalHours
         putOrRemove(map, SettingsKeys.LIBRARY_QR_STUDENT_ID, settings.libraryQrStudentId.takeIf { it.isNotBlank() })

@@ -12,6 +12,7 @@ import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.OverrideScope
+import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.model.Term
 import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.ScheduleRepository
@@ -199,9 +200,44 @@ public class ScheduleViewModel(
         _campusBannerDismissed.value = true
     }
 
+    private val _syncSourceBannerDismissed = MutableStateFlow(false)
+
+    /** 班级课表同步源横幅是否被关掉。仅在本次进程内有效。 */
+    public val syncSourceBannerDismissed: StateFlow<Boolean> = _syncSourceBannerDismissed.asStateFlow()
+
+    public fun dismissSyncSourceBanner() {
+        _syncSourceBannerDismissed.value = true
+    }
+
     /** 下拉刷新 / 菜单同步。加急请求，用户正在等。 */
     public fun refresh() {
         syncScheduler.requestImmediateSync(expedited = true)
+    }
+
+    /**
+     * 切换课表同步源（个人课表 / 班级课表）。
+     *
+     * 切换后立即触发一次加急同步：用户切源就是想马上看到另一份数据。
+     */
+    public fun switchSyncSourceType(type: SyncSourceType) {
+        viewModelScope.launch {
+            settingsStore.setSyncSourceType(type)
+            syncScheduler.requestImmediateSync(expedited = true)
+        }
+    }
+
+    /**
+     * 设置班级课表的班级（bjdm + 显示名）并触发同步。
+     * 用于"同步源"对话框：填完班级代码保存后马上拉取该班级的课表。
+     */
+    public fun setClassSchedule(bjdm: String, className: String) {
+        viewModelScope.launch {
+            settingsStore.setClassSchedule(bjdm, className)
+            if (bjdm.isNotBlank()) {
+                settingsStore.setSyncSourceType(SyncSourceType.CLASS_SCHEDULE)
+                syncScheduler.requestImmediateSync(expedited = true)
+            }
+        }
     }
 
     public fun setScheduleView(view: ScheduleView) {

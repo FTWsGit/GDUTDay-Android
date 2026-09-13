@@ -1,0 +1,17 @@
+[
+  [
+    {"kcmc":"高等数学A(上)","kcbh":"1001","kcdm":"MATH1001","teaxms":"张三","teadms":"T001","jxbdm":"JXB001","jxbmc":"高数A-01","xnxqdm":"202601","zc":"1","jcdm":"0102","jcdm2":"01,02","xq":"1","jxcdmc":"教5-301","sknrjj":"极限与连续","xs":48,"zxs":3,"pkrs":"2026-08-31","kxh":"01","flfzmc":"必修","jxhjmc":"理论课","tkbz":"","dgksdm":"","kbdm":"KB001"},
+    {"kcmc":"高等数学A(上)","kcbh":"1001","kcdm":"MATH1001","teaxms":"张三","teadms":"T001","jxbdm":"JXB001","jxbmc":"高数A-01","xnxqdm":"202601","zc":"2","jcdm":"0102","jcdm2":"01,02","xq":"1","jxcdmc":"教5-301","sknrjj":"导数与微分","xs":48,"zxs":3,"pkrs":"2026-09-07","kxh":"01","flfzmc":"必修","jxhjmc":"理论课","tkbz":"","dgksdm":"","kbdm":"KB001"},
+    {"kcmc":"大学英语(二)","kcbh":"1002","kcdm":"ENG1002","teaxms":"李四","teadms":"T002","jxbdm":"JXB002","jxbmc":"英语2班","xnxqdm":"202601","zc":"1","jcdm":"0304","jcdm2":"03,04","xq":"3","jxcdmc":"文科楼-202","sknrjj":"Unit 1","xs":32,"zxs":2,"pkrs":"2026-09-02","kxh":"02","flfzmc":"必修","jxhjmc":"理论课","tkbz":"","dgksdm":"","kbdm":"KB002"},
+    {"kcmc":"程序设计基础","kcbh":"1003","kcdm":"CS1003","teaxms":"王五","teadms":"T003","jxbdm":"JXB003","jxbmc":"计科1班","xnxqdm":"202601","zc":"1","jcdm":"0506","jcdm2":"05,06","xq":"5","jxcdmc":"实验楼-401","sknrjj":"C 语言基础","xs":48,"zxs":3,"pkrs":"2026-09-04","kxh":"03","flfzmc":"必修","jxhjmc":"实验课","tkbz":"","dgksdm":"","kbdm":"KB003"}
+  ],
+  [
+    {"xqmc":"1","rq":"2026-08-31"},
+    {"xqmc":"2","rq":"2026-09-01"},
+    {"xqmc":"3","rq":"2026-09-02"},
+    {"xqmc":"4","rq":"2026-09-03"},
+    {"xqmc":"5","rq":"2026-09-04"},
+    {"xqmc":"6","rq":"2026-09-05"},
+    {"xqmc":"7","rq":"2026-09-06"}
+  ]
+]

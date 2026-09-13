@@ -94,6 +94,26 @@ public data class GdutHosts(
     /** 考试安排。`xqmc` 字段是本科生数据里唯一的校区线索。 */
     public val jxfwExamDataList: String get() = "$jxfwBase/xsksap!getDataList.action"
 
+    // ------------------------------------------------- 班级课表（xsbjkbcx，实测 2026-09-12）
+
+    /** 班级课表主接口：GET，返回 JSON 数组 `[课表rows, 周日期rows]`。Referer 非必需。 */
+    public val jxfwClassScheduleGetKbRq: String get() = "$jxfwBase/xsbjkbcx!getKbRq.action"
+
+    /** 班级课表备接口：GET，返回 HTML（内含 `var kbxx = [...]`，全学期聚合）。 */
+    public val jxfwClassScheduleAllKbList: String get() = "$jxfwBase/xsbjkbcx!xsAllKbList.action"
+
+    /** 班级选择级联接口：POST，响应为 `text`（`<guid>^getFind:<JSON数组>`）。 */
+    public val jxfwClassScheduleFind: String get() = "$jxfwBase/xsbjkbcx!getFind.action"
+
+    /** 班级课表查询主页面（页面里服务端渲染了全部班级 `<option>`）。 */
+    public val jxfwClassScheduleMain: String get() = "$jxfwBase/xsbjkbcx!xsbjkbMain.action"
+
+    /** 单门课程上课信息明细。⚠ 必须带 [jxfwClassScheduleReferer] 指定的 Referer。 */
+    public val jxfwClassScheduleDetail: String get() = "$jxfwBase/xsbjkbcx!getSkxxDataList.action"
+
+    /** 班级课表接口的通用 Referer。主接口实测不需要特殊 Referer，先用首页。 */
+    public val jxfwClassScheduleReferer: String get() = jxfwDefaultReferer
+
     /** 成绩。 */
     public val jxfwScoreDataList: String get() = "$jxfwBase/xskccjxx!getDataList.action"
 

@@ -28,3 +28,13 @@
 用 `docs/07-verify-login.md` 里的验证脚本跑一次真实账号，
 把 dump 出来的响应替换掉这些合成 fixture，才算真正闭环。
 合成 fixture 里凡是"字段名未经联网确认"的地方，文件内都写了 `⚠ 未验证` 注释。
+
+### 班级课表（issue-001，实测 2026-09-12）
+
+- `class_schedule_get_kb_rq.json`：`GET /xsbjkbcx!getKbRq.action` 的合成样例，
+  结构按实测记录构造（`[课表rows(24字段), 周日期rows(xqmc/rq)]`，`jcdm` 两位拼接、`zc` 单周次、`pkrs` 上课日期）。
+- `class_schedule_all_kb_list.html`：`GET /xsbjkbcx!xsAllKbList.action` 的合成样例，
+  `var kbxx` 的 9 字段结构与个人课表 A 完全一致。
+
+重抓命令见 `temp/issue-001-class-schedule-import.md` 第 6 节（需真实会话）；
+抓到真实响应后替换上述文件，注意先脱敏。

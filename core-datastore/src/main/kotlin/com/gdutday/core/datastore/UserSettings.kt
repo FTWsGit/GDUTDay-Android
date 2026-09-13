@@ -2,6 +2,7 @@ package com.gdutday.core.datastore
 
 import com.gdutday.core.model.Campus
 import com.gdutday.core.model.ScheduleFetchStrategy
+import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.model.Term
 import kotlinx.coroutines.flow.Flow
 
@@ -119,6 +120,18 @@ public data class UserSettings(
      */
     public val fetchStrategy: ScheduleFetchStrategy = ScheduleFetchStrategy.AUTO,
 
+    /**
+     * 课表同步源。默认个人课表；选 [SyncSourceType.CLASS_SCHEDULE] 时
+     * 同步改走班级课表接口（`xsbjkbcx`），**替换**而不是合并个人课表数据。
+     */
+    public val syncSourceType: SyncSourceType = SyncSourceType.PERSONAL,
+
+    /** 班级课表的班级代码（`bjdm`）。仅 [syncSourceType] 为班级课表时有意义；空 = 未选择。 */
+    public val classScheduleBjdm: String = "",
+
+    /** 班级课表的班级显示名（如"计算机25(5)"），用于 UI 展示当前同步源。 */
+    public val classScheduleClassName: String = "",
+
     /** 是否在每次冷启动时自动同步。关闭可以省流量、加快首屏。 */
     public val autoSyncOnLaunch: Boolean = true,
 
@@ -211,6 +224,17 @@ public interface SettingsStore {
     }
 
     public suspend fun setFetchStrategy(strategy: ScheduleFetchStrategy) = update { it.copy(fetchStrategy = strategy) }
+
+    /** 切换课表同步源（个人课表 / 班级课表）。 */
+    public suspend fun setSyncSourceType(type: SyncSourceType) = update { it.copy(syncSourceType = type) }
+
+    /**
+     * 设置班级课表的班级。
+     *
+     * 同时写 bjdm 与显示名：只有代码没有名字的话，UI 上的"当前同步源"就只能显示一串数字。
+     */
+    public suspend fun setClassSchedule(bjdm: String, className: String) =
+        update { it.copy(classScheduleBjdm = bjdm.trim(), classScheduleClassName = className.trim()) }
 
     /**
      * 设置图书馆二维码学号。

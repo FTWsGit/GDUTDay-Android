@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material3.DropdownMenu
@@ -55,6 +56,7 @@ internal fun ScheduleTopBar(
     onToggleView: () -> Unit,
     onSync: () -> Unit,
     onAddCourse: () -> Unit,
+    onOpenSyncSource: () -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     modifier: Modifier = Modifier,
 ) {
@@ -157,6 +159,14 @@ internal fun ScheduleTopBar(
                         onClick = {
                             actionMenuOpen = false
                             onSync()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.schedule_menu_sync_source)) },
+                        leadingIcon = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
+                        onClick = {
+                            actionMenuOpen = false
+                            onOpenSyncSource()
                         },
                     )
                 }

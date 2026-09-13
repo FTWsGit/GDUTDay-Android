@@ -20,8 +20,10 @@ import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.GdutException
 import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.ScheduleFetchStrategy
+import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.model.Term
 import com.gdutday.data.gdut.jxfw.JxfwClient
+import com.gdutday.data.gdut.jxfw.JxfwConfig
 import com.gdutday.data.gdut.jxfw.JxfwExamParser
 import com.gdutday.data.gdut.jxfw.JxfwTermParser
 import com.gdutday.data.gdut.jxfw.ScheduleEndpoint
@@ -60,8 +62,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * `is_current` 每次同步都会被服务端覆盖，只能表达"教务认为现在是哪学期"；
  * 用户想看下学期时，需要的是一个与之独立、不会被同步冲掉的偏好。
  *
- * @param jxfwClientFactory 用会话 + 课表接口策略构造教务客户端。`JxfwClient` 是无状态的
+ * @param jxfwClientFactory 用会话 + 完整配置构造教务客户端。`JxfwClient` 是无状态的
  *   （状态在 CookieJar），每次同步新建，避免复用绑定了旧 cookie 的实例。
+ *   配置里带 [com.gdutday.data.gdut.jxfw.JxfwConfig.classCode] 时客户端走班级课表接口。
  */
 public class ScheduleRepositoryImpl(
     private val courseDao: CourseDao,
@@ -72,7 +75,7 @@ public class ScheduleRepositoryImpl(
     private val settingsStore: SettingsStore,
     private val sessionStore: SessionStore,
     private val authRepository: AuthRepository,
-    private val jxfwClientFactory: (GdutSession, ScheduleEndpoint) -> JxfwClient,
+    private val jxfwClientFactory: (GdutSession, JxfwConfig) -> JxfwClient,
 ) : ScheduleRepository {
 
     /** 选中的周次。纯内存：每次打开 App 回到"本周"比记住上次翻到第几周更符合直觉。 */
@@ -168,12 +171,12 @@ public class ScheduleRepositoryImpl(
 
         var session = sessionStore.current()
             ?: throw GdutException.SessionExpired("本地没有可用会话，请先登录")
-        var client = newClient(session, settings.fetchStrategy)
+        var client = newClient(session, settings)
 
         if (!client.isSessionValid()) {
             session = authRepository.reloginSilently()
                 ?: throw GdutException.SessionExpired("登录状态已失效，且没有可用于静默重登的凭据")
-            client = newClient(session, settings.fetchStrategy)
+            client = newClient(session, settings)
         }
 
         val termList: JxfwTermParser.TermList = client.fetchTermList()
@@ -324,14 +327,20 @@ public class ScheduleRepositoryImpl(
         termList.current?.let { termMetaDao.setCurrentTerm(it.shortCode) }
     }
 
-    private fun newClient(session: GdutSession, strategy: ScheduleFetchStrategy): JxfwClient {
-        val endpoint = when (strategy) {
+    private fun newClient(session: GdutSession, settings: com.gdutday.core.datastore.UserSettings): JxfwClient {
+        val endpoint = when (settings.fetchStrategy) {
             ScheduleFetchStrategy.AUTO -> ScheduleEndpoint.AUTO
             ScheduleFetchStrategy.ONLY_ALL_KB_LIST -> ScheduleEndpoint.ALL_KB_LIST
             ScheduleFetchStrategy.ONLY_DATA_LIST -> ScheduleEndpoint.DATA_LIST
             ScheduleFetchStrategy.LOCAL_ONLY -> ScheduleEndpoint.AUTO
         }
-        return jxfwClientFactory(session, endpoint)
+        // 班级课表同步源：把 bjdm 交给客户端，由 JxfwClient.fetchSchedule 内部改走班级接口
+        val classCode = if (settings.syncSourceType == SyncSourceType.CLASS_SCHEDULE) {
+            settings.classScheduleBjdm.takeIf { it.isNotBlank() }
+        } else {
+            null
+        }
+        return jxfwClientFactory(session, JxfwConfig(scheduleEndpoint = endpoint, classCode = classCode))
     }
 
     /**

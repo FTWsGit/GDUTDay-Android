@@ -35,6 +35,12 @@ public enum class ScheduleEndpoint(
 
     /** 只用 `getDataList`。 */
     DATA_LIST("getDataList（按周炸开）"),
+
+    /** 班级课表主接口 `getKbRq`。 */
+    CLASS_SCHEDULE_DATA_LIST("getKbRq（班级课表）"),
+
+    /** 班级课表备接口 `xsAllKbList`。 */
+    CLASS_SCHEDULE_ALL_KB_LIST("xsAllKbList（班级课表）"),
 }
 
 /**
@@ -57,6 +63,11 @@ public data class JxfwConfig(
     public val maxPages: Int = 20,
     public val scheduleEndpoint: ScheduleEndpoint = ScheduleEndpoint.AUTO,
     public val patchLaborEducation: Boolean = true,
+    /**
+     * 班级课表的班级代码（`bjdm`）。非空时 [JxfwClient.fetchSchedule] 走班级课表接口，
+     * 替代个人课表。null / 空 = 个人课表。
+     */
+    public val classCode: String? = null,
 )
 
 /** 课表抓取结果。 */
@@ -68,6 +79,11 @@ public data class ScheduleFetchResult(
     public val pagesFetched: Int,
     public val normalization: CourseNormalizer.Outcome,
     public val warnings: List<String> = emptyList(),
+    /**
+     * 班级课表 `getKbRq` 返回的周日期（`rows[1]`）。个人课表恒为 null。
+     * 周一的 `rq` 即该周开学日，可作为 `KnownSemesterStarts` 的动态来源。
+     */
+    public val classWeekDates: List<ClassWeekDate>? = null,
 ) {
     public val courses: List<com.gdutday.core.model.Course> get() = normalization.courses
 }
@@ -186,6 +202,17 @@ public class JxfwClient(
      * @throws GdutException.Parse 两个接口都失败
      */
     public fun fetchSchedule(term: Term): ScheduleFetchResult {
+        // 班级课表同步源：直接走班级接口，不走个人课表回退链
+        val classCode = config.classCode
+        if (!classCode.isNullOrBlank()) {
+            val preferred = when (config.scheduleEndpoint) {
+                ScheduleEndpoint.ALL_KB_LIST -> ScheduleEndpoint.CLASS_SCHEDULE_ALL_KB_LIST
+                ScheduleEndpoint.DATA_LIST -> ScheduleEndpoint.CLASS_SCHEDULE_DATA_LIST
+                else -> ScheduleEndpoint.AUTO
+            }
+            return fetchClassSchedule(term, classCode, preferred)
+        }
+
         var firstError: Throwable? = null
 
         if (config.scheduleEndpoint != ScheduleEndpoint.ALL_KB_LIST) {
@@ -291,6 +318,111 @@ public class JxfwClient(
             pagesFetched = pagesFetched,
             normalization = outcome,
             warnings = warnings,
+        )
+    }
+
+    /**
+     * 抓取某学期的**班级课表**（同步源为"班级课表"时由 [fetchSchedule] 调用）。
+     *
+     * 与个人课表的 AUTO 策略同构：
+     * 1. 先试 `getKbRq`（JSON，带周日期 `rows[1]`，含 `sknrjj`）；
+     * 2. 它抛异常或返回空 → 回退 `xsAllKbList`（HTML 内嵌 `var kbxx`，全学期聚合，无周日期）；
+     * 3. 两个都失败 → 抛 [GdutException.Parse]，detail 里同时附上两次的失败原因。
+     *
+     * @param preferredEndpoint 强制只用其中一个接口（便于排查），默认 AUTO。
+     * @throws GdutException.SessionExpired 会话失效
+     * @throws GdutException.EmptySchedule 两个接口都返回空
+     * @throws GdutException.Parse 两个接口都失败
+     */
+    public fun fetchClassSchedule(
+        term: Term,
+        bjdm: String,
+        preferredEndpoint: ScheduleEndpoint = ScheduleEndpoint.AUTO,
+    ): ScheduleFetchResult {
+        require(bjdm.isNotBlank()) { "班级代码 bjdm 不能为空" }
+        var firstError: Throwable? = null
+
+        if (preferredEndpoint != ScheduleEndpoint.CLASS_SCHEDULE_ALL_KB_LIST) {
+            try {
+                val result = fetchClassViaGetKbRq(term, bjdm)
+                if (result.rows.isNotEmpty()) return result
+                firstError = GdutException.EmptySchedule(term)
+            } catch (e: GdutException) {
+                // 会话失效不该被回退逻辑吞掉 —— 换接口也一样会失效，直接抛出去让上层重登
+                if (e.shouldRetryLogin) throw e
+                firstError = e
+            }
+        }
+
+        if (preferredEndpoint != ScheduleEndpoint.CLASS_SCHEDULE_DATA_LIST) {
+            try {
+                return fetchClassViaAllKbList(term, bjdm)
+            } catch (e: GdutException) {
+                if (e.shouldRetryLogin) throw e
+                if (firstError != null) {
+                    throw GdutException.Parse(
+                        what = "班级课表",
+                        snippet = "两个接口都失败了。\n" +
+                            "[getKbRq] ${firstError.message}\n" +
+                            "[xsAllKbList] ${e.message}",
+                        cause = e,
+                    )
+                }
+                throw e
+            }
+        }
+
+        throw firstError ?: GdutException.EmptySchedule(term)
+    }
+
+    private fun fetchClassViaGetKbRq(term: Term, bjdm: String): ScheduleFetchResult {
+        val url = buildUrl(
+            hosts.jxfwClassScheduleGetKbRq,
+            JxfwScheduleParser.classScheduleGetKbRqQuery(term, bjdm),
+        )
+        val body = get(
+            url = url,
+            referer = JxfwScheduleParser.classScheduleGetKbRqReferer(hosts),
+            what = "班级课表（getKbRq）",
+            allowHtml = false,
+        )
+        val parsed = JxfwScheduleParser.parseClassScheduleGetKbRq(body, term)
+        val outcome = CourseNormalizer.normalize(parsed.rows, term)
+        return ScheduleFetchResult(
+            rows = parsed.rows,
+            endpoint = ScheduleEndpoint.CLASS_SCHEDULE_DATA_LIST,
+            pagesFetched = 1,
+            normalization = outcome,
+            warnings = buildList {
+                addAll(outcome.warnings)
+                if (outcome.hasDropped) add("getKbRq 丢弃了 ${outcome.droppedRows} 行: ${outcome.dropReasons}")
+            },
+            classWeekDates = parsed.weekDates,
+        )
+    }
+
+    private fun fetchClassViaAllKbList(term: Term, bjdm: String): ScheduleFetchResult {
+        val url = buildUrl(
+            hosts.jxfwClassScheduleAllKbList,
+            JxfwScheduleParser.classScheduleAllKbListQuery(term, bjdm),
+        )
+        val body = get(
+            url = url,
+            referer = JxfwScheduleParser.classScheduleAllKbListReferer(hosts),
+            what = "班级课表（xsAllKbList）",
+            allowHtml = true,
+        )
+        val rows = JxfwScheduleParser.parseClassScheduleAllKbList(body, term)
+        val outcome = CourseNormalizer.normalize(rows, term)
+        return ScheduleFetchResult(
+            rows = rows,
+            endpoint = ScheduleEndpoint.CLASS_SCHEDULE_ALL_KB_LIST,
+            pagesFetched = 1,
+            normalization = outcome,
+            warnings = buildList {
+                addAll(outcome.warnings)
+                if (outcome.hasDropped) add("xsAllKbList 丢弃了 ${outcome.droppedRows} 行: ${outcome.dropReasons}")
+            },
         )
     }
 

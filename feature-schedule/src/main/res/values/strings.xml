@@ -15,6 +15,15 @@
     <string name="schedule_switch_to_day">切换到日视图</string>
     <string name="schedule_switch_to_week">切换到周视图</string>
     <string name="schedule_menu_sync">同步课表</string>
+    <string name="schedule_menu_sync_source">同步源…</string>
+    <string name="schedule_sync_source_title">课表同步源</string>
+    <string name="schedule_sync_source_personal">个人课表（默认）</string>
+    <string name="schedule_sync_source_class">班级课表</string>
+    <string name="schedule_sync_source_class_bjdm">班级代码（bjdm）</string>
+    <string name="schedule_sync_source_class_name">班级显示名（如 计算机25(5)）</string>
+    <string name="schedule_sync_source_class_hint">班级代码可在教务系统"信息查询 → 班级课表"页面查看</string>
+    <string name="schedule_sync_source_current_personal">当前：个人课表</string>
+    <string name="schedule_sync_source_current_class">当前：班级课表 · %1$s</string>
     <string name="schedule_menu_settings">设置</string>
 
     <string name="schedule_not_logged_in_title">还没有登录</string>

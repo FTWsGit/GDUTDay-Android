@@ -11,7 +11,6 @@ import com.gdutday.core.network.HttpConfig
 import com.gdutday.core.network.NetworkMonitor
 import com.gdutday.data.gdut.auth.AuthServerClient
 import com.gdutday.data.gdut.jxfw.JxfwClient
-import com.gdutday.data.gdut.jxfw.JxfwConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -125,8 +124,8 @@ public class DefaultAppContainer(
             settingsStore = settingsStore,
             sessionStore = sessionStore,
             authRepository = authRepository,
-            jxfwClientFactory = { session, endpoint ->
-                JxfwClient(okHttpClient, session, JxfwConfig(scheduleEndpoint = endpoint))
+            jxfwClientFactory = { session, config ->
+                JxfwClient(okHttpClient, session, config)
             },
         )
     }

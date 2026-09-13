@@ -2,6 +2,7 @@ package com.gdutday.core.datastore
 
 import com.gdutday.core.model.Campus
 import com.gdutday.core.model.ScheduleFetchStrategy
+import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.model.Term
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.Flow
@@ -200,5 +201,75 @@ class DataStoreSettingsStoreTest {
 
         // 键被删除后读回默认值（空字符串）
         assertThat(store.settings.first().libraryQrStudentId).isEmpty()
+    }
+
+    // ---------------------------------------------------------------- 同步源
+
+    @Test
+    fun `setSyncSourceType 切换班级课表后再切回个人`() = runBlocking {
+        val store = DataStoreSettingsStore(FakeSettingsBackend())
+        store.setSyncSourceType(SyncSourceType.CLASS_SCHEDULE)
+        assertThat(store.settings.first().syncSourceType).isEqualTo(SyncSourceType.CLASS_SCHEDULE)
+
+        store.setSyncSourceType(SyncSourceType.PERSONAL)
+        assertThat(store.settings.first().syncSourceType).isEqualTo(SyncSourceType.PERSONAL)
+    }
+
+    @Test
+    fun `setClassSchedule 同时写入班级代码与显示名`() = runBlocking {
+        val store = DataStoreSettingsStore(FakeSettingsBackend())
+
+        store.setClassSchedule(" 116523137 ", " 计算机25(5) ")
+
+        val settings = store.settings.first()
+        assertThat(settings.classScheduleBjdm).isEqualTo("116523137")
+        assertThat(settings.classScheduleClassName).isEqualTo("计算机25(5)")
+    }
+
+    @Test
+    fun `班级课表字段一次往返后完全一致`() = runBlocking {
+        val store = DataStoreSettingsStore(FakeSettingsBackend())
+
+        store.update {
+            it.copy(
+                syncSourceType = SyncSourceType.CLASS_SCHEDULE,
+                classScheduleBjdm = "116523137",
+                classScheduleClassName = "计算机25(5)",
+            )
+        }
+
+        assertThat(store.settings.first()).isEqualTo(
+            UserSettings(
+                syncSourceType = SyncSourceType.CLASS_SCHEDULE,
+                classScheduleBjdm = "116523137",
+                classScheduleClassName = "计算机25(5)",
+            ),
+        )
+    }
+
+    @Test
+    fun `班级课表空字符串在写入时被移除且读回默认值`() = runBlocking {
+        val store = DataStoreSettingsStore(FakeSettingsBackend())
+        store.setClassSchedule("116523137", "计算机25(5)")
+        assertThat(store.settings.first().classScheduleBjdm).isEqualTo("116523137")
+
+        store.setClassSchedule("", "")
+
+        assertThat(store.settings.first().classScheduleBjdm).isEmpty()
+        assertThat(store.settings.first().classScheduleClassName).isEmpty()
+    }
+
+    @Test
+    fun `脏数据的同步源类型回退个人课表`() = runBlocking {
+        val backend = FakeSettingsBackend(
+            mapOf(
+                SettingsKeys.SYNC_SOURCE_TYPE to "MAGIC",
+                SettingsKeys.CLASS_SCHEDULE_BJDM to 12345,
+            ),
+        )
+        val store = DataStoreSettingsStore(backend)
+
+        assertThat(store.settings.first().syncSourceType).isEqualTo(SyncSourceType.PERSONAL)
+        assertThat(store.settings.first().classScheduleBjdm).isEmpty()
     }
 }

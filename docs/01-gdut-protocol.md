@@ -635,6 +635,102 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 没有考试安排的学期（大一上）就探测不到，此时回退到用户在设置里手选，默认大学城。
 `Campus.fromRawName` 做宽松关键字匹配（大学城 / 东风路 / 龙洞 / 番禺），匹配不到返回 `UNKNOWN`。
 
+### 4.7 班级课表接口（xsbjkbcx）—— 实测 2026-09-12
+
+> 全部结论用 `scripts/gdut-login.sh` + curl 实测验证。菜单入口：**信息查询 → 班级课表**。
+> 模块前缀是 **`xsbjkbcx`**（带 `xs`）；不带 `xs` 的 `bjkbcx` 返回"页面不存在"。
+
+| # | 接口 | 方法 | 用途 | 状态 |
+|---|---|---|---|---|
+| ① | `/xsbjkbcx!getKbRq.action` | GET（POST 也可） | **课表数据（主接口）**：`[课表rows, 周日期rows]` | 实测 2026-09-12 |
+| ② | `/xsbjkbcx!xsAllKbList.action` | GET | 课表数据（备接口）：HTML 内嵌 `var kbxx = [...]`，全学期聚合 | 实测 2026-09-12 |
+| ③ | `/xsbjkbcx!getFind.action` | POST | 级联下拉：学院 → 专业 → 班级列表 | 实测 2026-09-12 |
+| ④ | `/xsbjkbcx!xsbjkbMain.action` | GET | 查询主页面；页面里服务端渲染了全部班级 `<option>` | 实测 2026-09-12 |
+| ⑤ | `/xsbjkbcx!getSkxxDataList.action` | POST | 单门课程上课信息明细（EasyUI `{total,rows}`），可选实现 | 实测 2026-09-12 |
+| ⑥ | `/xsbjkbcx!xskbList.action` | GET | 按周课表 HTML 壳页，真实数据走 ①，App 不需要调 | 实测 2026-09-12 |
+
+#### ① getKbRq —— 主接口
+
+```
+GET /xsbjkbcx!getKbRq.action?xnxqdm=202601&bjdm=116523137&zc=1
+```
+
+- 参数：`xnxqdm`（学期长码）、`bjdm`（班级代码）、`zc`（周次，**缺省 = 返回全学期**，实测 324 行不分页）。
+- `zc` 超范围（如 20）不报错，返回校历外日期 + 空课表数组，客户端按空数据处理。
+- **Referer / X-Requested-With 均非必需**（与个人课表 A 的特殊 Referer 要求不同）。
+- 响应为 JSON 数组 `[课表rows, 周日期rows]`：
+  - `rows[0]`：每周每教学班一行，**24 个字段**：
+    `kcmc kcbh kcdm teaxms teadms jxbdm jxbmc xnxqdm zc(单周次) jcdm("0102"两位拼接)
+    jcdm2("01,02"逗号分隔) xq jxcdmc sknrjj xs zxs pkrs kxh flfzmc jxhjmc tkbz dgksdm kbdm`
+  - `rows[1]`：`[{"xqmc":"1","rq":"2026-08-31"}, …]` —— **该周周一至周日的真实日期**，
+    周一的 `rq` 即该周开学日，**可反推学期开学日期**（顺带缓解 `KnownSemesterStarts` 人工维护问题）。
+- 粒度与个人课表 `getDataList`（按周炸开）同构，复用 `CourseNormalizer` + `SectionRunSplitter`
+  （`jcdm` 同为两位拼接格式）。
+
+#### ② xsAllKbList —— 备接口/回退
+
+```
+GET /xsbjkbcx!xsAllKbList.action?xnxqdm=202601&bjdm=116523137
+```
+
+- 返回 HTML 内嵌 `var kbxx = [...]`（用 `JsonExtractor` 括号配对扫描提取）。
+- 每行 **9 个字段**：`kcmc kcbh jxbmc kcrwdm jcdm2 zcs("1,2,…,16"逗号) xq jxcdmcs teaxms` ——
+  与个人课表 A 的字段表完全一致，解析器直接复用。
+- 缺 `bjdm` 时**静默返回空数组，不报错**。
+
+#### ③ getFind —— 班级选择级联
+
+```
+POST /xsbjkbcx!getFind.action
+Content-Type: application/x-www-form-urlencoded
+body: guid=<下级字段名>&xnxqdm=202601&xqdm=&rxnf=&xsyxdm=07&zydm=0711
+```
+
+- 按 `guid` 逐级下钻，响应为 `text`，格式 `<guid>^getFind:<JSON数组>`，**需先 split 再 parseJSON**：
+  - `guid=xsyxdm` → 专业列表 `{"dm":"0711","mc":"[0711]计算机科学与技术"}`；
+  - `guid=zydm`（带上 `xsyxdm` 与 `zydm`）→ 班级列表，`dm` 即 `bjdm`。
+- 简化方案：直接 GET 接口④ `xsbjkbMain.action`，解析页面里 `select#bjdm` 的全部 `<option>`
+  （value = bjdm），一次拿全，无需级联。
+
+#### ⑤ getSkxxDataList —— 上课信息明细（可选）
+
+```
+POST /xsbjkbcx!getSkxxDataList.action
+body: kcrwdm=<课程任务代码>&bjdm=&page=1&rows=100
+Referer: https://jxfw.gdut.edu.cn/xsbjkbcx!xsAllKbList.action   ← 实测必须，否则 total=0
+```
+
+- 标准 EasyUI `{total, rows}`，字段：
+  `kxh zc xq jcdm2 kcmc sknrjj jxbmc jxcdmc jxhjmc teaxms`。
+
+#### 踩坑记录（实现时对照）
+
+1. **参数只认 URL 查询串**：`xsAllKbList` / `getKbRq` 用 POST body 传 `xnxqdm/bjdm` 一律返回空
+   （`getKbRq` 例外，POST body 也可，但统一用 GET 最稳）。
+2. **空 `kbxx` ≠ 接口错误**：`bjdm` 缺失/无效时静默返回空数组。排查时先确认 `bjdm` 有效。
+3. **`getSkxxDataList` 必须带 Referer `xsAllKbList.action`**，类似个人课表 A 的专用 Referer，但值不同。
+4. **响应头 Content-Type 不可信**（`text/html` 包 JSON 体），与第 1.9 节一致，按响应体判断。
+
+#### 复现命令（会话过期/需要重新抓 fixture 时）
+
+```bash
+scripts/gdut-login.sh temp/session/
+# 主接口（第 1 周；去掉 &zc=1 得全学期）
+curl -sS -k -b temp/session/cookies.txt \
+  'https://jxfw.gdut.edu.cn/xsbjkbcx!getKbRq.action?xnxqdm=202601&bjdm=116523137&zc=1'
+# 备接口（HTML，抠 var kbxx）
+curl -sS -k -b temp/session/cookies.txt \
+  'https://jxfw.gdut.edu.cn/xsbjkbcx!xsAllKbList.action?xnxqdm=202601&bjdm=116523137'
+# 班级列表（计算机学院 07 / 计算机科学与技术 0711）
+curl -sS -k -b temp/session/cookies.txt \
+  --data 'guid=zydm&xnxqdm=202601&xqdm=&rxnf=&xsyxdm=07&zydm=0711' \
+  'https://jxfw.gdut.edu.cn/xsbjkbcx!getFind.action'
+# 用完清理
+rm -rf temp/session/
+```
+
+> 测试样例班级：`bjdm=116523137`（202601 学期，计算机科学与技术25(5)，第 1 周 20 行 / 9 门课）。
+
 ---
 
 ## 5. 图书馆入馆二维码
@@ -695,6 +791,20 @@ Android 的 `Bitmap.Config.ARGB_8888` 用的是同一个 32 位打包格式，�
 | 错误验证码 POST `/new/login` → `{"code":-1,"data":null,"message":"验证码不正确"}` | 直接请求 |
 | `GET /yzm?d=...` → 200, `image/jpeg;charset=UTF-8`, JPEG 140×60, 下发 `JSESSIONID` | 直接请求 |
 | jxfw 未登录访问 `/` → 302 到 authserver | 直接请求 |
+
+### 实测 2026-09-12（班级课表，详见 §4.7）
+
+| 结论 | 证据 |
+|---|---|
+| 班级课表模块前缀是 `xsbjkbcx`（带 `xs`）；`bjkbcx` 返回"页面不存在" | 菜单入口实测 |
+| `getKbRq`：GET + `xnxqdm`/`bjdm`/`zc`，返回 `[课表rows(24字段), 周日期rows]`，`zc` 缺省 = 全学期不分页 | curl 实测 |
+| `getKbRq` 的 Referer / X-Requested-With 均非必需 | curl 实测 |
+| `rows[1]` 周日期数组可反推学期开学日期（周一的 `rq`） | curl 实测 |
+| `xsAllKbList`（班级）：GET，`var kbxx` 9 字段与个人课表 A 一致 | curl 实测 |
+| `xsAllKbList` / `getKbRq` 参数只认 URL 查询串（POST body 返回空） | curl 实测 |
+| 缺 `bjdm` 时 `xsAllKbList` 静默返回空数组不报错 | curl 实测 |
+| `getFind` 级联：响应为 `<guid>^getFind:<JSON数组>` 文本，需先 split | curl 实测 |
+| `getSkxxDataList` 必须带 Referer `xsAllKbList.action`，否则 total=0 | curl 实测 |
 
 ### 推断自旧代码（未联网验证）
 
