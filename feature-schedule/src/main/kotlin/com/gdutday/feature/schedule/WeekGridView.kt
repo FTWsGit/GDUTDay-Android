@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -46,6 +45,7 @@ import com.gdutday.core.ui.LocalGdutDayColors
 import com.gdutday.core.ui.ScheduleBlockText
 import com.gdutday.core.ui.toComposeColor
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /**
  * 每节对应的固定像素高度。
@@ -169,65 +169,83 @@ public fun WeekGridView(
                 val gridHeightDp = with(density) { gridHeightPx.toDp() }
 
                 // 三页并排：本周初始停在中间页，拖动时相邻周实时跟手进入视野。
-                Row(
+                // 用自定义 Layout 按固定宽度逐页摆放，而不是 Row：Row 会按"剩余宽度"
+                // 重新分配各页约束，导致后两页被摆到同一个 x 上重叠、内容整体偏左。
+                Layout(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer { translationX = drag.value - pageWidth },
-                ) {
-                    WeekPage(
-                        grid = prevWeekGrid,
-                        fallback = grid,
-                        visibleDays = visibleDays,
-                        today = today,
-                        isCurrentWeek = false,
-                        periods = periods,
-                        settings = settings,
-                        dayWidthPx = dayWidthPx,
-                        gutterPx = 0f,
-                        gridHeightPx = gridHeightPx,
-                        insetPx = insetPx,
-                        pageWidthDp = with(density) { pageWidth.toDp() },
-                        gridHeightDp = gridHeightDp,
-                        dayWidthDp = dayWidthDp,
-                        onBlockClick = onBlockClick,
-                        onOpenConflictList = onOpenConflictList,
-                    )
-                    WeekPage(
-                        grid = grid,
-                        fallback = grid,
-                        visibleDays = visibleDays,
-                        today = today,
-                        isCurrentWeek = isCurrentWeek,
-                        periods = periods,
-                        settings = settings,
-                        dayWidthPx = dayWidthPx,
-                        gutterPx = 0f,
-                        gridHeightPx = gridHeightPx,
-                        insetPx = insetPx,
-                        pageWidthDp = with(density) { pageWidth.toDp() },
-                        gridHeightDp = gridHeightDp,
-                        dayWidthDp = dayWidthDp,
-                        onBlockClick = onBlockClick,
-                        onOpenConflictList = onOpenConflictList,
-                    )
-                    WeekPage(
-                        grid = nextWeekGrid,
-                        fallback = grid,
-                        visibleDays = visibleDays,
-                        today = today,
-                        isCurrentWeek = false,
-                        periods = periods,
-                        settings = settings,
-                        dayWidthPx = dayWidthPx,
-                        gutterPx = 0f,
-                        gridHeightPx = gridHeightPx,
-                        insetPx = insetPx,
-                        pageWidthDp = with(density) { pageWidth.toDp() },
-                        gridHeightDp = gridHeightDp,
-                        dayWidthDp = dayWidthDp,
-                        onBlockClick = onBlockClick,
-                        onOpenConflictList = onOpenConflictList,
-                    )
+                    content = {
+                        WeekPage(
+                            grid = prevWeekGrid,
+                            fallback = grid,
+                            visibleDays = visibleDays,
+                            today = today,
+                            isCurrentWeek = false,
+                            periods = periods,
+                            settings = settings,
+                            dayWidthPx = dayWidthPx,
+                            gutterPx = 0f,
+                            gridHeightPx = gridHeightPx,
+                            insetPx = insetPx,
+                            gridHeightDp = gridHeightDp,
+                            dayWidthDp = dayWidthDp,
+                            onBlockClick = onBlockClick,
+                            onOpenConflictList = onOpenConflictList,
+                        )
+                        WeekPage(
+                            grid = grid,
+                            fallback = grid,
+                            visibleDays = visibleDays,
+                            today = today,
+                            isCurrentWeek = isCurrentWeek,
+                            periods = periods,
+                            settings = settings,
+                            dayWidthPx = dayWidthPx,
+                            gutterPx = 0f,
+                            gridHeightPx = gridHeightPx,
+                            insetPx = insetPx,
+                            gridHeightDp = gridHeightDp,
+                            dayWidthDp = dayWidthDp,
+                            onBlockClick = onBlockClick,
+                            onOpenConflictList = onOpenConflictList,
+                        )
+                        WeekPage(
+                            grid = nextWeekGrid,
+                            fallback = grid,
+                            visibleDays = visibleDays,
+                            today = today,
+                            isCurrentWeek = false,
+                            periods = periods,
+                            settings = settings,
+                            dayWidthPx = dayWidthPx,
+                            gutterPx = 0f,
+                            gridHeightPx = gridHeightPx,
+                            insetPx = insetPx,
+                            gridHeightDp = gridHeightDp,
+                            dayWidthDp = dayWidthDp,
+                            onBlockClick = onBlockClick,
+                            onOpenConflictList = onOpenConflictList,
+                        )
+                    },
+                ) { measurables, constraints ->
+                    val pageW = pageWidth.roundToInt()
+                    val pageH = constraints.maxHeight
+                    val placeables = measurables.map { measurable ->
+                        measurable.measure(
+                            Constraints(
+                                minWidth = pageW,
+                                maxWidth = pageW,
+                                minHeight = pageH,
+                                maxHeight = pageH,
+                            ),
+                        )
+                    }
+                    layout(constraints.maxWidth, constraints.maxHeight) {
+                        placeables.forEachIndexed { index, placeable ->
+                            placeable.placeRelative(index * pageW, 0)
+                        }
+                    }
                 }
             }
         }
@@ -258,7 +276,6 @@ private fun WeekPage(
     gutterPx: Float,
     gridHeightPx: Float,
     insetPx: Float,
-    pageWidthDp: Dp,
     gridHeightDp: Dp,
     dayWidthDp: Dp,
     onBlockClick: (CourseBlock) -> Unit,
@@ -271,12 +288,10 @@ private fun WeekPage(
     val showBlocks = grid != null
     val periodRanges = remember(periods, currentGrid) { buildPeriodRanges(periods, currentGrid.verticalRange) }
 
-    // requiredWidth 而不是 width：Row 给非 weight 子项的 maxWidth 是"剩余空间"，
-    // 第一页占满后中间页/右页会被钳制成 0 宽，当前周就整页消失。
-    // requiredWidth 无视传入约束强制生效，三页才能并排铺开。
+    // width 由父级三页 Layout 的固定约束给定（见 WeekGridView 里的 measure 策略），
+    // 这里只需撑满高度并允许纵向滚动。
     Box(
         modifier = Modifier
-            .requiredWidth(pageWidthDp)
             .fillMaxHeight()
             .verticalScroll(rememberScrollState()),
     ) {
