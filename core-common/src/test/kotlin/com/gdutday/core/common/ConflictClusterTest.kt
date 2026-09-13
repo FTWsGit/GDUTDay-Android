@@ -13,7 +13,7 @@ import java.time.LocalDateTime
  * 冲突聚类（[ConflictCluster] + `buildConflictClusters`）的测试。
  *
  * 聚类口径必须与 [ScheduleGridBuilder.layout] 一致：按"传递时间重叠"分簇，
- * 簇内 ≥3 门时 UI 切换为堆叠角标渲染。
+ * 簇内 ≥3 门时 UI 切换为纸边堆叠渲染。
  */
 class ConflictClusterTest {
 

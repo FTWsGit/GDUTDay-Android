@@ -1,7 +1,6 @@
 package com.gdutday.feature.schedule
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -35,7 +34,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.gdutday.core.common.ConflictCluster
 import com.gdutday.core.common.CourseBlock
 import com.gdutday.core.common.Period
 import com.gdutday.core.common.WeekGrid
@@ -344,6 +342,8 @@ private fun buildPeriodRanges(periods: List<Period>, range: IntRange): List<IntR
 /** 预计算好的色块几何。像素坐标在布局阶段直接使用，避免在 measure 里现算。 */
 private data class PlacedBlock(
     val block: CourseBlock,
+    /** 所属星期（1=周一…7=周日）。冲突聚类必须逐天进行，见 [buildRenderUnits]。 */
+    val dayOfWeek: Int,
     val x: Float,
     val y: Float,
     val width: Float,
@@ -368,7 +368,7 @@ private fun buildPlacedBlocks(
             val w = (ScheduleGridMath.blockWidth(dayWidthPx, block.columnCount) - insetPx * 2).coerceAtLeast(1f)
             val h = (ScheduleGridMath.blockHeightByPeriods(block.startMinute, block.endMinute, periodRanges, gridHeightPx) - insetPx * 2)
                 .coerceAtLeast(1f)
-            add(PlacedBlock(block, x, y, w, h))
+            add(PlacedBlock(block, day.dayOfWeek, x, y, w, h))
         }
     }
 }
@@ -510,9 +510,10 @@ private fun GridBackground(
  * 这是整个页面唯一会"按数据量增长"的节点来源（每门课一个），
  * 而非按网格尺寸增长（12×7）。
  *
- * ≥3 门重叠的堆叠降级：只渲染每簇的 primary，宽度恢复满列，
- * 右上角 `+N` 角标；被盖住的块仍占位（露出 2dp 边缘暗示可展开），
- * 点击角标弹出完整冲突列表。
+ * ≥3 门重叠的堆叠降级：整簇只渲染主块，被盖住的课在 [CourseBlockItem] 里
+ * 以"露出纸边"的形式呈现；点击整块打开完整冲突列表。
+ * 冲突必须**逐天**聚类——`buildConflictClusters` 只按时间重叠判断，
+ * 整周混在一起会把不同天的同时段课程误判为冲突。
  */
 @Composable
 private fun CourseBlockLayer(
@@ -521,68 +522,91 @@ private fun CourseBlockLayer(
     onBlockClick: (CourseBlock) -> Unit,
     onOpenConflictList: (List<CourseBlock>) -> Unit,
 ) {
-    // 簇内 ≥3 门时切换到堆叠渲染。同一天同几何的块天然相邻（blocks 已按时间排序），
-    // 这里直接按"彼此在对方所在簇"重算一次，不依赖 builder 的内部分列结果。
-    val stacked: Map<PlacedBlock, ConflictCluster> = remember(placed) {
-        val clusters = placed.map { it.block }.buildConflictClusters()
-            .filter { it.blocks.size >= STACK_THRESHOLD }
-        val byName = clusters.associateBy { it.primary }
-        placed.mapNotNull { placedItem ->
-            byName[placedItem.block]?.let { placedItem to it }
-        }.toMap()
-    }
+    val units: List<RenderUnit> = remember(placed) { buildRenderUnits(placed) }
 
     Layout(
         modifier = Modifier.fillMaxSize(),
         content = {
-            placed.forEach { item ->
-                val cluster = stacked[item]
-                if (cluster != null && item.block != cluster.primary) {
-                    // 被盖住的块：不渲染内容，只留 2dp 的边缘暗示底下还有课。
-                    Box(
-                        Modifier
-                            .padding(top = 2.dp)
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .background(item.block.color.toComposeColor()),
-                    )
-                    return@forEach
-                }
-                val isPrimary = cluster != null
+            units.forEach { unit ->
                 CourseBlockItem(
-                    block = item.block,
+                    block = unit.block,
                     settings = settings,
-                    onClick = { onBlockClick(item.block) },
-                    overlapCount = if (isPrimary) cluster!!.overflowCount else 0,
-                    onOverflowClick = { onOpenConflictList(cluster!!.blocks) },
+                    onClick = {
+                        val conflict = unit.conflictBlocks
+                        if (conflict != null) onOpenConflictList(conflict) else onBlockClick(unit.block)
+                    },
+                    behindColors = unit.behindColors,
                 )
             }
         },
     ) { measurables, constraints ->
         val placeables = measurables.mapIndexed { index, measurable ->
-            val item = placed[index]
-            // 主块按满列宽绘制（width = 并排宽 × 列数）；其余保持 builder 算出的并排宽。
-            val overflow = stacked[item]?.overflowCount ?: 0
-            val width = if (overflow > 0) item.width * item.block.columnCount else item.width
+            val rect = units[index].rect
             measurable.measure(
                 Constraints.fixed(
-                    width = width.toInt().coerceAtLeast(1),
-                    height = item.height.toInt().coerceAtLeast(1),
+                    width = rect.width.toInt().coerceAtLeast(1),
+                    height = rect.height.toInt().coerceAtLeast(1),
                 ),
             )
         }
         layout(constraints.maxWidth, constraints.maxHeight) {
             placeables.forEachIndexed { index, placeable ->
-                val item = placed[index]
-                // 主块从其并排列位置回到列首。
-                val overflow = stacked[item]?.overflowCount ?: 0
-                val x = if (overflow > 0) {
-                    item.x - item.width * item.block.columnIndex
-                } else {
-                    item.x
-                }
-                placeable.place(x.toInt(), item.y.toInt())
+                val rect = units[index].rect
+                placeable.place(rect.x.toInt(), rect.y.toInt())
             }
         }
     }
+}
+
+/** 色块层的一次渲染：普通色块，或一个 ≥3 门冲突簇（只画主块 + 纸边）。 */
+private class RenderUnit(
+    val block: CourseBlock,
+    val rect: BlockRect,
+    /** 非空表示这是堆叠主块，点击应打开冲突列表。 */
+    val conflictBlocks: List<CourseBlock>?,
+    /** 被盖住的课程颜色，交给 [CourseBlockItem] 画纸边。 */
+    val behindColors: List<Color>,
+)
+
+private class BlockRect(val x: Float, val y: Float, val width: Float, val height: Float)
+
+/**
+ * 逐天做冲突聚类，产出渲染单元。≥[STACK_THRESHOLD] 门的一簇合并为一个单元，
+ * 用簇内所有色块的并集矩形作为它占据的格子（列宽即整列宽）。
+ */
+private fun buildRenderUnits(placed: List<PlacedBlock>): List<RenderUnit> {
+    val units = mutableListOf<RenderUnit>()
+    for (dayItems in placed.groupBy { it.dayOfWeek }.values) {
+        val clusters = dayItems.map { it.block }.buildConflictClusters()
+            .filter { it.blocks.size >= STACK_THRESHOLD }
+        val consumed = BooleanArray(dayItems.size)
+        for (cluster in clusters) {
+            val memberIndices = dayItems.indices.filter { index ->
+                cluster.blocks.any { it === dayItems[index].block }
+            }
+            if (memberIndices.isEmpty()) continue
+            memberIndices.forEach { consumed[it] = true }
+            val members = memberIndices.map { dayItems[it] }
+            val left = members.minOf { it.x }
+            val top = members.minOf { it.y }
+            val right = members.maxOf { it.x + it.width }
+            val bottom = members.maxOf { it.y + it.height }
+            units += RenderUnit(
+                block = members.first { it.block === cluster.primary }.block,
+                rect = BlockRect(left, top, right - left, bottom - top),
+                conflictBlocks = cluster.blocks,
+                behindColors = cluster.blocks.drop(1).map { it.color.toComposeColor() },
+            )
+        }
+        dayItems.forEachIndexed { index, item ->
+            if (consumed[index]) return@forEachIndexed
+            units += RenderUnit(
+                block = item.block,
+                rect = BlockRect(item.x, item.y, item.width, item.height),
+                conflictBlocks = null,
+                behindColors = emptyList(),
+            )
+        }
+    }
+    return units
 }

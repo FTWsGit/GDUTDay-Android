@@ -85,14 +85,14 @@ public data class DayColumn(
     /** 节次标签（左侧那一列的 "1 2 3 …"）由 UI 用 [CampusTimetable] 自行生成，此处不重复。 */
 }
 
-/** 一天内相互重叠的 N 门课。UI 对 ≥3 门做堆叠角标渲染。 */
+/** 一天内相互重叠的 N 门课。UI 对 ≥3 门做纸边堆叠渲染。 */
 public data class ConflictCluster(
     public val blocks: List<CourseBlock>,
 ) {
-    /** 簇内最先开始的一门，堆叠渲染时只画它。 */
+    /** 簇内最先开始的一门，纸边堆叠时只画它的完整内容。 */
     public val primary: CourseBlock get() = blocks.first()
 
-    /** 被 primary 盖住、只以角标体现的门数。 */
+    /** 被 primary 盖住、只以纸边露出的门数。 */
     public val overflowCount: Int get() = blocks.size - 1
 }
 

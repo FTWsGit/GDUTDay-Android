@@ -27,7 +27,7 @@ import com.gdutday.core.ui.toComposeColor
 /**
  * 同一时间格内全部冲突课程的列表。
  *
- * 从堆叠色块的 `+N` 角标进入：用户感知不到被盖住的课时，这是唯一的完整视图。
+ * 从堆叠色块进入：色块只露出纸边、点开这层后这里是全部冲突课程的完整视图。
  * 点条目走普通的课程详情（[CourseBlockItem] 同一份点击语义）。
  */
 @OptIn(ExperimentalMaterial3Api::class)

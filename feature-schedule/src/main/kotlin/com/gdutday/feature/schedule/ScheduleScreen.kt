@@ -301,7 +301,7 @@ fun ScheduleScreen(
         )
     }
 
-    // ≥3 门重叠时点 `+N` 角标弹出的完整列表；点单条进入普通课程详情。
+    // ≥3 门重叠时点纸边堆叠块弹出的完整列表；点单条进入普通课程详情。
     conflictListBlocks?.let { blocks ->
         ConflictCourseListSheet(
             blocks = blocks,

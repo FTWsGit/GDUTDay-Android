@@ -6,12 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -47,9 +46,8 @@ internal fun CourseBlockItem(
     block: CourseBlock,
     settings: UserSettings,
     onClick: () -> Unit,
-    overlapCount: Int = 0,
-    onOverflowClick: () -> Unit = onClick,
     modifier: Modifier = Modifier,
+    behindColors: List<Color> = emptyList(),
 ) {
     val courseBlockColors = LocalGdutDayColors.current.courseBlock
     val textColor = resolveTextColor(settings, block, courseBlockColors.finishedText)
@@ -61,80 +59,92 @@ internal fun CourseBlockItem(
         Modifier
     }
 
+    // 被盖住的课以"纸边"呈现：每层比上一层多向右下偏移一个 PEEK，当前课程在最上层。
+    // 最多露 [MAX_STACK_BEHIND] 层，再多就糊成一片、也表达不出更多信息。
+    val behind = behindColors.take(MAX_STACK_BEHIND)
+    val edge = STACK_PEEK * behind.size
+
     Box(
         modifier = modifier
             .clip(BLOCK_SHAPE)
-            .background(background)
-            .then(ongoingBorder)
             .clickable(onClick = onClick),
     ) {
-        if (block.isExam) {
-            Box(Modifier.fillMaxSize().background(courseBlockColors.examTint, BLOCK_SHAPE))
-        }
-        if (block.isCustom) {
-            Box(Modifier.fillMaxSize().background(courseBlockColors.customTint, BLOCK_SHAPE))
-        }
-        if (block.status == BlockStatus.FINISHED && settings.dimFinishedCourses) {
-            Box(Modifier.fillMaxSize().background(courseBlockColors.finishedScrim, BLOCK_SHAPE))
+        for (layer in behind.size downTo 1) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(end = edge, bottom = edge)
+                    .offset(x = STACK_PEEK * layer, y = STACK_PEEK * layer)
+                    .clip(BLOCK_SHAPE)
+                    .background(behind[layer - 1].copy(alpha = settings.courseBlockAlpha)),
+            )
         }
 
-        Column(Modifier.padding(horizontal = 3.dp, vertical = 1.dp)) {
-            // 普通课程的时间由所占节次唯一决定（作息表固定），格子里的起止时刻是冗余信息，
-            // 删掉腾出空间给课程名。考试的时间来自考试安排、未必与作息对齐，仍然保留。
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(end = edge, bottom = edge)
+                .clip(BLOCK_SHAPE)
+                .background(background)
+                .then(ongoingBorder),
+        ) {
             if (block.isExam) {
-                Text(
-                    text = "${block.startClock}-${block.endClock}",
-                    style = ScheduleBlockText.timeRange,
-                    color = textColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Box(Modifier.fillMaxSize().background(courseBlockColors.examTint, BLOCK_SHAPE))
             }
-            Text(
-                text = block.course.name,
-                style = ScheduleBlockText.courseName,
-                color = textColor,
-                maxLines = ScheduleBlockText.COURSE_NAME_MAX_LINES,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (settings.showClassroom && block.course.classroom.isNotBlank()) {
-                Text(
-                    text = block.course.classroom,
-                    style = ScheduleBlockText.detail,
-                    color = textColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (block.isCustom) {
+                Box(Modifier.fillMaxSize().background(courseBlockColors.customTint, BLOCK_SHAPE))
             }
-            if (settings.showTeacher && block.course.teacher.isNotBlank()) {
-                Text(
-                    text = block.course.teacher,
-                    style = ScheduleBlockText.detail,
-                    color = textColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (block.status == BlockStatus.FINISHED && settings.dimFinishedCourses) {
+                Box(Modifier.fillMaxSize().background(courseBlockColors.finishedScrim, BLOCK_SHAPE))
             }
-        }
 
-        // ≥3 门重叠的堆叠角标：点开列出全部冲突课程。
-        if (overlapCount > 0) {
-            Text(
-                text = "+$overlapCount",
-                style = MaterialTheme.typography.labelMedium,
-                color = textColor,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .clip(BadgeShape)
-                    .background(textColor.copy(alpha = 0.24f))
-                    .clickable(onClick = onOverflowClick)
-                    .padding(horizontal = 4.dp, vertical = 1.dp),
-            )
+            Column(Modifier.padding(horizontal = 3.dp, vertical = 1.dp)) {
+                // 普通课程的时间由所占节次唯一决定（作息表固定），格子里的起止时刻是冗余信息，
+                // 删掉腾出空间给课程名。考试的时间来自考试安排、未必与作息对齐，仍然保留。
+                if (block.isExam) {
+                    Text(
+                        text = "${block.startClock}-${block.endClock}",
+                        style = ScheduleBlockText.timeRange,
+                        color = textColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    text = block.course.name,
+                    style = ScheduleBlockText.courseName,
+                    color = textColor,
+                    maxLines = ScheduleBlockText.COURSE_NAME_MAX_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (settings.showClassroom && block.course.classroom.isNotBlank()) {
+                    Text(
+                        text = block.course.classroom,
+                        style = ScheduleBlockText.detail,
+                        color = textColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (settings.showTeacher && block.course.teacher.isNotBlank()) {
+                    Text(
+                        text = block.course.teacher,
+                        style = ScheduleBlockText.detail,
+                        color = textColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
     }
 }
 
-private val BadgeShape = RoundedCornerShape(4.dp)
+/** 堆叠纸边每层向右下偏移的距离。 */
+private val STACK_PEEK = 3.dp
+
+/** 最多露出几层纸边（不含最上层的当前课程）。 */
+private const val MAX_STACK_BEHIND = 2
 
 /**
  * 按设置决定字体色；`AUTO` 走 WCAG 相对亮度（纯函数在 core-ui）。
