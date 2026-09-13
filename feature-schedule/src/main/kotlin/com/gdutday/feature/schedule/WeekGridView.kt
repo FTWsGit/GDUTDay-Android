@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -182,7 +183,7 @@ public fun WeekGridView(
                         periods = periods,
                         settings = settings,
                         dayWidthPx = dayWidthPx,
-                        gutterPx = gutterPx,
+                        gutterPx = 0f,
                         gridHeightPx = gridHeightPx,
                         insetPx = insetPx,
                         pageWidthDp = with(density) { pageWidth.toDp() },
@@ -200,7 +201,7 @@ public fun WeekGridView(
                         periods = periods,
                         settings = settings,
                         dayWidthPx = dayWidthPx,
-                        gutterPx = gutterPx,
+                        gutterPx = 0f,
                         gridHeightPx = gridHeightPx,
                         insetPx = insetPx,
                         pageWidthDp = with(density) { pageWidth.toDp() },
@@ -218,7 +219,7 @@ public fun WeekGridView(
                         periods = periods,
                         settings = settings,
                         dayWidthPx = dayWidthPx,
-                        gutterPx = gutterPx,
+                        gutterPx = 0f,
                         gridHeightPx = gridHeightPx,
                         insetPx = insetPx,
                         pageWidthDp = with(density) { pageWidth.toDp() },
@@ -263,20 +264,28 @@ private fun WeekPage(
     onBlockClick: (CourseBlock) -> Unit,
     onOpenConflictList: (List<CourseBlock>) -> Unit,
 ) {
+    // 网格几何（作息表/纵向范围）用 fallback 保证三页行高一致；
+    // 但色块只属于各自的周，缺数据时绝不画 fallback 的课程，否则
+    // 本周课程会被复制到相邻页上，滑动时出现"课程重叠"的错觉。
     val currentGrid = grid ?: fallback
+    val showBlocks = grid != null
     val periodRanges = remember(periods, currentGrid) { buildPeriodRanges(periods, currentGrid.verticalRange) }
 
+    // requiredWidth 而不是 width：Row 给非 weight 子项的 maxWidth 是"剩余空间"，
+    // 第一页占满后中间页/右页会被钳制成 0 宽，当前周就整页消失。
+    // requiredWidth 无视传入约束强制生效，三页才能并排铺开。
     Box(
         modifier = Modifier
-            .width(pageWidthDp)
+            .requiredWidth(pageWidthDp)
             .fillMaxHeight()
             .verticalScroll(rememberScrollState()),
     ) {
         // 只在几何输入变化时重建色块列表，滚动/重组不重新分配。
         val placed = remember(
-            currentGrid, visibleDays, dayWidthPx, gutterPx, gridHeightPx, insetPx,
+            currentGrid, showBlocks, visibleDays, periodRanges, dayWidthPx, gutterPx, gridHeightPx, insetPx,
         ) {
-            buildPlacedBlocks(
+            if (!showBlocks) emptyList()
+            else buildPlacedBlocks(
                 currentGrid, visibleDays, periodRanges, dayWidthPx, gutterPx,
                 gridHeightPx, insetPx,
             )
@@ -289,7 +298,7 @@ private fun WeekPage(
                 isCurrentWeek = isCurrentWeek,
                 periods = periods,
                 periodRanges = periodRanges,
-                gutterPx = gutterPx,
+                gutterPx = 0f,
                 dayWidthPx = dayWidthPx,
             )
             CourseBlockLayer(
