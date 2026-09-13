@@ -83,6 +83,12 @@ public data class ScheduleUiState(
     /** **选中周**的课表网格。这是周视图的直接数据源。 */
     public val grid: WeekGrid? = null,
 
+    /** **选中周前一周**的网格。周视图三页预渲染用；首周（越界）或无学期历时为 null。 */
+    public val prevWeekGrid: WeekGrid? = null,
+
+    /** **选中周后一周**的网格。周视图三页预渲染用；末周（越界）或无学期历时为 null。 */
+    public val nextWeekGrid: WeekGrid? = null,
+
     /** **今天**的课程块，按时间升序。日视图和首页卡片用。 */
     public val todayBlocks: List<CourseBlock> = emptyList(),
 

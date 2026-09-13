@@ -57,11 +57,12 @@ class ScheduleUiStateBuilderTest {
     )
 
     private fun sources(
+        allMeta: Flow<List<TermMetaEntity>> = flowOf(listOf(meta20251, meta20242)),
         settings: Flow<UserSettings> = flowOf(UserSettings(campus = Campus.UNIVERSITY_CITY)),
         selectedWeek: MutableStateFlow<Int?> = MutableStateFlow(null),
         colors: Flow<Map<String, String>> = flowOf(emptyMap()),
     ): ScheduleSources = ScheduleSources(
-        allTermMeta = flowOf(listOf(meta20251, meta20242)),
+        allTermMeta = allMeta,
         settings = settings,
         syncState = flowOf(
             SyncStateEntity(lastSyncAt = Instant.parse("2025-09-10T10:00:00Z"), lastTermCode = "20251", lastSuccess = true),
@@ -125,5 +126,49 @@ class ScheduleUiStateBuilderTest {
         ).first()
 
         assertThat(state.colorAssignment["高等数学"]?.key).isEqualTo("red")
+    }
+
+    @Test
+    fun `相邻周网格与选中周同源生成`() = runTest {
+        val state = buildScheduleUiStateFlow(
+            sources(selectedWeek = MutableStateFlow(2)),
+            fixedNow,
+        ).first()
+
+        // 课程在第 1、2、3 周开课：前后两周都应有网格，且周次正确
+        assertThat(state.prevWeekGrid?.week).isEqualTo(1)
+        assertThat(state.nextWeekGrid?.week).isEqualTo(3)
+        // 同一套 builder/配色，几何输入一致
+        assertThat(state.nextWeekGrid!!.days).hasSize(7)
+    }
+
+    @Test
+    fun `首周的前一周为null末周的后一周为null`() = runTest {
+        val first = buildScheduleUiStateFlow(
+            sources(selectedWeek = MutableStateFlow(1)),
+            fixedNow,
+        ).first()
+        assertThat(first.prevWeekGrid).isNull()
+        assertThat(first.nextWeekGrid?.week).isEqualTo(2)
+
+        val last = buildScheduleUiStateFlow(
+            sources(selectedWeek = MutableStateFlow(first.totalWeeks)),
+            fixedNow,
+        ).first()
+        assertThat(last.nextWeekGrid).isNull()
+        assertThat(last.prevWeekGrid?.week).isEqualTo(first.totalWeeks - 1)
+    }
+
+    @Test
+    fun `无学期历时网格与相邻周网格为null`() = runTest {
+        val state = buildScheduleUiStateFlow(
+            sources(allMeta = flowOf(emptyList())),
+            fixedNow,
+        ).first()
+
+        // 无学期元信息：学期历无法构建，grid 与相邻周均为 null
+        assertThat(state.grid).isNull()
+        assertThat(state.prevWeekGrid).isNull()
+        assertThat(state.nextWeekGrid).isNull()
     }
 }

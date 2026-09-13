@@ -4,6 +4,7 @@ import com.gdutday.core.common.CampusTimetable
 import com.gdutday.core.common.CourseColors
 import com.gdutday.core.common.ScheduleGridBuilder
 import com.gdutday.core.common.TermCalendar
+import com.gdutday.core.common.WeekGrid
 import com.gdutday.core.database.CourseColorEntity
 import com.gdutday.core.database.Mappers
 import com.gdutday.core.database.SemesterStartSource
@@ -93,6 +94,10 @@ internal fun buildScheduleUiState(input: ScheduleInputs): ScheduleUiState {
         null
     }
     val grid = builder?.buildWeek(input.courses, input.exams, selectedWeek, input.now)
+    // 相邻周网格与 grid 同源（同 builder/配色/作息表），周视图三页预渲染直接消费；
+    // 越界（首尾周）时为 null，UI 渲染空白占位页。
+    val prevWeekGrid = builder.buildNeighborOrNull(input.courses, input.exams, selectedWeek - 1, totalWeeks, input.now)
+    val nextWeekGrid = builder.buildNeighborOrNull(input.courses, input.exams, selectedWeek + 1, totalWeeks, input.now)
     // todayBlocks 始终按"真实今天"算，而不是选中周 —— 首页卡片与 Widget 要的是今天，
     // 与用户在周视图里翻到第 12 周无关。
     val todayBlocks = builder?.buildDay(input.courses, input.exams, today, input.now)?.blocks.orEmpty()
@@ -127,6 +132,8 @@ internal fun buildScheduleUiState(input: ScheduleInputs): ScheduleUiState {
         timetable = timetable,
         campus = input.settings.campus,
         grid = grid,
+        prevWeekGrid = prevWeekGrid,
+        nextWeekGrid = nextWeekGrid,
         todayBlocks = todayBlocks,
         colorAssignment = colorAssignment,
         courses = input.courses,
@@ -149,6 +156,18 @@ internal fun resolveTimetable(settings: UserSettings, campus: Campus): CampusTim
         CampusTimetable.parseCustom(campus, settings.customTimetable)?.let { return it }
     }
     return CampusTimetable.of(campus)
+}
+
+/** 越界（周次不在 1..[totalWeeks]）返回 null 的 [ScheduleGridBuilder.buildWeek]。 */
+private fun ScheduleGridBuilder?.buildNeighborOrNull(
+    courses: List<Course>,
+    exams: List<Exam>,
+    week: Int,
+    totalWeeks: Int,
+    now: LocalDateTime,
+): WeekGrid? {
+    if (this == null || week !in 1..totalWeeks) return null
+    return buildWeek(courses, exams, week, now)
 }
 
 /** 把数据库里存的接口名还原成枚举。旧版本写入的未知值一律当 UNKNOWN，不抛异常。 */

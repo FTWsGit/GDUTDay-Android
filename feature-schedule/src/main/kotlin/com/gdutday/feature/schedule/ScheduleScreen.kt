@@ -99,11 +99,6 @@ fun ScheduleScreen(
     val addCourseSheetVisible by viewModel.addCourseSheetVisible.collectAsStateWithLifecycle()
     val addCourseForm by viewModel.addCourseForm.collectAsStateWithLifecycle()
 
-    // 周视图三页预渲染的相邻周网格。仅在周次/数据变化时重建，拖动过程中不重算。
-    val neighborGrids = remember(state.grid, state.selectedWeek) {
-        buildNeighborWeekGrids(state, java.time.LocalDateTime.now())
-    }
-
     // 新增课程始终允许冲突（force = true），这里只提示一次语义，不做拦截。
     val conflictToast = stringResource(R.string.schedule_add_conflict_toast)
     LaunchedEffect(addCourseSheetVisible) {
@@ -257,8 +252,8 @@ fun ScheduleScreen(
                                     isCurrentWeek = state.isViewingCurrentWeek,
                                     onBlockClick = viewModel::openBlock,
                                     onSwipeWeek = viewModel::selectWeek,
-                                    prevWeekGrid = neighborGrids?.prev,
-                                    nextWeekGrid = neighborGrids?.next,
+                                    prevWeekGrid = state.prevWeekGrid,
+                                    nextWeekGrid = state.nextWeekGrid,
                                     onOpenConflictList = { conflictListBlocks = it },
                                 )
                             }
