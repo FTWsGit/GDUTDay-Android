@@ -683,14 +683,24 @@ GET /xsbjkbcx!xsAllKbList.action?xnxqdm=202601&bjdm=116523137
 ```
 POST /xsbjkbcx!getFind.action
 Content-Type: application/x-www-form-urlencoded
+Referer: https://jxfw.gdut.edu.cn/xsbjkbcx!xsbjkbMain.action   ← 必须是 jxfw 站内（实测 2026-09-13）
 body: guid=<下级字段名>&xnxqdm=202601&xqdm=&rxnf=&xsyxdm=07&zydm=0711
 ```
 
 - 按 `guid` 逐级下钻，响应为 `text`，格式 `<guid>^getFind:<JSON数组>`，**需先 split 再 parseJSON**：
   - `guid=xsyxdm` → 专业列表 `{"dm":"0711","mc":"[0711]计算机科学与技术"}`；
   - `guid=zydm`（带上 `xsyxdm` 与 `zydm`）→ 班级列表，`dm` 即 `bjdm`。
+- **级联筛选实测 2026-09-13**（`guid` 决定"返回哪一级"，其余字段全是过滤条件，可任意组合）：
+  - `guid=rxnf` → **直接返回班级列表**（不是年级列表），其余条件过滤：`rxnf=2025` → 全校 2025 级班级；
+    `rxnf=2025&xsyxdm=07` → 计算机学院 2025 级 38 个班；`rxnf=2024&xsyxdm=07&zydm=0712` → 软件工程 2024 级 5 个班；
+  - `guid=zydm` → 班级列表（按 `xsyxdm`+`zydm`+`rxnf` 过滤，`rxnf` 同样生效）；
+  - `guid=xsyxdm` → 专业列表（按 `xsyxdm` 过滤）。
+  - 全空条件 → 返回全校全部班级（7081 个，与主页 `select#bjdm` 的 7082 项差 1 个占位 option）。
+- 页面级联 UI 实为四层：学年学期（`xnxqdm`，onchange 整页刷新）→ 学院（`xsyxdm`）→ 专业（`zydm`）→
+  年级（`rxnf`）→ 班级（`bjdm`）。**该页面没有校区（`xqdm`）控件**，`doChange` 里 `$('#xqdm').val()`
+  取的是不存在的元素（返回 undefined/空），校区筛选在此页面不可用。
 - 简化方案：直接 GET 接口④ `xsbjkbMain.action`，解析页面里 `select#bjdm` 的全部 `<option>`
-  （value = bjdm），一次拿全，无需级联。
+  （value = bjdm），一次拿全，无需级联；但 7082 个 option 无层级，App 内建议用 `getFind` 做级联筛选。
 
 #### ⑤ getSkxxDataList —— 上课信息明细（可选）
 
@@ -705,25 +715,38 @@ Referer: https://jxfw.gdut.edu.cn/xsbjkbcx!xsAllKbList.action   ← 实测必须
 
 #### 踩坑记录（实现时对照）
 
+0. **⚠ 全站 Referer 校验（实测 2026-09-13，推翻旧结论）**：jxfw 现在对**所有业务 action**
+   要求 Referer 为 `jxfw.gdut.edu.cn` 站内（路径任意，`/` 即可），否则一律返回 200 + 272 字节
+   "非法访问"页（`<title>非法访问</title>你没有该权限`）。authserver / 外域 Referer 均被拒。
+   受影响接口含 `getKbRq`、`getFind`、`ksapList`、`xsgrkbcx!getDataList`（个人课表 A，
+   其专用 Referer `getXsgrbkList` 依然有效）。旧结论"`getKbRq` 的 Referer 非必需"已失效，
+   App 客户端所有请求都应默认带 `Referer: https://jxfw.gdut.edu.cn/`。
 1. **参数只认 URL 查询串**：`xsAllKbList` / `getKbRq` 用 POST body 传 `xnxqdm/bjdm` 一律返回空
    （`getKbRq` 例外，POST body 也可，但统一用 GET 最稳）。
 2. **空 `kbxx` ≠ 接口错误**：`bjdm` 缺失/无效时静默返回空数组。排查时先确认 `bjdm` 有效。
 3. **`getSkxxDataList` 必须带 Referer `xsAllKbList.action`**，类似个人课表 A 的专用 Referer，但值不同。
 4. **响应头 Content-Type 不可信**（`text/html` 包 JSON 体），与第 1.9 节一致，按响应体判断。
+5. **"非法访问"页特征**：HTTP 200、约 272 字节、标题"非法访问"。排查请求失败时先比对响应体长度/标题，
+   不要因为 HTTP 200 就当成功解析（JSON 解析会直接抛错，反而是好事）。
 
 #### 复现命令（会话过期/需要重新抓 fixture 时）
 
 ```bash
 scripts/gdut-login.sh temp/session/
+# ⚠ 2026-09-13 起所有接口必须带 jxfw 站内 Referer，统一加 -H 'Referer: https://jxfw.gdut.edu.cn/'
 # 主接口（第 1 周；去掉 &zc=1 得全学期）
-curl -sS -k -b temp/session/cookies.txt \
+curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
   'https://jxfw.gdut.edu.cn/xsbjkbcx!getKbRq.action?xnxqdm=202601&bjdm=116523137&zc=1'
 # 备接口（HTML，抠 var kbxx）
-curl -sS -k -b temp/session/cookies.txt \
+curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
   'https://jxfw.gdut.edu.cn/xsbjkbcx!xsAllKbList.action?xnxqdm=202601&bjdm=116523137'
 # 班级列表（计算机学院 07 / 计算机科学与技术 0711）
-curl -sS -k -b temp/session/cookies.txt \
+curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
   --data 'guid=zydm&xnxqdm=202601&xqdm=&rxnf=&xsyxdm=07&zydm=0711' \
+  'https://jxfw.gdut.edu.cn/xsbjkbcx!getFind.action'
+# 级联筛选：2025 级 + 计算机学院 → 该院 2025 级全部班级（App 班级选择器建议用这个）
+curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
+  --data 'guid=rxnf&xnxqdm=202601&xqdm=&rxnf=2025&xsyxdm=07&zydm=' \
   'https://jxfw.gdut.edu.cn/xsbjkbcx!getFind.action'
 # 用完清理
 rm -rf temp/session/
@@ -805,6 +828,18 @@ Android 的 `Bitmap.Config.ARGB_8888` 用的是同一个 32 位打包格式，�
 | 缺 `bjdm` 时 `xsAllKbList` 静默返回空数组不报错 | curl 实测 |
 | `getFind` 级联：响应为 `<guid>^getFind:<JSON数组>` 文本，需先 split | curl 实测 |
 | `getSkxxDataList` 必须带 Referer `xsAllKbList.action`，否则 total=0 | curl 实测 |
+
+### 实测 2026-09-13（班级级联筛选 + 全站 Referer 校验，详见 §4.7）
+
+| 结论 | 证据 |
+|---|---|
+| **全站 Referer 校验**：所有业务 action 要求 Referer 为 jxfw 站内（`/` 即可），否则 200 + 272 字节"非法访问"页；authserver/外域 Referer 被拒 | curl 控制变量（getKbRq/getFind/ksapList/getDataList 四个接口复验） |
+| 旧结论"`getKbRq` Referer 非必需"**已失效**；个人课表 A 的专用 Referer `getXsgrbkList` 依然有效 | curl 实测 |
+| `getFind` 的 `guid=rxnf` 直接返回**班级列表**（不是年级列表），`rxnf/xsyxdm/zydm` 全是可组合过滤条件 | curl 实测：`rxnf=2025`→全校 25 级；`+xsyxdm=07`→38 班；`+zydm=0712&rxnf=2024`→软工 24 级 5 班 |
+| `guid=xsyxdm` 返回专业列表（按学院过滤）；全空条件返回全校 7081 个班级 | curl 实测 |
+| 班级课表主页面**没有校区 `xqdm` 控件**（JS 里 `$('#xqdm')` 取不存在元素），校区筛选不可用 | 页面 HTML 解析 |
+| 主页 `select#bjdm` 一次渲染 7082 个 option（含占位），`getFind` 空条件 7081 个 | 页面解析 + curl |
+| 班级课表主数据接口 `getKbRq` 带 Referer 后依然正常返回 | curl 实测 |
 
 ### 推断自旧代码（未联网验证）
 
