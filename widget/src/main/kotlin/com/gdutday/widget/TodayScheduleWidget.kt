@@ -27,6 +27,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
@@ -95,20 +96,58 @@ private fun TodayScheduleContent(state: TodayScheduleWidgetState) {
     // Intent 只需构造一次，不要每次重组都重建。
     val launchIntent = remember(context) { mainActivityIntent(context) }
 
-    Column(
+    Row(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(GlanceTheme.colors.widgetBackground)
             .cornerRadius(20.dp)
-            .padding(12.dp)
-            .clickable(actionStartActivity(launchIntent)),
+            .padding(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        TodayHeader(state.dateLine)
-        when (state.phase) {
-            TodayPhase.HAS_CLASS -> TodayCourseList(state.rows)
-            else -> TodayEmpty(state.phase, context)
+        // 左侧主体：点击打开 App。右侧竖条是独立的点击目标，两块区域不重叠。
+        Column(
+            modifier = GlanceModifier
+                .defaultWeight()
+                .fillMaxHeight()
+                .clickable(actionStartActivity(launchIntent)),
+            verticalAlignment = Alignment.Top,
+        ) {
+            TodayHeader(state.dateLine)
+            when (state.phase) {
+                TodayPhase.HAS_CLASS -> TodayCourseList(state.rows)
+                else -> TodayEmpty(state.phase, context)
+            }
         }
+        DayToggleBar(dayOffset = state.dayOffset)
+    }
+}
+
+/**
+ * 右侧竖条：今天 ↔ 明天 切换。
+ *
+ * 条上写的是**点下去会看到的那一天** —— 当前显示今天时写"明天"，显示明天时写"今天"，
+ * 再点一下就切回来。两个汉字竖排，避免 18dp 宽横排放不下。
+ */
+@Composable
+private fun DayToggleBar(dayOffset: Int) {
+    val targetFirst = if (dayOffset == 0) "明" else "今"
+    Column(
+        modifier = GlanceModifier
+            .width(18.dp)
+            .fillMaxHeight()
+            .clickable(actionRunCallback<WidgetToggleDayAction>())
+            .background(GlanceTheme.colors.primaryContainer),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            targetFirst,
+            style = TextStyle(color = GlanceTheme.colors.onPrimaryContainer, fontSize = 10.sp),
+        )
+        Text(
+            "天",
+            style = TextStyle(color = GlanceTheme.colors.onPrimaryContainer, fontSize = 10.sp),
+        )
     }
 }
 
@@ -130,7 +169,11 @@ private fun TodayHeader(dateLine: String) {
         )
         Text(
             text = REFRESH_LABEL,
-            modifier = GlanceModifier.clickable(actionRunCallback<WidgetRefreshAction>()),
+            modifier = GlanceModifier
+                .clickable(actionRunCallback<WidgetRefreshAction>())
+                // 先 clickable 再 padding：把 11sp 文字四周都包进点击区，
+                // 否则 40x14dp 的文字本身几乎点不中。
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 11.sp),
         )
     }
@@ -171,7 +214,9 @@ private fun TodayCourseRow(row: WidgetCourseRow) {
         ) {}
         Text(
             text = row.startClock,
-            modifier = GlanceModifier.padding(start = 6.dp).width(38.dp),
+            // 不写死宽度：之前固定 38dp，大字体下 "08:30" 会被截掉一半。
+            // 改成按内容自适应，右边留 8dp 与课程名分开。
+            modifier = GlanceModifier.padding(start = 6.dp, end = 8.dp),
             style = TextStyle(
                 color = textColor,
                 fontSize = 11.sp,

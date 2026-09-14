@@ -86,3 +86,19 @@ public class WidgetRefreshAction : androidx.glance.appwidget.action.ActionCallba
         WidgetUpdateManager.updateAll(context)
     }
 }
+
+/**
+ * "今日课程"插件右侧竖条的"今天↔明天"切换。
+ *
+ * 翻转落盘的偏移后只刷新本插件（另一个"下节课"插件不显示某一天，无需重画）。
+ */
+public class WidgetToggleDayAction : androidx.glance.appwidget.action.ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: androidx.glance.GlanceId,
+        parameters: androidx.glance.action.ActionParameters,
+    ) {
+        WidgetDayPreference.toggle(context)
+        WidgetUpdateManager.updateToday(context)
+    }
+}

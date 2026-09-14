@@ -122,4 +122,40 @@ class TodayScheduleMapperTest {
         val result = TodayScheduleMapper.map(state(emptyList()), loggedIn = true, today = wednesday)
         assertThat(result.dateLine).isEqualTo("9月10日 周三 · 第2周")
     }
+
+    @Test
+    fun `切换到明天时取明天的课程块`() {
+        val ui = ScheduleUiState(
+            courses = listOf(course()),
+            availableTerms = listOf(term),
+            todayBlocks = listOf(block(BlockStatus.UPCOMING)),
+            tomorrowBlocks = listOf(block(BlockStatus.UPCOMING, name = "大学物理")),
+            todayWeek = 2,
+            totalWeeks = 20,
+        )
+        val result = TodayScheduleMapper.map(ui, loggedIn = true, today = wednesday, dayOffset = 1)
+        assertThat(result.dayOffset).isEqualTo(1)
+        assertThat(result.rows.map { it.name }).containsExactly("大学物理")
+    }
+
+    @Test
+    fun `明天没有课时是空状态`() {
+        val ui = ScheduleUiState(
+            courses = listOf(course()),
+            availableTerms = listOf(term),
+            todayBlocks = listOf(block(BlockStatus.UPCOMING)),
+            tomorrowBlocks = emptyList(),
+            todayWeek = 2,
+            totalWeeks = 20,
+        )
+        val result = TodayScheduleMapper.map(ui, loggedIn = true, today = wednesday, dayOffset = 1)
+        assertThat(result.phase).isEqualTo(TodayPhase.NO_CLASS)
+        assertThat(result.dayOffset).isEqualTo(1)
+    }
+
+    @Test
+    fun `切到明天时表头日期前进一天`() {
+        val result = TodayScheduleMapper.map(state(emptyList()), loggedIn = true, today = wednesday, dayOffset = 1)
+        assertThat(result.dateLine).isEqualTo("9月11日 周四 · 第2周")
+    }
 }

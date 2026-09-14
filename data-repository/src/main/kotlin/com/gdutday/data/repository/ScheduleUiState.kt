@@ -92,6 +92,9 @@ public data class ScheduleUiState(
     /** **今天**的课程块，按时间升序。日视图和首页卡片用。 */
     public val todayBlocks: List<CourseBlock> = emptyList(),
 
+    /** **明天**的课程块，按时间升序。桌面组件的"今天↔明天"切换用。 */
+    public val tomorrowBlocks: List<CourseBlock> = emptyList(),
+
     /** 课程名 → 颜色。课程详情页的色块选择器用。 */
     public val colorAssignment: Map<String, CourseColor> = emptyMap(),
 

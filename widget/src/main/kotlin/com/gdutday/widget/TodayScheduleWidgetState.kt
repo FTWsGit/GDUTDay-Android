@@ -22,6 +22,8 @@ public data class TodayScheduleWidgetState(
     /** 表头："9月10日 周三 · 第2周"。 */
     public val dateLine: String,
     public val rows: List<WidgetCourseRow>,
+    /** 当前展示的是哪一天：0 = 今天，1 = 明天。右侧竖条的文案据此反转。 */
+    public val dayOffset: Int = 0,
 ) {
     public companion object {
         /** 初始/读取中占位。 */
@@ -65,24 +67,28 @@ public object TodayScheduleMapper {
      * @param ui 课表状态；null 表示仓库还没给出第一帧 → 加载中
      * @param loggedIn 是否已登录。未登录且没有任何本地数据时才显示"未登录"
      * @param today 今天。由调用方传入，避免在映射里读墙钟
+     * @param dayOffset 0 = 今天，1 = 明天。决定取 [ScheduleUiState.todayBlocks] 还是
+     *   [ScheduleUiState.tomorrowBlocks]，以及表头日期。
      */
     public fun map(
         ui: ScheduleUiState?,
         loggedIn: Boolean,
         today: LocalDate,
+        dayOffset: Int = 0,
     ): TodayScheduleWidgetState {
         if (ui == null) return TodayScheduleWidgetState.Loading
-        val dateLine = buildDateLine(ui, today)
+        val target = today.plusDays(dayOffset.toLong())
+        val dateLine = buildDateLine(ui, target)
 
         // 有本地数据（换账号、断网）时即使 isLoggedIn=false 也照常显示，不要因为
         // 会话过期把用户已有的课表藏起来 —— 与 ScheduleUiState 的错误处理原则一致。
         if (!loggedIn && ui.courses.isEmpty() && ui.availableTerms.isEmpty()) {
-            return TodayScheduleWidgetState(TodayPhase.NOT_LOGGED_IN, dateLine, emptyList())
+            return TodayScheduleWidgetState(TodayPhase.NOT_LOGGED_IN, dateLine, emptyList(), dayOffset)
         }
 
-        val blocks = ui.todayBlocks
+        val blocks = if (dayOffset == 0) ui.todayBlocks else ui.tomorrowBlocks
         if (blocks.isEmpty()) {
-            return TodayScheduleWidgetState(TodayPhase.NO_CLASS, dateLine, emptyList())
+            return TodayScheduleWidgetState(TodayPhase.NO_CLASS, dateLine, emptyList(), dayOffset)
         }
 
         val rows = blocks.map { block ->
@@ -97,14 +103,19 @@ public object TodayScheduleMapper {
         }
         val allFinished = blocks.all { it.status == BlockStatus.FINISHED }
         val phase = if (allFinished) TodayPhase.ALL_FINISHED else TodayPhase.HAS_CLASS
-        return TodayScheduleWidgetState(phase, dateLine, rows)
+        return TodayScheduleWidgetState(phase, dateLine, rows, dayOffset)
     }
 
-    /** "9月10日 周三 · 第2周"。周次不在合法区间（放假/未开学）时省略周次。 */
-    internal fun buildDateLine(ui: ScheduleUiState, today: LocalDate): String {
-        val week = ui.todayWeek
+    /**
+     * "9月10日 周三 · 第2周"。周次不在合法区间（放假/未开学）时省略周次。
+     *
+     * [date] 可以是明天：周次优先按学期历算该日期属于第几周，明天跨到下一周时
+     * 表头也要跟着变；没有学期历时回退到 `ui.todayWeek`。
+     */
+    internal fun buildDateLine(ui: ScheduleUiState, date: LocalDate): String {
+        val week = ui.calendar?.weekOf(date) ?: ui.todayWeek
         val weekPart = if (week in 1..ui.totalWeeks) " · 第${week}周" else ""
-        return "${today.monthValue}月${today.dayOfMonth}日 ${weekdayLabel(today.dayOfWeek.value)}$weekPart"
+        return "${date.monthValue}月${date.dayOfMonth}日 ${weekdayLabel(date.dayOfWeek.value)}$weekPart"
     }
 
     internal fun weekdayLabel(dayOfWeek: Int): String = when (dayOfWeek) {
@@ -151,7 +162,9 @@ internal class TodayScheduleWidgetStateDefinition : GlanceStateDefinition<TodayS
                 container.scheduleRepository.observeScheduleUiState(),
                 container.authRepository.isLoggedIn,
             ) { ui, loggedIn ->
-                TodayScheduleMapper.map(ui, loggedIn, LocalDate.now())
+                // 今天/明天的选择由用户在插件上切换并落盘，每次 update() 重新读取；
+                // 切换动作本身会触发 updateToday()，所以这里同步读即可，不需要再开一条 Flow。
+                TodayScheduleMapper.map(ui, loggedIn, LocalDate.now(), WidgetDayPreference.read(context))
             }
         }
     }

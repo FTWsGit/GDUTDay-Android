@@ -101,6 +101,8 @@ internal fun buildScheduleUiState(input: ScheduleInputs): ScheduleUiState {
     // todayBlocks 始终按"真实今天"算，而不是选中周 —— 首页卡片与 Widget 要的是今天，
     // 与用户在周视图里翻到第 12 周无关。
     val todayBlocks = builder?.buildDay(input.courses, input.exams, today, input.now)?.blocks.orEmpty()
+    // 明天的课程块：Widget 的"今天↔明天"切换直接用，避免在插件进程里再跑一遍计算。
+    val tomorrowBlocks = builder?.buildDay(input.courses, input.exams, today.plusDays(1), input.now)?.blocks.orEmpty()
 
     val syncInfo = input.syncState?.let { state ->
         SyncInfo(
