@@ -17,34 +17,19 @@
 
 ## 1. 配置凭据
 
-两种方式，**环境变量优先**。
-
-### 方式一：环境变量（推荐，不落盘）
-
-```bash
-export GDUT_STUDENT_ID="3120xxxxxx"
-export GDUT_PASSWORD="你的密码"
-```
-
-### 方式二：项目根目录的 `secrets.properties`
-
-复制模板：
-
-```bash
-cp secrets.properties.example secrets.properties
-```
-
-编辑 `gdutday-android/secrets.properties`：
-
-```properties
-GDUT_STUDENT_ID=3120xxxxxx
-GDUT_PASSWORD=你的密码
-```
+### 方式：环境变量 `secrets.properties`
 
 `secrets.properties` 已被 `.gitignore` 忽略（第 21 行），**永远不要提交它**。
-工具会依次在 `./`、`../`、`../../` 找这个文件（`workingDir` 已设为仓库根目录）。
 
-> Properties 文件里 `#` 是注释起始符；密码含 `#` 时用环境变量更省事。
+文件里面包含
+```
+export GDUT_STUDENT_ID=学号
+export GDUT_PASSWORD=密码
+```
+因此只需要:
+```
+source secrets.properties # 即可获得`$GDUT_STUDENT_ID`, `$GDUT_PASSWORD` 环境变量
+```
 
 ---
 
