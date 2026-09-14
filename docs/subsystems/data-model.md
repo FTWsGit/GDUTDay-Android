@@ -334,7 +334,8 @@ if (destructiveMigrationFallback) {
    `fallbackToDestructiveMigration`）。
 2. 每次改 schema 都 `VERSION++` 并写一个 `Migration`。
 3. `schemas/` 目录随每次 schema 变更提交。
-4. 新增 `MigrationTest`（Robolectric 或 androidTest），用导出的 schema JSON 逐一验证迁移。
+4. `MigrationTest`（Robolectric）已存在：手工按 v1 DDL 建旧库、跑迁移、
+   Room 按 v2 schema 逐列校验并断言旧数据保留。每次新增迁移都要照此补一个用例。
 5. 不要轻易改 `GdutDatabase.FILE_NAME`（`"gdutday.db"`）—— 改名等于让所有老用户的数据消失。
 
 ### 为什么不 `exportSchema = false`

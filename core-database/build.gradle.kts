@@ -16,6 +16,21 @@ android {
     namespace = "com.gdutday.core.database"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
+    sourceSets {
+        // 把 schema JSON 暴露给单测 classpath/assets，MigrationTestHelper 才能读到 1.json / 2.json。
+        getByName("test") {
+            resources.srcDir("$projectDir/schemas")
+            assets.srcDir("$projectDir/schemas")
+        }
+    }
+
+    testOptions {
+        unitTests {
+            // Robolectric 读取 assets（schema JSON）需要这个开关。
+            isIncludeAndroidResources = true
+        }
+    }
+
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
         consumerProguardFiles("consumer-rules.pro")
@@ -51,9 +66,11 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
 
-    // 只跑纯 JVM 断言（常量一致性、映射往返），不需要 Robolectric。
-    // 真正的 SQL 正确性要靠 androidTest 里的 in-memory Room，见 docs/06-testing-strategy.md。
+    // 纯 JVM 断言 + Robolectric（真实 SQLite 上跑 Room 迁移，见 MigrationTest）。
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

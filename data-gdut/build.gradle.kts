@@ -69,3 +69,14 @@ tasks.register<JavaExec>("verifyLogin") {
     defaultCharacterEncoding = "UTF-8"
     jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Djavax.net.ssl.trustStoreType=Windows-ROOT")
 }
+
+tasks.register<JavaExec>("dumpFixtures") {
+    group = "verification"
+    description = "用真实会话抓取 jxfw 原始响应落成 .real fixture（输出 build/dump-fixtures/）"
+    dependsOn(tasks.named("testClasses"))
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("com.gdutday.data.gdut.tools.DumpFixtures")
+    workingDir = rootProject.projectDir
+    defaultCharacterEncoding = "UTF-8"
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+}

@@ -269,7 +269,7 @@ public interface CourseColorDao {
  *
  * Room 的 `@Query` 不支持 Kotlin 字符串模板，因此这里没法引用
  * [SyncStateEntity.SINGLETON_ID]，只能字面量写 `1`。
- * 两者的不一致由 `SyncStateDaoTest` 盯着（它断言 `SINGLETON_ID == 1`）。
+ * 两者的不一致由 `SyncStateDaoContractTest` 盯着（它断言 `SINGLETON_ID == 1`）。
  */
 @Dao
 public interface SyncStateDao {

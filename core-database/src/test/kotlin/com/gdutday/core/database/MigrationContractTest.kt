@@ -12,12 +12,8 @@ import org.junit.Test
  *
  * ## 为什么不是真正的 Room MigrationTest
  *
- * 真正的 1→2 迁移测试需要 `MigrationTestHelper` 挂 Android 仪器环境
- * （androidTest / Robolectric）。本项目测试策略是**只写纯 JVM 单测**，
- * 项目里也没有 Robolectric 依赖，所以真正的 SQLite 升级只能靠真机验证
- * （见 AGENTS.md 的"已知限制"）。
- *
- * 这里盯住迁移中最容易错的两面：
+ * 真正的 1→2 迁移测试（MigrationTestHelper 挂 Android 环境）在 [MigrationTest] 里，
+ * 用 Robolectric 跑真实 SQLite。这里在纯 JVM 层盯着迁移中最容易错的两面：
  * 1. **迁移 SQL 与 schema JSON 的一致性** —— 列名、默认值与 `2.json` 导出值对齐，
  *    手写 ALTER TABLE 打错列名/类型时 Room 的校验会在运行时才炸；
  * 2. **新列的映射往返** —— 实体 → 领域模型 → 实体，绝对时间与补丁字段不丢。

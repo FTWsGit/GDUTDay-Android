@@ -90,8 +90,9 @@ public class TodayScheduleWidgetReceiver : GlanceAppWidgetReceiver() {
 
 // ---------------------------------------------------------------------------- UI
 
+// internal 而非 private：GlanceWidgetRenderTest 直接组合它验证渲染输出。
 @Composable
-private fun TodayScheduleContent(state: TodayScheduleWidgetState) {
+internal fun TodayScheduleContent(state: TodayScheduleWidgetState) {
     val context = LocalContext.current
     // Intent 只需构造一次，不要每次重组都重建。
     val launchIntent = remember(context) { mainActivityIntent(context) }

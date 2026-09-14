@@ -34,6 +34,13 @@ android {
 
     buildFeatures { compose = true }
 
+    testOptions {
+        unitTests {
+            // Robolectric 渲染测试要读 strings.xml（空状态文案），必须合并测试资源。
+            isIncludeAndroidResources = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -68,4 +75,8 @@ dependencies {
     // 用普通 JUnit4 + Truth 即可，不需要 Robolectric，跑得快也稳定。
     testImplementation(libs.junit)
     testImplementation(libs.truth)
+    // Glance 组合函数的 JVM 渲染测试（runGlanceAppWidgetUnitTest），见 GlanceWidgetRenderTest。
+    testImplementation(libs.androidx.glance.appwidget.testing)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

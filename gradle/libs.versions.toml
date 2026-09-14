@@ -36,6 +36,8 @@ zxing = "3.5.4"
 junit = "4.13.2"
 truth = "1.4.4"
 mockwebserver = "5.2.1"        # 与 okhttp 同版本
+robolectric = "4.16"
+androidxTestCore = "1.7.0"
 
 [libraries]
 # ---- AndroidX 基础 ----
@@ -59,11 +61,13 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 # ---- Glance（桌面插件）----
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
+androidx-glance-appwidget-testing = { group = "androidx.glance", name = "glance-appwidget-testing", version.ref = "glance" }
 
 # ---- Room ----
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 # ---- DataStore ----
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
@@ -83,6 +87,8 @@ zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "mockwebserver" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

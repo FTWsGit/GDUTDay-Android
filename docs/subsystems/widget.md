@@ -292,8 +292,9 @@ Worker 失败时（数据库瞬时锁、进程被杀）先按"今天已无课"�
 
 ## 8. 已知待办
 
-- 所有 Glance 渲染行为**都没有在真机/Robolectric 上验证过**（无 androidTest）。
-- `NextClassWidget` 未显式设置 `sizeMode`（默认 `Single`），
-  但它只有一行、不承诺拉伸显示更多，所以可接受；若要支持更高尺寸需补上。
+- Glance 组合层渲染已由 `GlanceWidgetRenderTest`（glance-appwidget-testing + Robolectric）覆盖；
+  真实 launcher 上的 RemoteViews 落地仍属真机范畴，未验证。
+- `NextClassWidget` 保持默认 `SizeMode.Single`（决策记录在该类 KDoc 里）：
+  单行布局不承诺拉伸显示更多；若要支持更高尺寸需改 `Exact` 并加尺寸分支。
 
 其余开放项见 `temp/agent-task-list-open.md`。

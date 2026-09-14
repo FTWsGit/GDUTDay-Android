@@ -40,6 +40,9 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)
+    // Robolectric：AndroidKeystoreCipher 在真实（Robolectric 模拟的）KeyStore 上的行为验证。
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 
     // 注意：不用 androidx.security:security-crypto。
     // 它内部封装的 EncryptedSharedPreferences 在部分机型上有已知的

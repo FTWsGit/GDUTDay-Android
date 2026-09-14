@@ -38,6 +38,13 @@ import androidx.glance.unit.ColorProvider
  * 倒计时**不走秒**，也不在这里做任何计时：插件只负责把仓库算好的
  * `countdownText` 画出来，真正的定时刷新交给 [NextClassRefreshScheduler] 的
  * WorkManager 分级任务。这样 launcher 进程不会因为每秒重绘而耗电。
+ *
+ * ## sizeMode 决策：保持默认 [androidx.glance.appwidget.SizeMode.Single]
+ *
+ * 单行插件只有一个布局，不存在"拉高后显示更多信息"的分支（与 [TodayScheduleWidget]
+ * 的显式 `Exact` 不同——那是多行列表，必须响应尺寸变化）。内容超出宽度时靠
+ * `maxLines = 1` 截断，高度固定，Single 渲染一次即可，还能省掉 launcher 每次
+ * resize 的重组合。将来若产品要求 4x2 双行展示，再改 `Exact` 并加尺寸分支。
  */
 public class NextClassWidget : GlanceAppWidget() {
 
@@ -77,8 +84,9 @@ public class NextClassWidgetReceiver : GlanceAppWidgetReceiver() {
 
 // ---------------------------------------------------------------------------- UI
 
+// internal 而非 private：GlanceWidgetRenderTest 直接组合它验证渲染输出。
 @Composable
-private fun NextClassContent(state: NextClassWidgetState) {
+internal fun NextClassContent(state: NextClassWidgetState) {
     val context = LocalContext.current
     val launchIntent = remember(context) { mainActivityIntent(context) }
 

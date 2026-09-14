@@ -15,9 +15,9 @@ alwaysApply: false
 
 ## 1. 测试规模
 
-全项目约 413 个纯 JVM 单元测试，0 失败；`core-database` 是例外，DAO 的 `@Query` SQL
-只能在真实 Room + SQLite 上验证，目前没有 Robolectric/androidTest，SQL 写错不会被任何测试发现。
-各模块测试数随开发变动，用下面的统计方法现查。
+全项目约 470 个纯 JVM 单元测试，0 失败。`core-database` / `core-datastore` / `widget`
+三个 Android 库模块已接入 Robolectric（Room 迁移、KeyStore 容错、Glance 渲染都在 JVM 上验证），
+不需要模拟器。各模块测试数随开发变动，用下面的统计方法现查。
 
 ### 统计方法（可复现）
 
@@ -181,23 +181,20 @@ private inner class Script(
 
 ## 6. 缺什么
 
-以下全部**没有被任何测试覆盖**（开放项清单见 `temp/agent-task-list-open.md`）：
+以下**没有被任何测试覆盖**（开放项清单见 `temp/agent-task-list-open.md`）：
 
 | 缺失 | 风险 |
 |---|---|
 | `androidTest`（真机） | —— |
-| Robolectric | —— |
-| **Room 迁移测试** | schema 变更后老用户数据可能丢/迁移报错，只有真机才能发现 |
-| **DAO SQL 测试** | `@Query` 写错不会被任何测试发现（`core-database` 零测试） |
-| **真实 AndroidKeyStore 行为** | 强盒降级、密钥丢失后的静默丢弃、`setUserAuthenticationRequired(false)` 的实际效果 |
-| **Glance 渲染** | `SizeMode.Exact`、`LocalSize`、`FlowDataStore` 是否真的每次重读 |
-| **`SecureFile.secureErase`** | 真实文件系统上的覆盖+删除行为 |
+| **真实硬件 KeyStore 行为** | 强盒降级、真机密钥生成/加解密（Robolectric 无 AndroidKeyStore provider，只能 JVM 端验证"密钥不可用"容错路径） |
 | **Compose UI 测试** | 页面交互、无障碍、点击目标 |
 | **截图测试** | 视觉回归 |
 | **release/R8 包** | `AppContainerHolder` 静态 holder 取容器、ProGuard 规则是否够 |
 
-`core-database` 的 `GdutDatabase.inMemory()` 已经为 Robolectric 准备好了
-（用真实 Room + SQLite 而不是 mock DAO —— SQL 写错 mock 发现不了），只是还没有测试去用它。
+已由 Robolectric 补上（2026-09-14）：Room 迁移（`core-database` 的 `MigrationTest`，
+DAO SQL 在真实 SQLite 上跑）、KeyStore 不可用容错（`core-datastore`）、
+`SecureFile` 真实文件系统行为（含 filesDir 与孤儿 tmp 清理）、Glance 组合层渲染
+（`widget` 的 `GlanceWidgetRenderTest`，glance-appwidget-testing）。
 
 ---
 

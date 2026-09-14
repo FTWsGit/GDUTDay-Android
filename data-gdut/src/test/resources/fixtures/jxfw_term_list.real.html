@@ -1,0 +1,91 @@
+
+
+
+
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="pragma" content="no-cache" /> 
+<meta http-equiv="cache-control" content="no-cache" /> 
+<meta http-equiv="expires" content="0" /> 
+<title>考试安排信息</title>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<meta name="renderer" content="webkit">
+<meta name="ctxPath" content="/">
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="stylesheet" type="text/css" href="/styles/themes/icon.css?v=240417&min=1">
+<link rel="stylesheet" type="text/css" href="/styles/themes/js_input.css">
+<link rel="stylesheet" href="/styles/js/poshytip-1.2/tip-yellowsimple/tip-yellowsimple.css" type="text/css" />
+<link rel="stylesheet" type="text/css" href="/styles/themes/main.css?v=260203&min=1">
+<link rel="stylesheet" type="text/css" href="/styles/themes/default/easyui.css">
+<script type="text/javascript" src="/styles/js/jquery-1.8.0.min.js?v=2.2.4"></script>
+<script type="text/javascript" src="/styles/js/jquery.easyui.min.js"></script>
+<script type="text/javascript" src="/styles/js/jquery.parser.js"></script>
+<script type="text/javascript" src="/styles/js/easyui-lang-zh_CN.js"></script>
+<script type="text/javascript" src="/styles/layer/layer.min.js"></script>
+<script type="text/javascript" src="/styles/js/ntss.js?v=251027&min=1"></script>
+<script type="text/javascript" src="/styles/js/js_input.js"></script>
+<script type="text/javascript" src="/styles/js/big.min.js"></script>
+<script type="text/javascript" src="/styles/js/poshytip-1.2/jquery.poshytip.min.js"></script>
+<script type="text/javascript" src="/styles/js/entss.js?v=1.2"></script>
+<script type="text/javascript" src="/static/js/reptile.js"></script>
+
+</head>
+<body style="margin:0px;padding:0px;" id='searchpage'>
+<div  id='tb' style="height:24px;">
+<table cellpadding="2" cellspacing="0" >
+	<tr>
+		<td>学年学期：</td>
+		<td><select id='xnxqdm' name='xnxqdm' style='width:150px;height:22px' onchange='doChange()' ><option value=''>全部</option><option value='203102' >2032春季</option><option value='203101' >2031秋季</option><option value='203002' >2031春季</option><option value='203001' >2030秋季</option><option value='202902' >2030春季</option><option value='202901' >2029秋季</option><option value='202802' >2029春季</option><option value='202801' >2028秋季</option><option value='202702' >2028春季</option><option value='202701' >2027秋季</option><option value='202602' >2027春季</option><option value='202601' selected>2026秋季</option><option value='202502' >2026春季</option><option value='202501' >2025秋季</option><option value='202402' >2025春季</option><option value='202401' >2024秋季</option><option value='202302' >2024春季</option><option value='202301' >2023秋季</option><option value='202202' >2023春季</option><option value='202201' >2022秋季</option><option value='202102' >2022春季</option><option value='202101' >2021秋季</option><option value='202002' >2021春季</option><option value='202001' >2020秋季</option><option value='201902' >2020春季</option><option value='201901' >2019秋季</option><option value='201802' >2019春季</option><option value='201801' >2018秋季</option><option value='201702' >2018春季</option><option value='201701' >2017秋季</option><option value='201602' >2017春季</option><option value='201601' >2016秋季</option><option value='201502' >2016春季</option><option value='201501' >2015秋季</option><option value='201402' >2015春季</option><option value='201401' >2014秋季</option><option value='201302' >2014春季</option><option value='201301' >2013秋季</option><option value='201202' >2013春季</option><option value='201201' >2012秋季</option><option value='201102' >2012春季</option><option value='201101' >2011秋季</option><option value='201002' >2011春季</option><option value='201001' >2010秋季</option></select></td>
+		<td>考试类型：</td>
+		<td><select id='ksaplxdm' name='ksaplxdm' style='width:150px;height:22px' class='ntssselect' onchange='doChange()' ><option value=''>全部</option><option value='01' >随堂考</option><option value='02' >学院停课考</option><option value='03' >学校停课考</option><option value='04' >学院合考</option></select></td>
+	</tr>
+</table>
+</div>
+<table id="datalist"></table>
+</body>
+<script type="text/javascript">
+$(document).ready(function() { 
+	$('#datalist').datagrid({
+		fit:true,
+		toolbar:'#tb',
+		striped: true,
+		singleSelect: false,
+		url:'xsksap!getDataList.action',
+		pagination: true,
+		rownumbers: false,
+		pageSize: '100',
+		pageList:['100','100'*2,'100'*3],
+		fitColumns: true,
+		queryParams:{xnxqdm:$("#xnxqdm").val()},
+		sortName: 'zc,xq,jcdm2',
+		columns:[[
+				  {field:'ksrcdm',checkbox:true},
+				  {field:'xsbh',title:'学号',width:60,sortable:true},
+				  {field:'xsxm',title:'姓名',width:40,sortable:true},
+		          {field:'kcmc',title:'考试课程',width:80,align:'left',sortable:true},
+			      {field:'xs',title:'学时',width:20,sortable:true},
+		          {field:'sjbh',title:'试卷编号',width:30,align:'left',sortable:true},
+		          {field:'ksxs',title:'考试形式',width:30,align:'center',sortable:true,formatter:function(value,row,index){
+		        	  return (value == '1')?'开卷':'闭卷';
+		          }},
+		          {field:'ksrq',title:'考试日期',width:50,align:'left',sortable:true},
+		          {field:'kssj',title:'考试时间',width:60,align:'left',sortable:true},
+		          {field:'zc',title:'考试周次',width:20,align:'left',sortable:true},
+		          {field:'xq',title:'考试星期',width:20,align:'left',sortable:true},
+		          {field:'jcdm2',title:'占用节次',width:30,align:'left',sortable:true},
+		          {field:'xqmc',title:'考试校区',width:40,align:'left',sortable:true},
+		          {field:'kscdmc',title:'考试场地',width:60,align:'left',sortable:true},
+		          // {field:'zwh',title:'座位号',width:20,align:'left',sortable:true},
+		          {field:'ksaplxmc',title:'安排类型',width:30,align:'left',sortable:true},
+		          {field:'kslbmc',title:'考试类别',width:30,align:'left',sortable:true}
+		    ]],
+	});
+
+});
+function doChange(){
+	$('#datalist').datagrid('load',{xnxqdm:$("#xnxqdm").val(),ksaplxdm:$("#ksaplxdm").val()});	
+}
+</script>
+</html>
