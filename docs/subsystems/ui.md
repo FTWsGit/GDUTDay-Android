@@ -6,13 +6,13 @@ alwaysApply: false
 ---
 
 
-# 03 · UI 规格
+# UI 规格
 
 覆盖五个页面（课表 / 登录 / 考试与成绩 / 设置 / 工具箱）、课表网格渲染方案、并排冲突布局、
 自动字色，以及各种边界情况。
 
-相关文档：[架构](./00-architecture.md) · [数据模型](./02-data-model.md) ·
-[插件规格](./04-widget-spec.md) · [任务清单](./05-agent-task-list.md)
+相关文档：[架构](../architecture/architecture.md) · [数据模型](./data-model.md) ·
+[插件规格](./widget.md)
 
 ---
 
@@ -21,7 +21,7 @@ alwaysApply: false
 - **单 Activity + Compose Navigation**（`MainActivity` + `GdutDayNavHost`）。
   多 Activity 每次切换要走完整生命周期 + 窗口创建（约 100～300ms）；
   单 Activity 内 Compose 导航只是重组（几毫秒），且只需维护一个窗口的主题/insets。
-- **起始路由是课表，不是登录页**（理由见 [架构 · 冷启动](./00-architecture.md)）。
+- **起始路由是课表，不是登录页**（理由见 [架构 · 冷启动](../architecture/architecture.md)）。
 - 底部导航放**四个顶层 Tab**：**课表 / 考试 / 工具箱 / 设置**（见 `GdutDayNavHost` 的
   `TopLevelDestination`）。设置项已成体系（六个分组），作为常驻 Tab 比藏在"下钻"页更易发现。
 - 底部导航只在四个顶层目的地显示；登录页是"下钻"页面，
@@ -45,9 +45,6 @@ alwaysApply: false
 1. Widget 需要同样的计算（"今天有什么课"、"下节课几点"），逻辑否则得复制一份；
 2. ViewModel 会膨胀到上千行，且每次旋转屏幕都要重算；
 3. 单元测试要挂 `Dispatchers.Main` 和 Android 环境，跑不起来。
-
-`ScheduleUiState` 的每一项都对应旧小程序里一段散落在 `.vue` 模板里的逻辑，
-集中之后"课表显示不对"只需要查一个地方。
 
 ### 1.2 顶栏（`ScheduleTopBar`）
 
@@ -80,7 +77,7 @@ else                                        → WeekGridView(grid)
 | 同步失败（`errorMessage`） | —— | `Snackbar`，非阻塞 | 一次性 |
 
 开学日期错了**整个周次全错**，所以它是全屏里最该被看见的提示。
-同步失败时**网格数据原样保留**，只用 Snackbar 提示 —— 这是与旧小程序最大的体验差异之一。
+同步失败时**网格数据原样保留**，只用 Snackbar 提示。
 
 ### 1.5 周次切换（页面跟随手势）
 
@@ -170,7 +167,7 @@ fun minuteToY(minute: Int, range: IntRange, gridHeightPx: Float): Float {
 
 ### 2.3 并排冲突布局算法
 
-同一时段有多门课时，旧版直接叠在一起（后画的盖住先画的），用户看不到被盖住的课。
+同一时段有多门课时，直接叠在一起（后画的盖住先画的）会让用户看不到被盖住的课。
 `ScheduleGridBuilder.layout` 用经典的"区间分列"算法：
 
 1. 按开始时间升序（开始相同则长的在前）排序；
@@ -228,7 +225,7 @@ UI 只负责按 `columnIndex / columnCount` 缩窄并右移（`ScheduleGridMath.
 
 **刻意不使用** WCAG 的对比度比值阈值 `(L1+0.05)/(L2+0.05) > 4.5`：
 课程块面积小、字号只有 11sp，黑/白两个极值里选哪个本来就只是二选一；
-用单一相对亮度阈值 `0.5` 更简单，且与旧小程序 `isLightColor` 的观感一致。
+用单一相对亮度阈值 `0.5` 更简单、观感稳定。
 
 ```kotlin
 fun isLightBackground(argb: Int): Boolean = relativeLuminance(argb) > 0.5
@@ -248,15 +245,9 @@ fun autoTextColor(argb: Int): Int = if (isLightBackground(argb)) BLACK else WHIT
 
 ## 4. 隐私打码（已移除）
 
-早期版本提供"公共场合防偷窥"的课程名/老师名打码（`privacyMasked()` / `WidgetText.mask()`）。
-实测发现打码后仍能凭保留的首尾字符与课程结构猜出是什么课，**隐私收益很低，
-却要维护应用内 + 桌面插件两套字符串路径**，因此整体移除：
-
-- 课表网格、日视图、详情页、桌面插件一律显示真实课程名与老师名；
-- `UserSettings` 不再有 `privacyBlurEnabled` / `privacyBlurInWidget`；
-- 设置页"隐私"分组只保留"记住密码"。
-
-原来的"只打姓名、不打时间地点"边界与等长规则随功能一并废弃。
+曾提供"公共场合防偷窥"的课程名/老师名打码，实测发现仍能凭首尾字符猜出课程，
+隐私收益低却要维护两套字符串路径，已整体移除：所有页面直接显示真实课程名与老师名，
+设置页"隐私"分组只保留"记住密码"。
 
 ---
 
@@ -279,7 +270,7 @@ fun autoTextColor(argb: Int): Int = if (isLightBackground(argb)) BLACK else WHIT
 NOT_UNDERGRADUATE / VALID`。`canSubmit` 要求 `VALID`，直登路径还要求验证码与 token 都就绪。
 
 这样做的理由：把注定失败的请求打给学校服务器，每一次**都在累积风控计数**
-（见 [协议 · 滑块](./01-gdut-protocol.md)）。所以这些规则值得抽出来单独用 JVM 测试钉死。
+（见 [协议 · 滑块](../reference/spec/gdut-protocol.md)）。所以这些规则值得抽出来单独用 JVM 测试钉死。
 
 ### 5.3 滑块降级流程
 
@@ -349,8 +340,8 @@ else → ScrollableTabRow（学期）+ LazyColumn
 
 ## 7. 设置页（`feature-settings`）
 
-> ✅ 已按下列六分组完整实现（`SettingsScreen`）。每项读写 `UserSettings` 并即时生效；
-> 诊断信息可一键复制且不含密码/cookie 值。
+六个分组：学期与校区、课表外观、作息表、数据、隐私、关于/诊断。
+每项读写 `UserSettings` 并即时生效；诊断信息可一键复制且不含密码/cookie 值。
 
 分组如下：
 

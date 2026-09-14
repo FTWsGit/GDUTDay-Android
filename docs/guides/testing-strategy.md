@@ -6,37 +6,18 @@ alwaysApply: false
 ---
 
 
-# 06 · 测试策略
+# 测试策略
 
-相关文档：[架构](./00-architecture.md) · [协议](./01-gdut-protocol.md) ·
-[登录验证](./07-verify-login.md) · [任务清单](./05-agent-task-list.md)
+相关文档：[架构](../architecture/architecture.md) · [协议](../reference/spec/gdut-protocol.md) ·
+[登录验证](./verify-login.md)
 
 ---
 
-## 1. 当前测试覆盖情况
+## 1. 测试规模
 
-数字由 `gradle <module>:test` 生成，从各模块 `build/test-results/*/TEST-*.xml`
-的 `tests` 属性统计。统计时刻 **2026-09-12**。
-
-| 模块 | 测试数 | 测试类 | 类型 |
-|---|---:|---|---|
-| `core-model` | **50** | `CampusTest` `CourseTest` `ExamTest` `GdutExceptionTest` `SnapshotAndGradeTest` `StudentProfileTest` `TermTest` | 纯 JVM |
-| `core-common` | **68** | `CampusTimetableTest` `CourseColorsTest` `ScheduleGridBuilderTest` `SectionRunSplitterTest` `TermCalendarTest` | 纯 JVM |
-| `data-gdut` | **161** | `AuthLoginPageParserTest` `AuthServerClientTest` `AuthServerCryptoTest` `GdutHostsTest` `FormFieldsTest` `RedirectFollowerTest` `SessionCookieJarTest` `JxfwClientTest` `JxfwParserTest` `JxfwScheduleParserTest` | 纯 JVM（含 MockWebServer） |
-| `core-database` | **6** | `SyncStateDaoContractTest` | 纯 JVM（常量一致性 + 映射往返） |
-| `core-datastore` | **40** | `AesGcmCipherTest` `DataStoreSettingsStoreTest` `MaskMiddleTest` `SecureFileTest` `SessionJsonTest` | JVM 单元（用假 KeyProvider/内存后端） |
-| `core-ui` | **7** | `ColorContrastTest` | 纯 JVM（纯函数） |
-| `data-repository` | **21** | `ScheduleComputationTest` `ScheduleUiStateBuilderTest` `SemesterStartResolverTest` | JVM 单元（`flowOf` 假数据） |
-| `widget` | **21** | `NextClassRefreshPolicyTest` `TodayScheduleMapperTest` `WidgetSizingTest` | 纯 JVM（映射/策略与 Android 解耦） |
-| `feature-schedule` | **10** | `ScheduleGridMathTest` | 纯 JVM（几何纯函数） |
-| `feature-auth` | **9** | `LoginLogicTest` | 纯 JVM |
-| `feature-grade` | **13** | `GradeLogicTest` `ExamLogicTest` | 纯 JVM |
-| `feature-settings` | **7** | `SettingsLogicTest` | 纯 JVM |
-| `feature-toolbox` | **0** | —— | 纯 UI（无状态 composable，二维码渲染已由 `data-gdut` 的 `LibraryQr` 测试覆盖） |
-| **合计** | **413** | | **0 失败** |
-
-**`core-database` 没有任何测试** —— DAO 的 `@Query` SQL 只能在真实 Room + SQLite 上验证，
-目前没有 Robolectric/androidTest，所以 SQL 写错不会被任何测试发现。
+全项目约 413 个纯 JVM 单元测试，0 失败；`core-database` 是例外，DAO 的 `@Query` SQL
+只能在真实 Room + SQLite 上验证，目前没有 Robolectric/androidTest，SQL 写错不会被任何测试发现。
+各模块测试数随开发变动，用下面的统计方法现查。
 
 ### 统计方法（可复现）
 
@@ -49,7 +30,6 @@ JAVA_HOME="C:/Program Files/Microsoft/jdk-21.0.12.101-hotspot" \
 ```
 
 然后读各 `build/test-results/**/TEST-*.xml` 的 `tests` 属性求和。
-（T0.1 已修复，`:app:test` 现在可以直接跑，只是 `app` 本身没有单测，是 `NO-SOURCE`。）
 
 ---
 
@@ -109,8 +89,8 @@ JS 右值扫描器，都是为了应对这些真实结构。
 
 jxfw 的 `jxfw_*.json` / `jxfw_*.html` 是照逆向字段**手工合成**的。
 它们能验证解析器的逻辑正确性，但**不能证明字段名在学校那边真的存在**。
-`fixtures/README.md` 里明确写了这点：用 [登录验证工具](./07-verify-login.md) 跑一次真实账号，
-把 dump 出来的响应替换掉合成 fixture，才算真正闭环。见 [任务清单 T2.2](./05-agent-task-list.md)。
+`fixtures/README.md` 里明确写了这点：用 [登录验证工具](./verify-login.md) 跑一次真实账号，
+把 dump 出来的响应替换掉合成 fixture，才算真正闭环（开放项见 `temp/agent-task-list-open.md`）。
 
 ---
 
@@ -201,7 +181,7 @@ private inner class Script(
 
 ## 6. 缺什么
 
-以下全部**没有被任何测试覆盖**（对应 [任务清单 T2.1](./05-agent-task-list.md)）：
+以下全部**没有被任何测试覆盖**（开放项清单见 `temp/agent-task-list-open.md`）：
 
 | 缺失 | 风险 |
 |---|---|
@@ -225,7 +205,7 @@ private inner class Script(
 
 1. **定位症状**：同步失败的 `GdutException.Parse` 会带上原始响应片段（截前 500 字符）。
    用户可在"设置 → 诊断信息"复制出来。
-2. **跑验证脚本**：[`gradle :data-gdut:verifyLogin`](./07-verify-login.md)
+2. **跑验证脚本**：[`gradle :data-gdut:verifyLogin`](./verify-login.md)
    用真实账号逐步打印登录页、跳转链、课表/考试/成绩条数，定位在哪一步断。
 3. **抓真实响应**：把断点那一步的响应原文存成 `fixtures/<name>.real.*`。
 4. **改解析器**：`data-gdut` 的解析器只依赖 fixture，改完立刻能离线测。
@@ -260,7 +240,7 @@ message 为 null，被包装成没有信息量的 `GdutException.Local("同步�
    `userMessage`，只有走到 `catch (e: Exception)` 兜底分支才只剩"同步失败"；
 4. **Repository 入口自己切 `withContext(Dispatchers.IO)`**，
    不指望每个调用方（尤其 `viewModelScope` 默认主线程）记得切 ——
-   阻塞式 OkHttp 是项目刻意的线程模型（见 00 文档 5.6），切线程责任必须收口。
+   阻塞式 OkHttp 是项目刻意的线程模型（见架构文档·线程模型），切线程责任必须收口。
 
 设备侧取证备注：release 包 `run-as` 不可用（非 debuggable）、无线 adb 无
 `INJECT_EVENTS` 权限（`input tap` 被拒）、logcat 无 App 自身日志 ——

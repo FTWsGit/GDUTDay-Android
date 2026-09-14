@@ -11,10 +11,10 @@ alwaysApply: false
 本文回答"项目为什么长成这样"。每条设计决策都写明**理由**与**被否决的替代方案**，
 因为替代方案往往才是后来者最想改回去的地方。
 
-相关文档：[协议逆向](./01-gdut-protocol.md) · [数据模型](./02-data-model.md) ·
-[UI 规格](./03-ui-spec.md) · [插件规格](./04-widget-spec.md) ·
-[任务清单](./05-agent-task-list.md) · [测试策略](./06-testing-strategy.md) ·
-[登录验证](./07-verify-login.md)
+相关文档：[协议逆向](../reference/spec/gdut-protocol.md) · [数据模型](../subsystems/data-model.md) ·
+[UI 规格](../subsystems/ui.md) · [插件规格](../subsystems/widget.md) ·
+[任务清单](../guides/agent-task-list.md) · [测试策略](../guides/testing-strategy.md) ·
+[登录验证](../guides/verify-login.md)
 
 ---
 
@@ -90,7 +90,7 @@ graph TD
 1. 依赖只从上往下。`core-model` / `core-common` / `data-gdut` 在最底层，
    谁都能依赖它们，它们不依赖任何模块。
 2. **`widget` 不得依赖 `app`**。`app` 依赖 `widget`，反向依赖会形成 Gradle 项目环。
-   这条约束直接导致了插件 module 通过 `data-repository` 的静态 holder 取容器（见 [任务清单](./05-agent-task-list.md)）。
+   widget 因此通过 `data-repository` 的静态 holder 取容器。
 
 ---
 
@@ -99,7 +99,7 @@ graph TD
 | 模块 | 职责 | 为什么单独成模块 |
 |---|---|---|
 | `core-model` | 纯领域模型：`Term` `Course` `Grade` `Exam` `Campus` `GdutException`。零第三方依赖。 | 所有模块共享的最小词汇表。把它做成零依赖，才能保证"业务概念"不会被任何框架污染。 |
-| `core-common` | 与 Android 无关的纯逻辑：作息表、学期历、节次切分、课表网格构建、配色。 | 与协议无关，但被 UI、Widget、Repository 三方共用。做成纯 JVM 才能穷举单测（见 [测试策略](./06-testing-strategy.md)）。 |
+| `core-common` | 与 Android 无关的纯逻辑：作息表、学期历、节次切分、课表网格构建、配色。 | 与协议无关，但被 UI、Widget、Repository 三方共用。做成纯 JVM 才能穷举单测（见 [测试策略](../guides/testing-strategy.md)）。 |
 | `data-gdut` | **协议逆向层**：登录加密、表单构造、重定向跟随、HTML/JSON 解析、图书馆二维码。风险最高。 | 全部与 Android 无关；做成纯 JVM 后整个登录流程可以在 JVM 上用 MockWebServer 离线回归，不需要模拟器。学校改接口时只改这一个模块 + 补 fixture。 |
 | `core-network` | `OkHttpClient` 工厂 + 网络状态监听。极薄。 | 全 App 只能有一个根 `OkHttpClient`（连接池/线程池）。集中一处创建，供 Repository 与插件共享。 |
 | `core-database` | Room 数据库、实体、DAO、映射。 | 课表/成绩是关系型查询；Widget 需要只读快速取当天课程。 |
@@ -125,10 +125,10 @@ graph TD
 | 1 | **冷启动** | WebView 首次初始化要加载内核、建渲染进程、跑 JS 引擎，冷启动通常 300ms～1s 起。本项目冷启动只构造一个 `by lazy` 的容器对象，首屏直接读 SQLite。两者不在一个量级。 |
 | 2 | **内存** | 一个 WebView 实例常驻 50～150MB（厂商内核差异大）。课表 App 的用户画像里有大量中低端机，"占内存"是会被卸载的。 |
 | 3 | **桌面插件根本用不了 WebView** | App Widget 运行在 launcher 进程的 RemoteViews 沙箱里，**不可能**塞 WebView。如果主体是 WebView，桌面插件就只能重写一套原生实现，反而变成两份 UI。 |
-| 4 | **离线** | 小程序依赖网络加载页面壳；原生 App 首屏直接读 Room，教务系统维护、图书馆地下没信号时依然可用。 |
+| 4 | **离线** | 页面壳依赖网络加载；原生 App 首屏直接读 Room，教务系统维护、图书馆地下没信号时依然可用。 |
 
 被否决的替代方案：
-- **WebView + H5 复用旧代码**：能最快上线，但上述四条全部命中，等于没重写。
+- **WebView + H5 复用已有页面**：能最快上线，但上述四条全部命中，等于没重写。
 - **Flutter / React Native**：仍要打包一个运行时，冷启动与内存介于原生与 WebView 之间；
   且桌面插件同样要写原生侧。
 
@@ -161,18 +161,18 @@ graph TD
 
 ## 5. 核心决策三：为什么直连学校，不做自己的后端
 
-旧项目是 `uni-app 前端 → 自建 Java 后端 → 学校接口`。本项目**刻意不复用那个后端**：
+本项目**刻意不做自建后端**，客户端直连学校接口：
 
 | 理由 | 说明 |
 |---|---|
-| **不需要 `GDUTDAYS_SECRET`** | 旧后端要求客户端带一个共享密钥，本质是"防止接口被白嫖"，而这个 App 只有用户自己用，没有这个需求。 |
-| **不依赖第三方服务器** | 旧后端的 `api.cerbur.top` 是个人服务器，随时可能挂；一旦挂了，全部用户不可用。本项目没有这个单点。 |
+| **不需要共享密钥** | 自建后端必然要"防止接口被白嫖"（如共享密钥），而这个 App 只有用户自己用，没有这个需求。 |
+| **不依赖第三方服务器** | 自建后端是单点，一旦挂了，全部用户不可用。本项目没有这个单点。 |
 | **少一跳** | 每个请求少一次网络往返，登录链路上的收益尤其明显。 |
-| **cookie 不出本机** | 旧方案要把用户的会话 cookie 上传到第三方后端才能代抓。本项目 cookie 只存在于 `AndroidKeyStore` 加密的本地文件里，**从不上传**。 |
+| **cookie 不出本机** | 走后端代抓就得把用户会话 cookie 上传。本项目 cookie 只存在于 `AndroidKeyStore` 加密的本地文件里，**从不上传**。 |
 
 代价与对策：
 - 协议解析、加密、HTML 解析全部搬到端上 → 集中在 `data-gdut`，做成纯 JVM 可测（见下节）。
-- 没有服务端兜底 → 用 Room 做离线缓存，同步失败**不清空已有数据**（见 [数据模型](./02-data-model.md)）。
+- 没有服务端兜底 → 用 Room 做离线缓存，同步失败**不清空已有数据**（见 [数据模型](../subsystems/data-model.md)）。
 
 ---
 
@@ -280,7 +280,7 @@ override fun onCreate() {
 派生实例共享连接池与线程池，因此廉价，**不需要也不应该手动关闭**。
 
 `ScheduleUiState` 的所有派生字段（`grid` / `todayBlocks` / `colorAssignment` / `calendar`）
-在 Repository 里算好，ViewModel 一行计算都不做。理由见 [UI 规格](./03-ui-spec.md)：
+在 Repository 里算好，ViewModel 一行计算都不做。理由见 [UI 规格](../subsystems/ui.md)：
 放进 ViewModel 会让 Widget 需要复制逻辑，还会拖慢旋转屏幕后的重建。
 
 ---
@@ -314,8 +314,7 @@ WorkManager，而 `syncScheduler` 只在真正要排程时才被访问，所以�
   或 CI secret 里配置 `GDUTDAY_STORE_FILE` / `GDUTDAY_STORE_PASSWORD` /
   `GDUTDAY_KEY_ALIAS` / `GDUTDAY_KEY_PASSWORD`，再在 `app/build.gradle.kts` 里读取。
 - `*.keystore` 已被 `.gitignore` 忽略；`!debug.keystore` 是唯一例外。
-
-⚠ **当前 release 签名尚未配置**，是待办项（见 [任务清单](./05-agent-task-list.md)）。
+- 四个属性任一缺失时 `signingConfig` 保持空，`assembleRelease` 产出 unsigned apk。
 
 ### R8 / 包体积
 
@@ -341,9 +340,8 @@ release {
 
 ⚠ `widget` 模块通过 `data-repository` 里的 `AppContainerHolder` 静态 holder 取 `AppContainer`，
 `GdutDayApplication.onCreate` 调用 `install()`，widget 直接读 `get()`。零反射，R8 安全。
-（之前曾用反射按返回类型匹配，已替换；详见 [任务清单 T1.3](./05-agent-task-list.md)。）
 因此即使类名和方法名被重命名，类型身份依然一致，理论上不需要 keep 规则 ——
-但这一条**从未在 release 包上验证过**，见 [任务清单](./05-agent-task-list.md)。
+但这一条**从未在 release 包上验证过**，见 [任务清单](../guides/agent-task-list.md)。
 
 ### versionCode / versionName
 
@@ -366,7 +364,7 @@ defaultConfig {
 `core-database` 用 `room.schemaLocation = $projectDir/schemas` 导出 schema JSON。
 **schema JSON 必须提交进仓库**，它是写 `MigrationTest` 的唯一依据。
 发布前必须把 `fallbackToDestructiveMigration` 从 release 移除，详见
-[数据模型 · 迁移策略](./02-data-model.md)。
+[数据模型 · 迁移策略](../subsystems/data-model.md)。
 
 ### 其他发布前检查
 

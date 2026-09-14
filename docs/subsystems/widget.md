@@ -6,12 +6,11 @@ alwaysApply: false
 ---
 
 
-# 04 · 桌面插件规格
+# 桌面插件规格
 
 覆盖两个 Glance 插件（`widget` 模块）、数据驱动方式、刷新策略与 Glance 的实际限制。
 
-相关文档：[架构](./00-architecture.md) · [UI 规格](./03-ui-spec.md) ·
-[任务清单](./05-agent-task-list.md)
+相关文档：[架构](../architecture/architecture.md) · [UI 规格](./ui.md)
 
 ---
 
@@ -35,8 +34,7 @@ App Widget 运行在**主 App 进程**（没有声明 `android:process`），所
 插件本身也是低频更新（一天几次），完全可接受。
 
 > ⚠ 因为 `app` 依赖 `widget`，`widget` 不能反向引用 `app`（会形成 Gradle 项目环）。
-> 所以插件通过 `data-repository` 的 `AppContainerHolder` 静态 holder 取 `AppContainer`（`WidgetContainer.kt`），
-> 详见 [任务清单](./05-agent-task-list.md) 的 R8 风险项。
+> 所以插件通过 `data-repository` 的 `AppContainerHolder` 静态 holder 取 `AppContainer`（`WidgetContainer.kt`）。
 
 ---
 
@@ -294,13 +292,8 @@ Worker 失败时（数据库瞬时锁、进程被杀）先按"今天已无课"�
 
 ## 8. 已知待办
 
-- ~~**`WidgetContainer` 用反射取容器**（R8 风险），建议改为 `data-repository` 里的静态 holder。~~
-  **已修复**：改为 `AppContainerHolder`，零反射。
-- ~~**同步完成后调用 `WidgetUpdateManager.updateAll()` 的接线未完成**~~
-  **已修复**：通过 `SyncListeners` 回调 + `GdutDayApplication.onCreate` 注册接线。
-  目前只能靠跨天任务或用户手动点刷新，同步出的新课表不会立刻反映到桌面。
-- `NextClassWidget` **没有显式设置 `sizeMode`**（默认 `Single`），
-  但它只有一行、不承诺拉伸显示更多，所以可接受；若要支持更高尺寸需补上。
 - 所有 Glance 渲染行为**都没有在真机/Robolectric 上验证过**（无 androidTest）。
+- `NextClassWidget` 未显式设置 `sizeMode`（默认 `Single`），
+  但它只有一行、不承诺拉伸显示更多，所以可接受；若要支持更高尺寸需补上。
 
-详见 [任务清单](./05-agent-task-list.md)。
+其余开放项见 `temp/agent-task-list-open.md`。

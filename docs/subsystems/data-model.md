@@ -6,12 +6,12 @@ alwaysApply: false
 ---
 
 
-# 02 · 数据模型
+# 数据模型
 
 覆盖 `core-model`（领域模型）、`core-database`（Room 实体/DAO/映射）、
 `core-datastore`（偏好与会话）、以及 `data-repository` 里的开学日期解析与配色持久化。
 
-相关文档：[架构](./00-architecture.md) · [协议](./01-gdut-protocol.md) · [UI 规格](./03-ui-spec.md)
+相关文档：[架构](../architecture/architecture.md) · [协议](../reference/spec/gdut-protocol.md) · [UI 规格](./ui.md)
 
 ---
 
@@ -147,13 +147,8 @@ alwaysApply: false
 **只有一行（`id = 1`）。** Room 的 `@Query` 不支持 Kotlin 字符串模板，
 所以 SQL 里只能字面量写 `1` 而无法引用 `SyncStateEntity.SINGLETON_ID`。
 
-> ⚠ **文档与代码不一致**：`Daos.kt` 的 KDoc 声称两者的不一致由 `SyncStateDaoTest`
-> 盯着，但仓库里没有这个测试。
-
 - 成绩同步和课表同步**共用同一张表**：两者都只有一个"上次刷新时间"，分开没有可见收益。
   成绩同步只更新时间戳与成功标志，**不碰** `last_term_code` / `last_schedule_source`。
-- 旧小程序用 `countTimes[20]` 数组记"本周是否已刷"，那个方案在跨学期时会失效；
-  这里直接记时间戳。
 
 ---
 
@@ -238,7 +233,7 @@ return SemesterStartResult(TermCalendar.guessSemesterStart(term.year, term.semes
    `weekOneMonday = pkrq - (zc-1) 周 - (xq-1) 天`，多行给出多个候选，取**众数**抗单条脏数据。
    这是最可靠的自动来源。
 3. **内置已知表** `KnownSemesterStarts`：当课表走 `xsAllKbList`（不返回 `pkrq`）时反推不可用。
-   **这张表目前只有一条记录**（`2025-2026 第一学期 = 2025-09-01`），每学期需要人工补一行。
+   这张表收录条目很少（见 `KnownSemesterStarts`），每学期需要人工补一行。
 4. **瞎猜**：第一学期猜 9 月第一个周一、第二学期猜 2 月下旬，误差可达两周。
    这条分支必须返回 `GUESSED` 让 UI 提示校准。
 
@@ -249,13 +244,12 @@ return SemesterStartResult(TermCalendar.guessSemesterStart(term.year, term.semes
 
 ### 第 1 周对齐到周一
 
-`TermCalendar.weekOneMonday = semesterStart.previousOrSame(MONDAY)`。
-旧实现直接用 `(now - termStart) / 7天` 计算周数，如果开学日期不是周一，
-"第 1 周"就会从周三开始，导致周三之前的课显示成上一周。
+`TermCalendar.weekOneMonday = semesterStart.previousOrSame(MONDAY)`：如果开学日期不是周一，
+"第 1 周"必须对齐到周一，否则周三之前的课会显示成上一周。
 
 `weekOf` 必须用 `Math.floorDiv`：Kotlin/Java 整数除法向零截断，
 开学前一天（`days = -1`）会算成 `-1/7 = 0`，于是"开学前那个周日"被判定为第 1 周。
-`floorDiv(-1, 7) = -1`，+1 得 0 才是对的。这个 bug 是单元测试抓出来的。
+`floorDiv(-1, 7) = -1`，+1 得 0 才是对的。
 
 ### 维护方式
 
@@ -274,11 +268,9 @@ return SemesterStartResult(TermCalendar.guessSemesterStart(term.year, term.semes
 
 ### 为什么按课程名排序而不是遍历顺序
 
-旧实现是 `courseBlockColorList[mark++ % length]`，`mark` 随 `classData` 数组的
-**遍历顺序**递增。数组顺序来自服务端返回顺序，一旦教务系统调整排序，
+按遍历顺序递增分配的话，数组顺序来自服务端返回顺序，一旦教务系统调整排序，
 或用户手动加了一门课插在中间，**全部课程的颜色都会重新洗牌**。
-
-本项目改为把去重后的课程名**排序**后按位次分配，结果对服务端返回顺序完全免疫。
+把去重后的课程名**排序**后按位次分配，结果对服务端返回顺序完全免疫。
 
 ### 为什么要把结果存下来
 
@@ -296,22 +288,15 @@ return SemesterStartResult(TermCalendar.guessSemesterStart(term.year, term.semes
 
 ### 内置调色板
 
-逐字抄自旧小程序 `staticData/colors.js` 的 `courseBlockColorListRGBA`，**顺序也保持一致**：
+调色板与旧版保持一致（11 色，顺序不变）：
 red, olive, green, hiwamoegi, cyan, grey, blue, pink, yellow, mauve, purple。
-这样从旧版迁移过来的用户看到的配色不会有突兀变化。
-
-`hiwamoegi`（若草色）是原作者留下的一个日语色名，保留以维持 key 稳定。
+`hiwamoegi`（若草色）是一个日语色名，保留以维持 key 稳定。
 `CourseColor.key` **一旦发布就不能改** —— 改了会让所有已保存的自定义配色失效。
 
-### 文档与代码不一致
+### `course.color_key` 与 `course_color` 表
 
-`Course.colorKey`（领域模型）与 `course_color` 表同时存在，且
-`ScheduleRepositoryImpl` 在同步时会把分配结果写进 `course.color_key` 列吗？
-
-> ⚠ **文档与代码不一致 3（同时是已知 bug）**：配色只写进了 `course_color` 表，
-> `course.color_key` 列**没有被回写**（见 [任务清单](./05-agent-task-list.md)）。
-> 当前 UI 走的是 `CourseColors.assign(courses, colorKeys)`，用的是 `course_color` 表，
-> 所以功能正常；但 `course.color_key` 列是"看起来该有值却没有"的死数据。
+同步时配色分配结果**同时**写进 `course_color` 表与 `course.color_key` 列；
+UI 走 `CourseColors.assign(courses, colorKeys)`，以 `course_color` 表为准。
 
 ---
 
@@ -406,11 +391,8 @@ if (destructiveMigrationFallback) {
 
 ### 6.2 记住密码（默认关闭）
 
-旧小程序把 `{ID, password}` 以**明文 JSON** 存在 `uni.storage` 里，
-并每周用这份明文密码自动重登。在 Android 上，root 设备、`adb backup`、
-很多"数据恢复"工具都能读到对应文件。
-
-本项目的立场：
+密码落盘等于把账号的最后一道防线放进文件系统（root 设备、`adb backup`、
+各种"数据恢复"工具都能读到），所以本项目的立场：
 
 - `rememberPassword` **默认 false**，勾选处要有风险说明；
 - 勾选后密码经 `KeystoreCipher` 加密落盘，硬件级密钥不出 TEE；

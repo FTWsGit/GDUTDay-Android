@@ -18,8 +18,7 @@ alwaysApply: false
 
 **本工具不会把密码或 cookie 值写进任何输出。** 详见 [第 4 节](#4-安全约定)。
 
-相关文档：[协议逆向](./01-gdut-protocol.md) · [测试策略](./06-testing-strategy.md) ·
-[任务清单](./05-agent-task-list.md)
+相关文档：[协议逆向](../reference/spec/gdut-protocol.md) · [测试策略](./testing-strategy.md)
 
 ---
 
@@ -27,7 +26,7 @@ alwaysApply: false
 
 ### 方式：环境变量 `secrets.properties`
 
-`secrets.properties` 已被 `.gitignore` 忽略（第 21 行），**永远不要提交它**。
+`secrets.properties` 已被 `.gitignore` 忽略，**永远不要提交它**。
 
 文件里面包含
 ```
@@ -124,7 +123,7 @@ RESULT: PASS
 | 现象 | 最可能的原因 | 下一步 |
 |---|---|---|
 | 打印"缺少凭据"，退出码 2 | 没设环境变量也没建 `secrets.properties` | 按 [第 1 节](#1-配置凭据) 配置 |
-| 学号长度不是 10 / 首位不是 3 | 输错，或确实是研究生/教师账号 | 研究生/教师当前不支持，见 [协议 §7](./01-gdut-protocol.md) |
+| 学号长度不是 10 / 首位不是 3 | 输错，或确实是研究生/教师账号 | 研究生/教师当前不支持，见 [协议 §7](../reference/spec/gdut-protocol.md) |
 | 密码里有 `#` / `=` / 反斜杠，`secrets.properties` 读出来不对 | Properties 规则 | 改用环境变量 |
 
 ### 5.2 网络与 TLS
@@ -143,7 +142,7 @@ RESULT: PASS
 | `Parse`，detail 里"有 N 个表单但没有 #pwdFromId" | 学校改版 | 用 fixture 对比 `authserver_login_page*.real.html`；改 `AuthLoginPageParser` |
 | salt 为空 / `hasUsableSalt=false` | 登录页结构变了 | 抓新登录页存成 `.real` fixture，重新逆向 |
 | `service` 解析为 `<无>` | 入口没走 SSO，或 `extractInlineVar` 没处理新的右值形态 | 看 `[1/9]` 跳转链是否带 `service=`；对比实测的三种形态 |
-| `[5/9]` 登录后拿不到 jxfw 会话，但看起来"成功" | POST 漏了 `?service=` | 看诊断摘要里的"提交地址"是否带 `service`；见 [协议 §1.5](./01-gdut-protocol.md) |
+| `[5/9]` 登录后拿不到 jxfw 会话，但看起来"成功" | POST 漏了 `?service=` | 看诊断摘要里的"提交地址"是否带 `service`；见 [协议 §1.5](../reference/spec/gdut-protocol.md) |
 
 ### 5.4 凭据 / 风控 / 身份
 
@@ -161,7 +160,7 @@ RESULT: PASS
 | 现象 | 最可能的原因 | 下一步 |
 |---|---|---|
 | `BadCaptcha: 验证码不正确` | 验证码填错，或**没把取图时的 JSESSIONID 回传** | 确认重新取一张再填；实现上 `captchaToken` 必须原样回传 |
-| `BadCredentials`，但密码确实正确 | **`pwd` 可能需要加密**（本项目按旧后端发明文，标注为未验证） | 浏览器抓一次真实直登请求看 `pwd` 形态；若加密，很可能复用 `AuthServerCrypto.encryptPassword`。见 [任务 T2.3](./05-agent-task-list.md) |
+| `BadCredentials`，但密码确实正确 | **`pwd` 可能需要加密**（本项目按旧后端发明文，标注为未验证） | 浏览器抓一次真实直登请求看 `pwd` 形态；若加密，很可能复用 `AuthServerCrypto.encryptPassword`（开放项见 `temp/agent-task-list-open.md`） |
 | `Http 405` | 用了 GET 调 `/new/login` | 它只接受 POST |
 
 ### 5.6 jxfw 业务接口
@@ -190,8 +189,8 @@ RESULT: PASS
 
 除了"确认我的账号能不能登录"，它在以下场景最有价值：
 
-1. **学校改接口后的第一诊断**：定位断在哪一步，见 [测试策略 §7 回归流程](./06-testing-strategy.md)。
+1. **学校改接口后的第一诊断**：定位断在哪一步，见 [测试策略 · 学校改接口时的回归流程](./testing-strategy.md)。
 2. **替换合成 fixture**：把 `[7/9]` 看到的真实字段 dump 出来，替换
-   `data-gdut/src/test/resources/fixtures/` 里手工合成的 jxfw fixture（[任务 T2.2](./05-agent-task-list.md)）。
-3. **确认 `xsAllKbList` 是否仍存活**（[任务 T2.4](./05-agent-task-list.md)）。
-4. **确认直登 `pwd` 是否需要加密**（[任务 T2.3](./05-agent-task-list.md)）。
+   `data-gdut/src/test/resources/fixtures/` 里手工合成的 jxfw fixture（开放项见 `temp/agent-task-list-open.md`）。
+3. **确认 `xsAllKbList` 是否仍存活**（开放项见 `temp/agent-task-list-open.md`）。
+4. **确认直登 `pwd` 是否需要加密**（开放项见 `temp/agent-task-list-open.md`）。

@@ -6,7 +6,7 @@ alwaysApply: false
 ---
 
 
-# 01 · 广工协议逆向报告
+# 广工协议逆向报告
 
 > 本文是 `data-gdut` 模块全部 KDoc 的汇总与展开，是最重要的一份文档。
 > 代码实现以源码为准；本文解释**为什么**这么实现，并明确标注每条结论的验证状态。
@@ -14,13 +14,12 @@ alwaysApply: false
 **验证状态的三种标记**，全文统一使用：
 
 - **实测 2026-09-10** —— 在 `authserver.gdut.edu.cn` / `jxfw.gdut.edu.cn` 上真实抓包或请求得到的结论。
-  相关原始文件见 [`data-gdut/src/test/resources/fixtures/`](../data-gdut/src/test/resources/fixtures/)（`.real` 后缀）。
-- **推断自旧代码（未联网验证）** —— 来自 `gdutday-wechat` / `gdutday-wechat3.0-java` /
-  `GDUTAuth` / `GDUT.ClassSchedule` 的实现，可信但本轮未复验。
+  相关原始文件见 [`data-gdut/src/test/resources/fixtures/`](../../data-gdut/src/test/resources/fixtures/)（`.real` 后缀）。
+- **推断自旧代码（未联网验证）** —— 来自早期实现（F# / Java），可信但本轮未复验。
 - **完全未验证** —— 无任何来源，需要真实账号或真实抓包才能确认。
 
-相关文档：[架构](./00-architecture.md) · [登录验证工具](./07-verify-login.md) ·
-[测试策略](./06-testing-strategy.md)
+相关文档：[架构](../architecture/architecture.md) · [登录验证工具](../../guides/verify-login.md) ·
+[测试策略](../../guides/testing-strategy.md)
 
 ---
 
@@ -32,12 +31,9 @@ alwaysApply: false
 | `jxfw.gdut.edu.cn` | 本科教务系统 | 课表 / 考试 / 成绩 / 学期列表 |
 | `yjsxt.gdut.edu.cn` | 研究生系统（ehall） | **不实现**，仅记录 |
 
-所有硬编码 URL 集中在 [`GdutEndpoints.kt`](../data-gdut/src/main/kotlin/com/gdutday/data/gdut/GdutEndpoints.kt)。
-运行时代码不引用它，而是引用 [`GdutHosts.kt`](../data-gdut/src/main/kotlin/com/gdutday/data/gdut/GdutHosts.kt) ——
+所有硬编码 URL 集中在 [`GdutEndpoints.kt`](../../data-gdut/src/main/kotlin/com/gdutday/data/gdut/GdutEndpoints.kt)。
+运行时代码不引用它，而是引用 [`GdutHosts.kt`](../../data-gdut/src/main/kotlin/com/gdutday/data/gdut/GdutHosts.kt) ——
 后者默认值取自 `GdutEndpoints`，测试时指向 MockWebServer。
-
-> ⚠ **文档与代码不一致 1**：`GdutHosts` 的 KDoc 说"两者的默认值由 `GdutHostsTest` 交叉校验"，
-> 但仓库里**没有** `GdutHostsTest`。这条交叉校验目前并不存在。
 
 ---
 
@@ -65,11 +61,11 @@ alwaysApply: false
 ⑨ GET  /personalInfo/common/getUserConf → 正则抠学号 → 首位数字判定身份
 ```
 
-实现位于 [`AuthServerClient.login()`](../data-gdut/src/main/kotlin/com/gdutday/data/gdut/auth/AuthServerClient.kt)。
+实现位于 [`AuthServerClient.login()`](../../data-gdut/src/main/kotlin/com/gdutday/data/gdut/auth/AuthServerClient.kt)。
 
-`AuthServerConfig.entryUrl` 默认为 null → 走上面这条"浏览器路径"。旧 Java 后端走的是
-**两段式**：直接 `GET /authserver/login?type=userNameLogin`（不带 service），认证成功后再用
-空 body POST 一次带 service 的地址触发 SSO。两条路都能用，本项目选浏览器路径：
+`AuthServerConfig.entryUrl` 默认为 null → 走上面这条"浏览器路径"。
+另一条路是**两段式**：直接 `GET /authserver/login?type=userNameLogin`（不带 service），
+认证成功后再用空 body POST 一次带 service 的地址触发 SSO。两条路都能用，本项目选浏览器路径：
 只需一次认证、跳转链更短、更接近真实用户行为。
 
 ### 1.2 登录页的真实结构（实测 2026-09-10）
@@ -115,10 +111,6 @@ alwaysApply: false
 这是最容易踩的细节。浏览器提交时它会变成请求体里一个 `=<salt>` 的空名键值对。
 本项目不需要特判：jsoup 的 `attr("name")` 对缺失属性返回**空字符串**（不是 null），
 于是它自然成为空名字段。
-
-- 旧 Java 后端为此专门写了 `tempMap.put("", pwdEncryptSalt)`；
-- F# 版写了 `| null, v -> ("", v.Value)`；
-- 两者殊途同归，本实现直接取 `attr("name")` 即可。
 
 `FormFields`（自己实现的表单编码器）存在的**唯一直接原因**就是这个空名字段：
 OkHttp 的 `FormBody.Builder` 理论上也接受空 name，但那是未文档化行为，
@@ -190,7 +182,7 @@ CAS 在密码错误时**不返回 4xx**，而是 **200 + 重新渲染的登录�
 
 ### 1.8 重定向跟随
 
-手写 [`RedirectFollower`](../data-gdut/src/main/kotlin/com/gdutday/data/gdut/http/RedirectFollower.kt)，
+手写 [`RedirectFollower`](../../data-gdut/src/main/kotlin/com/gdutday/data/gdut/http/RedirectFollower.kt)，
 **不用** OkHttp 内置的 `followRedirects(true)`，因为登录判定完全依赖观察每一跳。
 
 行为：
@@ -200,9 +192,8 @@ CAS 在密码错误时**不返回 4xx**，而是 **200 + 重新渲染的登录�
 - **URL 重复即认定循环并停止**，重新发一次请求拿到可用响应，`loopDetected = true`；
 - 超出 `maxHops`（默认 10）**明确抛 `TooManyRedirects`** 并附完整链路。
 
-旧 Java 后端 `LoginServiceImpl.debugRedirect()` 的注释写着"最后会无限重定向，因为 nginx 一直永远返回 302"，
-它的处置是硬编码 `if (maxTime > 3) break` —— 静默跳出、不报错，
-于是登录失败和登录成功走到了同一条后续代码路径。本实现刻意反其道而行。
+重定向循环绝不能静默跳出（硬编码跳数上限后 break）：那会让登录失败和登录成功
+走到同一条后续代码路径，错误被掩盖。本实现明确抛错。
 
 跨主机的跳转不携带上一跳的自定义头，避免把 authserver 的头泄给 jxfw；
 每跳按浏览器规则重算 `sec-fetch-site`（同源 / 同站 / 跨站）。
@@ -228,7 +219,7 @@ CAS 在密码错误时**不返回 4xx**，而是 **200 + 重新渲染的登录�
 - `2` → 研究生
 - `0` → 教师
 
-本实现的正则比旧后端的 `<option value='(\d+)' selected>` 宽松：
+本实现的正则比较宽松：
 引号可选、属性间允许任意空白、要求至少 6 位数字（避免把院系代码误认成学号）。
 拿不到时回退到用户输入的学号。
 
@@ -285,25 +276,14 @@ function randomString(n) {
 我们不复刻 —— 加密失败一律抛 `GdutException.Parse`，绝不发送明文。
 但 `encryptAES` 的 `f ? ... : n`（salt 为空时返回明文）是**有意的设计**（对应服务端未启用密码加密的部署形态），保留。
 
-### 2.3 ⚠ 旧实现的认知错误：把随机值当常量
+### 2.3 ⚠ 随机值不是常量
 
-旧 Java 后端 `LiUtils.cbcEncrypt` 和 F# 的 `GDUT.Auth.EhallCrypto.encrypt` 都把
-**64 字节前缀和 16 字节 IV 硬编码成了常量**：
+**64 字节前缀和 16 字节 IV 都是每次随机生成的**，不是协议常量。
+把某次抓包看到的随机值硬编码成常量是早期实现的真实踩坑：
 
-```java
-String iv = "Jisniwqjwqjwqjww";   // 16 字节，硬编码
-String s = "J69IVxcXqvqNhvk1J69IVxcXqvqNhvk1J69IVxcXqvqNhvk1J69IVxcXqvqNhvk1" + plaintext;  // 16×4 = 64 字节前缀
-```
-
-这两个字符串是原作者**某一次抓包看到的随机值**，被误当成了协议常量。
-
-### 2.4 为什么错了还能用
-
-**CBC 解密时只有第 1 个明文块依赖 IV，从第 2 块起只依赖密文块本身。**
-
-服务端解密后丢掉前 64 字节（正好 4 个块）的垃圾前缀，剩下的真实密码与 IV 取值无关。
-所以硬编码任何 IV 都能碰巧成功 —— 但这在密文上留下了**固定指纹**
-（同一个密码每次登录产生的密文完全一样），对风控不友好，也是明显的实现缺陷。
+- 硬编码 IV 能碰巧成功，是因为 CBC 解密只有第 1 个明文块依赖 IV，服务端解密后
+  会丢掉前 64 字节（4 个块）垃圾前缀，真实密码与 IV 无关；
+- 但固定前缀/IV 让同一个密码每次登录产生**完全相同的密文**，留下固定指纹，对风控不友好。
 
 本项目照浏览器原样每次生成随机前缀与随机 IV。
 `AuthServerCrypto.decryptStripPrefix(cipher, key, iv)` 允许传任意 IV 得到相同的去前缀结果，
@@ -316,7 +296,6 @@ String s = "J69IVxcXqvqNhvk1J69IVxcXqvqNhvk1J69IVxcXqvqNhvk1J69IVxcXqvqNhvk1" + 
 1. **黄金值测试**：用 OpenSSL 算出
    `AES-128-CBC(key="xaOfScaw6epvgypH", iv="Jisniwqjwqjwqjww", data=LEGACY_PREFIX + "mypassword123")`
    的 Base64，断言本方法输出一模一样 —— 证明 Kotlin 实现与浏览器 CryptoJS 等价。
-2. **复现旧后端行为**：传旧后端的硬编码参数，就能得到与旧后端完全相同的输出，便于对比。
 
 线上流程**不要**用这个方法，用 `encryptPassword`。
 
@@ -390,8 +369,7 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 
 ### 3.4 逃生通道：教务系统直登
 
-[`JxfwDirectLogin`](../data-gdut/src/main/kotlin/com/gdutday/data/gdut/jxfw/JxfwClient.kt)，即
-旧小程序 `login-edu.vue`（页面上写着"20级点这里:使用教务系统登录"）走的路径：
+[`JxfwDirectLogin`](../../data-gdut/src/main/kotlin/com/gdutday/data/gdut/jxfw/JxfwClient.kt)：
 
 ```text
 ① GET  https://jxfw.gdut.edu.cn/yzm?d=<毫秒时间戳>
@@ -414,7 +392,7 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 - 用错误验证码 POST → `{"code":-1,"data":null,"message":"验证码不正确"}`；
 - 验证码图片与 JSESSIONID 绑定：**必须把 ① 的 JSESSIONID 带到 ③**，否则永远提示"验证码不正确"。
 
-⚠ **未验证：`pwd` 是否需要加密**。旧 Java 后端 `LoginServiceImpl.jxfwLogin` 直接发明文，本项目沿用。
+⚠ **未验证：`pwd` 是否需要加密**。本项目按明文发送（沿用早期实现的约定）。
 如果验证脚本报"账号或密码错误"但密码确实正确，**第一个该怀疑的就是这里** ——
 需要在浏览器里抓一次真实直登请求，看 `pwd` 字段的形态。若发现它被加密，
 加密逻辑很可能复用 authserver 那套（`encrypt.js` 是全站共用的），可以直接调
@@ -432,7 +410,7 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 | 接口 | 方法 | 路径 | 关键参数 | Referer | 状态 |
 |---|---|---|---|---|---|
 | 会话探针 | GET | `/` | —— | `/` | 实测：未登录 302 到 authserver |
-| 学期列表 | GET | `/xsksap!ksapList.action` | —— | `/` | 推断（旧后端在用） |
+| 学期列表 | GET | `/xsksap!ksapList.action` | —— | `/` | 推断 |
 | 课表 A | GET | `/xsgrkbcx!xsAllKbList.action` | `xnxqdm` | **`/xsgrkbcx!getXsgrbkList.action`** | 推断 2022 F# |
 | 课表 B | POST | `/xsgrkbcx!getDataList.action` | `xnxqdm` `zc=""` `page` `rows` `sort=kxh` `order=asc` | `/` | 推断 2024 Java |
 | 考试 | POST | `/xsksap!getDataList.action` | `xnxqdm` `page=1` `rows=200` `sort=zc,xq,jcdm2` `order=asc` | `/` | 推断 |
@@ -440,7 +418,6 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 
 > ⚠ **两个 Referer 不是同一个**。课表 A 必须带
 > `Referer: https://jxfw.gdut.edu.cn/xsgrkbcx!getXsgrbkList.action`，
-> F# 源码 `GDUT.ClassSchedule/Library.fs` 里专门留了 `// TODO: 重要！需要记录`。
 > 其它接口用首页 `/` 即可。
 
 `JxfwClient.execute` 的错误归一顺序很重要：
@@ -453,18 +430,12 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 
 | 形式 | 例子 | 用在哪 |
 |---|---|---|
-| **短码** `YYYY + N` | `20251` | 页面 `<option>` 的显示、旧后端 DTO、本项目内部存储 |
+| **短码** `YYYY + N` | `20251` | 页面 `<option>` 的显示、本项目内部存储 |
 | **长码** `YYYY + NN`（= `xnxqdm`） | `202501` | jxfw **所有**接口的 `xnxqdm` 请求参数 |
 
-旧 Java 后端在两者之间来回换算，用的是 `(t / 10) * 100 + t % 10`（短→长）和
-`s.substring(0, s.length - 2) + s.last()`（长→短），可读性极差且无法处理学期号 ≥ 10 的情况。
-
-本项目改为**显式存 `(year, semester)` 两个字段**，两种编码都由计算属性派生：
-`Term.shortCode` / `Term.xnxqdm`。从此不存在"我手上这个字符串到底是哪种码"的问题。
-`Term.parse` 同时接受 5 位与 6 位字符串。
-
-> 历史 bug 的核心教训：把两种编码都当字符串传来传去，一定会在某个接口漏掉换算。
-> 类型化之后这类 bug 在编译期就消失了。
+两种编码混用是历史 bug 的重灾区。本项目**显式存 `(year, semester)` 两个字段**，
+两种编码都由计算属性派生：`Term.shortCode` / `Term.xnxqdm`，不存在"我手上这个字符串
+到底是哪种码"的问题。`Term.parse` 同时接受 5 位与 6 位字符串。
 
 ### 4.3 两个课表接口的对比与自动回退
 
@@ -516,19 +487,19 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 
 | 字段 | 含义 | 验证状态 |
 |---|---|---|
-| `kcmc` | 课程名称 | 旧 Java 在用 |
-| `jxcdmc` | 教学场地名称 | 旧 Java 在用 |
-| `teaxms` | 授课教师 | 旧 Java 在用 |
-| `xq` | 星期 | 旧 Java 在用 |
-| `zc` | 周次，**单个整数** | 旧 Java 直接当 map key |
-| `jcdm` | 节次，**两位拼接** `"0102"` | 旧 Java 在用 |
-| `sknrjj` | 授课内容简介 | 旧 Java 在用 |
+| `kcmc` | 课程名称 | 早期实现在用 |
+| `jxcdmc` | 教学场地名称 | 早期实现在用 |
+| `teaxms` | 授课教师 | 早期实现在用 |
+| `xq` | 星期 | 早期实现在用 |
+| `zc` | 周次，**单个整数** | 早期实现直接当 map key |
+| `jcdm` | 节次，**两位拼接** `"0102"` | 早期实现在用 |
+| `sknrjj` | 授课内容简介 | 早期实现在用 |
 | `kcbh` | 课程编号 | ⚠ 未验证该接口是否返回 |
 | `jxbmc` | 教学班名称 | ⚠ 未验证 |
 | `pkrq` | 上课日期 | ⚠ 未验证。**若存在**是反推开学日期的关键 |
 
-> ⚠ **分页 bug**：旧 Java 后端固定 `rows=300` 且不翻页。一学期 20 周 × 每周 20 行 = 400 行，
-> 课多的学生会被截断而**静默丢失后半学期的课**。本实现读 `total` 并循环翻页
+> ⚠ **分页陷阱**：`rows` 固定上限且不翻页时，一学期 20 周 × 每周 20 行 = 400 行，
+> 课多的学生会被截断而**静默丢失后半学期的课**。实现必须读 `total` 并循环翻页
 > （`rowsPerPage=200`，`maxPages=20`），并在取不全时记 warning。
 
 #### `jcdm` 的两位拼接格式
@@ -537,11 +508,10 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 必须按**连续段切分**：`{1,2,5,6}` 在课表网格上是两个不相邻的色块（上午两节 + 下午两节），
 不能画成一个从第 1 节拉到第 6 节的矩形 —— 那会盖住中午和下午前两节。
 
-旧 Java 后端没做切分（直接把 `"0102"` 逐对转成 `"1,2"` 字符串塞给前端），
-遇到非连堂课就会画出跨越午休的错误色块。切分逻辑在 `SectionRunSplitter`。
-
 ⚠ `"12"` 这种串在两种格式下含义完全不同（第 12 节 vs 第 1、2 节），
 所以 `RawScheduleRow.sectionsPaired` 显式标注格式，**不靠 `parseAuto` 猜**。
+不按连续段切分、直接逐对展开的话，非连堂课会画出跨越午休的错误色块。
+切分逻辑在 `SectionRunSplitter`。
 
 #### 节次切分与聚合
 
@@ -557,13 +527,13 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 
 #### `JsonExtractor` 为什么不用正则
 
-旧 F# 库用的是 `(?<=var kbxx = )\[(.*?)\}];`。这个正则有三个问题：
+用正则匹配 `var kbxx = [...]` 有三个坑：
 
 1. 要求数组**必须以 `}]` 结尾**，最后一个元素若不是对象就匹配不到；
 2. 懒惰匹配 `.*?` 遇到嵌套的 `}];` 会提前截断；
 3. 要求 `var kbxx = ` 后的空格数、分号位置完全固定。
 
-本实现改用**括号配对扫描**：从标记后第一个 `[`/`{` 开始按深度计数走到配对闭合符，
+实现改用**括号配对扫描**：从标记后第一个 `[`/`{` 开始按深度计数走到配对闭合符，
 并正确跳过字符串字面量与转义字符。嵌套多深、结尾是什么类型都不受影响。
 
 ### 4.4 考试安排
@@ -579,14 +549,14 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 | `kslbmc` | 考试类别名称 |
 | `ksaplxmc` | 考试安排类型名称 |
 
-`ksrq` 的格式未在本次实测中确认，旧后端直接透传字符串。本实现用
+`ksrq` 的格式未在本次实测中确认。实现用
 `CourseNormalizer.parseDateLenient` 兼容多种写法。
 
 `kssj` 的分隔符是**两个减号**，不是普通 `-`，也不是 `~`。`Exam.parseTimeRange` 容错
 `--`/`~`/`—`/`-`。
 
-**旧实现的一个 bug**：旧 Java 后端用 `idMap.get(kcbh)` 把考试关联到"该课程在课表里的序号"，
-但 `idMap` 是用**考试列表自己的下标**填的，跟课表毫无关系。本项目改用 `courseCode` 做关联键。
+**关联陷阱**：考试与课程要用 `courseCode` 做关联键，**不能用行下标** ——
+考试列表自己的下标与课表毫无关系，按下标关联必然错位。
 
 ### 4.5 成绩与「劳动教育」bug
 
@@ -607,18 +577,9 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 #### ⚠ 劳动教育 bug（必须处理，否则绩点算错）
 
 以 `xnxqdm=""`（查询全部学期）请求时，**「劳动教育」这门课的 `zcj` 与 `cjjd` 会返回空**，
-但带上该行自己的 `xnxqdm` 再查一次就有值。
-
-旧 Java 后端为此写过两轮修复，注释原文：
-
-```text
-//20240814 修复劳动教育成绩显示问题，问题原因 xnxqdm 为空时，劳动教育不显示成绩，是教务处的问题
-//但我们还是抹平教务处的问题。。。
-//20250630 修复劳动教育成绩错误问题，原因：
-// 第一次修复时，没有设置当前学期的 xnxqdm，而且把所有当前学期的其他课的成绩都 set 到劳动教育的结果对象里了
-```
-
-第二次修复说明**第一版写错了**：忘了设 `xnxqdm`，导致遍历到了同学期其它课的成绩。
+但带上该行自己的 `xnxqdm` 再查一次就有值（教务处的问题，客户端兜底）。
+兜底时易犯的错：重查时**必须设当前学期的 `xnxqdm`**，否则会把同学期其它课的成绩
+错误地合并进劳动教育的结果里。
 
 本项目的兜底方案：
 - `JxfwGradeParser.parse` 只负责**标记**哪些行需要兜底（`Outcome.needsLaborEducationPatch`），
@@ -626,14 +587,14 @@ GET /authserver/checkNeedCaptcha.htl?username=<学号>&_=<毫秒时间戳>
 - `JxfwClient.fetchGrades` 对每个受影响的学期，用 `Term.parse(termCode)` 得到的学期号
   **重查一次**，再 `mergeLaborEducationPatch` 合并；
 - 合并时只覆盖「劳动教育」这一门课的 `scoreText`/`score`/`gpa`，
-  学分与课程属性以主查询为准 —— 这正是第二次修复的要点。
+  学分与课程属性以主查询为准；
 - 只接受 `kcmc == "劳动教育"` 的那一行。
 
 `Grade.countsTowardsGpa` 的规则：数值成绩 ≥ 60 且学分 > 0 才计入。
 等级制成绩（优秀/良好/合格等）不参与绩点计算。
 
 成绩按 `xnxqmc`（中文名）分组而不是 `xnxqdm`：实测部分行的 `xnxqdm` 会缺失
-（这正是劳动教育 bug 的根源之一），但 `xnxqmc` 一直有值。旧后端也是按 `xnxqmc` 分组的。
+（这正是劳动教育 bug 的根源之一），但 `xnxqmc` 一直有值。
 
 ### 4.6 校区探测
 
@@ -768,36 +729,25 @@ rm -rf temp/session/
 
 **完全本地生成，不需要任何网络请求。**
 
-旧 Java 后端 `GdutDayServiceImpl.getLibQr` → `LiUtils.makeQRCode`：
+QR 码编码的内容就是学号本身，纠错等级 H，静默区 1 模块：
 
-```java
+```kotlin
+// LibraryQr：zxing 生成
 hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H);
 hints.put(EncodeHintType.CHARACTER_SET, "utf-8");
 hints.put(EncodeHintType.MARGIN, 1);
-new MultiFormatWriter().encode(stuId, BarcodeFormat.QR_CODE, width, height, hints);
+MultiFormatWriter().encode(stuId, BarcodeFormat.QR_CODE, width, height, hints)
 ```
 
-即：**QR 码编码的内容就是学号本身**，纠错等级 H，静默区 1 模块。
-服务端只是把它渲染成 PNG 再转 Base64 传回来 —— 一次纯粹浪费流量的往返。
-
-本项目在端上用 zxing 生成（`LibraryQr`），收益：
-
-- **离线可用**：图书馆地下书库经常没信号；
-- **秒开**：不用等网络往返，也不用等 Base64 解码；
-- **省流量**：一张 PNG 几 KB，一天刷几次也是白花；
-- **不依赖第三方服务器**：旧后端的 `api.cerbur.top` 是个人服务器，随时可能挂。
+本地生成的收益：离线可用（图书馆地下书库经常没信号）、秒开、省流量、不依赖任何服务器。
 
 > 已接入工具箱页 UI（`feature-toolbox/ToolboxScreen.kt`），但真机验证尚未完成。
 
-关于 ARGB 像素序：旧后端 `BufferedImage.TYPE_INT_RGB` + `setRGB(x, y, 0xFF000000 / 0xFFFFFFFF)`，
-Android 的 `Bitmap.Config.ARGB_8888` 用的是同一个 32 位打包格式，输出可直接灌进
-`Bitmap.createBitmap` + `setPixels`，无需通道转换。
+关于 ARGB 像素序：zxing 输出的 32 位打包格式与 Android `Bitmap.Config.ARGB_8888`
+一致，输出可直接灌进 `Bitmap.createBitmap` + `setPixels`，无需通道转换。
 
-> ⚠ ~~**文档与代码不一致 2**：`LibraryRepositoryImpl.qrModuleCount` 把模块数硬编码成 `21`~~
-> **已修复**：改为 `LibraryQr.moduleCount(content)` 实算（用 `Encoder.encode` 只做 RS 编码不生成图像）。
-> （理由写在 KDoc 里：本科生学号恒 10 位，H 级 version 1 = 21×21）。
-> 这个理由对当前学号成立，但它是**硬编码**，一旦支持非本科生或二维码内容变化就会错。
-> 已列入 [任务清单](./05-agent-task-list.md)。
+模块数不硬编码：用 `LibraryQr.moduleCount(content)` 实算
+（`Encoder.encode` 只做 RS 编码不生成图像，微秒级）。
 
 ---
 
@@ -883,7 +833,7 @@ Android 的 `Bitmap.Config.ARGB_8888` 用的是同一个 32 位打包格式，�
 | 学校接口的稳定性/改版频率 | —— |
 
 > **合成 fixture 不能证明字段名真的存在。**
-> 用 [登录验证工具](./07-verify-login.md) 跑一次真实账号，把 dump 出来的响应替换掉合成 fixture，
+> 用 [登录验证工具](../../guides/verify-login.md) 跑一次真实账号，把 dump 出来的响应替换掉合成 fixture，
 > 才算真正闭环。这也是该脚本存在的主要目的。
 
 ---
@@ -908,17 +858,3 @@ Android 的 `Bitmap.Config.ARGB_8888` 用的是同一个 32 位打包格式，�
 
 `Course.parseWeeks` 已经能解析 `"1-16单周"` / `"1-11双周"` 这类文本，
 算是为研究生做的少量铺垫。
-
----
-
-## 8. 文档与代码不一致汇总
-
-| # | 位置 | 文档说 | 实际 |
-|---|---|---|---|
-| 1 | `GdutHosts` KDoc | 默认值由 `GdutHostsTest` 交叉校验 | 仓库里**没有** `GdutHostsTest` |
-| 2 | `LibraryRepositoryImpl.qrModuleCount` | KDoc 解释了 21 的来源 | 硬编码 21，与实际 BitMatrix 无关 |
-| 3 | 任务背景里说 fixture 在 `data-gdut/src/main/resources/fixtures/` | —— | 实际在 `data-gdut/src/**test**/resources/fixtures/`。KDoc 里写的是 `src/test/resources/fixtures/`，是对的 |
-| 4 | `Daos.SyncStateDao` KDoc | "两者的不一致由 `SyncStateDaoTest` 盯着" | 仓库里**没有** `SyncStateDaoTest` |
-| 5 | `SyncStateEntity.SINGLETON_ID` | KDoc 引用 `SyncStateDaoTest` 断言 `== 1` | 同上，测试不存在 |
-
-第 3 条是任务描述与代码的差异（代码是对的）；第 1、4、5 条是代码 KDoc 引用了**不存在的测试**。

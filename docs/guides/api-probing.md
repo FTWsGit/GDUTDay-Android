@@ -13,8 +13,8 @@ alwaysApply: false
 >
 > 配套脚本:`scripts/gdut-login.sh`(登录取会话)、`scripts/gdut-post.sh`(带会话探测接口)。
 >
-> 相关文档:[协议全集](./01-gdut-protocol.md) · [登录验证工具](./07-verify-login.md) ·
-> [测试策略](./06-testing-strategy.md)
+> 相关文档:[协议全集](../reference/spec/gdut-protocol.md) · [登录验证工具](./verify-login.md) ·
+> [测试策略](./testing-strategy.md)
 
 ---
 
@@ -26,7 +26,7 @@ alwaysApply: false
 1. **正向观察** —— 让浏览器替你发一次请求,在 DevTools 里看它发了什么、收到了什么;
 2. **逆向理解** —— 读页面 JS 源码,搞清浏览器在发请求前后对数据做了什么加工(加密、拼参数)。
 
-逆向产出的每一个结论都要标记可信度,与 [01-gdut-protocol.md 第 6 节](./01-gdut-protocol.md)
+逆向产出的每一个结论都要标记可信度,与 [gdut-protocol 第 6 节](../reference/spec/gdut-protocol.md)
 保持同一套三态标记:
 
 | 标记 | 含义 |
@@ -35,7 +35,7 @@ alwaysApply: false
 | **推断** | 来自旧代码(F#/Java)或文档,可信但未复验 |
 | **未验证** | 无任何来源,需要真实账号或抓包确认 |
 
-**每完成一次探测,把升级后的结论写回 01-gdut-protocol.md 对应小节,并注明日期。**
+**每完成一次探测,把升级后的结论写回 gdut-protocol 对应小节,并注明日期。**
 文档不更新,探测就白做了。
 
 ---
@@ -53,11 +53,11 @@ alwaysApply: false
 | 成绩 | `/xskccjxx!getDataList.action` | POST | 实测:35 条,劳动教育 bug 已处理 |
 | 会话探针 | `/` | GET | 实测:未登录 302 回 authserver |
 
-字段级对照表见 [01-gdut-protocol.md 第 4 节](./01-gdut-protocol.md),不在这里重复。
+字段级对照表见 [gdut-protocol 第 4 节](../reference/spec/gdut-protocol.md),不在这里重复。
 
 ### 1.2 登录体系(authserver.gdut.edu.cn)
 
-- CAS 统一认证全流程 —— **实测**,见 01 文档第 1 节
+- CAS 统一认证全流程 —— **实测**,见 gdut-protocol 第 1 节
 - 滑块验证码检测 `checkNeedCaptcha.htl` —— 实测正常账号返回 `{"isNeed":false}`;
   **触发滑块时不可自动化**,走逃生通道(教务直登 + 人工输图形码)
 - 教务系统图形验证码直登 `/new/login` —— 实测存在,`pwd` 是否要加密**未验证**
@@ -72,7 +72,7 @@ alwaysApply: false
 - 培养方案 / 选课
 - 学籍卡片
 
-探明一个就在 01 文档补一节,并在 `data-gdut` 加解析器 + fixture,流程见第 4 节。
+探明一个就在 gdut-protocol 补一节,并在 `data-gdut` 加解析器 + fixture,流程见第 4 节。
 
 ---
 
@@ -108,7 +108,7 @@ curl -s 'https://jxfw.gdut.edu.cn/xsksap!getDataList.action' \
 # 变体:换学期 / 去掉 Referer / 换 rows / 传错参数 —— 观察服务端反应
 ```
 
-01 文档里"课表 A 必须带特定 Referer"、"`jcdm` 是两位拼接"这类结论,全是这么试出来的。
+gdut-protocol 里"课表 A 必须带特定 Referer"、"`jcdm` 是两位拼接"这类结论,全是这么试出来的。
 
 ### 2.3 读页面 JS —— 加密与提交逻辑的地面真相
 
@@ -124,7 +124,7 @@ cookie/JSESSIONID 值绝不入库。
 
 ---
 
-## 3. 端到端实战案例:查 2024 秋考试安排(2026-09-12)
+## 3. 端到端实战案例:查 2024 秋考试安排
 
 全程没用 Android 代码,纯 curl + openssl,五步:
 
@@ -154,18 +154,12 @@ curl -b cookies.txt \
 
 返回 EasyUI DataGrid:`{"total":5,"rows":[...21 个字段...]}`。
 
-**这次的产出**:
-
-1. "考试接口全部字段"从**推断**升级为**实测**(见 01 文档 4.4 节);
-2. 真实响应存档 `temp/jxfw_exams_202401.real.json`(含个人信息,仅本地,不入库);
-3. 流程沉淀为脚本:`scripts/gdut-login.sh` + `scripts/gdut-post.sh`(见第 5 节)。
-
-容易踩的坑(全部是 01 文档"常见陷阱"的实测复现):
+容易踩的坑(全部是 [gdut-protocol 常见陷阱](../reference/spec/gdut-protocol.md) 的实测复现):
 
 - 表单体编码:Base64 密文的 `+` 不编码会变空格 → "密码错误";
 - `execution` 是一次性、会话绑定的:每次登录重新抓登录页,不能复用上次的;
 - 302 不要让 curl 自动跟(`-L` 只在第⑤步用):跳转链每一跳的语义不同;
-- 学期长码 `202401` vs 短码 `20241`,接口只认长码(见 01 文档 4.2)。
+- 学期长码 `202401` vs 短码 `20241`,接口只认长码(见 gdut-protocol 4.2)。
 
 ---
 
@@ -175,7 +169,7 @@ curl -b cookies.txt \
 2. ☐ Copy as cURL → 终端重放,确认拿到数据;
 3. ☐ 控制变量实验:参数含义、必选头(Referer!)、分页行为(rows/total);
 4. ☐ 响应有 JS 加工?读 Sources 源码,复刻算法;
-5. ☐ 结论写进 `docs/01-gdut-protocol.md`(标"实测 + 日期"),字段列成表;
+5. ☐ 结论写进 `docs/reference/spec/gdut-protocol.md`(标"实测 + 日期"),字段列成表;
 6. ☐ 真实响应脱敏后存 `fixtures/*.real`;
 7. ☐ `data-gdut` 写解析器(纯 JVM,绝不抛异常吞整表,丢弃记 `dropReasons`);
 8. ☐ MockWebServer 测试,方法名反引号中文,断言用 Truth;
