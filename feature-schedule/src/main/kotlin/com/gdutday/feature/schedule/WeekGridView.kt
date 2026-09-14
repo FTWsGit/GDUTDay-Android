@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
@@ -455,7 +456,9 @@ private fun PeriodGutter(
         Canvas(
             Modifier
                 .width(GUTTER_WIDTH)
-                .height(heightDp)
+                // requiredHeight：内容高度（节数 × 每节高）通常大于视口，必须强制、不能被
+                // 父约束压缩，否则 slotHeight 会退化成"视口高度 ÷ 节数"，与右侧网格错位。
+                .requiredHeight(heightDp)
                 .graphicsLayer { translationY = frontOverflowSlots * periodHeightPx - scrollState.value },
         ) {
             val slotHeight = size.height / periods.size.coerceAtLeast(1)
