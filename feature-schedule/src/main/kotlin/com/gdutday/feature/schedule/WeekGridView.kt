@@ -130,8 +130,8 @@ public fun WeekGridView(
 
     // 是否有早于第 1 节的"前置溢出槽"（自定义课程/考试）。节次栏的纵向对齐需要它：
     // 有前置溢出时第 1 节整体下移一格，节次栏也必须跟着下移一格，否则数字和行错位。
-    val frontOverflowSlots = remember(grid) {
-        if (grid.verticalRange.first < CourseBlock.clockToMinute(grid.timetable.firstPeriodStart)) 1 else 0
+    val frontOverflowSlots = remember(periods, grid) {
+        if (periods.firstOrNull()?.start?.let { grid.verticalRange.first < CourseBlock.clockToMinute(it) } == true) 1 else 0
     }
 
     val touchSlop = LocalViewConfiguration.current.touchSlop
@@ -176,7 +176,7 @@ public fun WeekGridView(
                     },
             ) {
                 val pageWidth = constraints.maxWidth.toFloat()
-                val gridHeightPx = (periods.size.coerceAtLeast(1) + overflowSlots(grid)) * periodHeightPx
+                val gridHeightPx = (periods.size.coerceAtLeast(1) + overflowSlots(periods, grid.verticalRange)) * periodHeightPx
                 val dayWidthPx = (pageWidth / visibleDays.size).coerceAtLeast(1f)
                 val dayWidthDp = with(density) { dayWidthPx.toDp() }
                 val gridHeightDp = with(density) { gridHeightPx.toDp() }
@@ -269,12 +269,23 @@ public fun WeekGridView(
 }
 
 /** 相邻周网格缺失（边界周 / 未生成）时的占位页：渲染本周内容的空网格副本。 */
-private fun overflowSlots(grid: WeekGrid): Int {
-    val range = grid.verticalRange
-    val timetableRange = CourseBlock.clockToMinute(grid.timetable.firstPeriodStart)..CourseBlock.clockToMinute(grid.timetable.lastPeriodEnd)
+/**
+ * 网格比"可见节次"多出来的槽位数（首尾各最多 1）。
+ *
+ * 必须与 [buildPeriodRanges] 用**同一套边界**：后者拿的是已经按
+ * `settings.showExtraSections` 截断过的 [periods]（默认 12 节，末节 20:55），
+ * 而 `timetable.lastPeriodEnd` 是完整作息表（14 节）的 22:35。
+ * 若这里仍按完整作息表判断，就会得出"没有尾部溢出"，
+ * 但 [buildPeriodRanges] 照样补了尾部槽 —— 于是网格总高度少算一格，
+ * 每一节都被压扁，节次栏与课程行错位。
+ */
+internal fun overflowSlots(periods: List<Period>, range: IntRange): Int {
+    if (periods.isEmpty()) return 0
+    val firstStart = CourseBlock.clockToMinute(periods.first().start)
+    val lastEnd = CourseBlock.clockToMinute(periods.last().end)
     var extra = 0
-    if (range.first < timetableRange.first) extra++
-    if (range.last > timetableRange.last) extra++
+    if (range.first < firstStart) extra++
+    if (range.last > lastEnd) extra++
     return extra
 }
 
@@ -347,7 +358,7 @@ private fun WeekPage(
  * 把作息表的各节转成分钟区间，并在必要时于首/末节之外补一个"溢出槽"，
  * 容纳早于第 1 节、晚于第 12 节的自定义课程或考试，避免它们被钳制到网格内。
  */
-private fun buildPeriodRanges(periods: List<Period>, range: IntRange): List<IntRange> {
+internal fun buildPeriodRanges(periods: List<Period>, range: IntRange): List<IntRange> {
     val ranges = periods.map { CourseBlock.clockToMinute(it.start)..CourseBlock.clockToMinute(it.end) }
     if (ranges.isEmpty()) return ranges
     val result = ranges.toMutableList()

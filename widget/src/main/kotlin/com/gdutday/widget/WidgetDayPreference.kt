@@ -29,10 +29,16 @@ internal object WidgetDayPreference {
     fun read(context: Context): Int =
         prefs(context).getInt(KEY_DAY_OFFSET, 0).coerceIn(0, 1)
 
-    /** 在"今天"与"明天"之间翻转，落盘后返回新值。 */
+    /**
+     * 在"今天"与"明天"之间翻转，落盘后返回新值。
+     *
+     * 用 `commit()` 而不是 `apply()`：紧接着的 `update()` 会在别的线程重新读这个值，
+     * 而 `apply()` 只保证"将来某个时刻"写到磁盘，内存里虽然已更新，但跨平台 / 多进程
+     * 下不保证另一个读取者立刻可见，于是点了竖条看起来"没反应"。
+     */
     fun toggle(context: Context): Int {
         val next = if (read(context) == 0) 1 else 0
-        prefs(context).edit().putInt(KEY_DAY_OFFSET, next).apply()
+        prefs(context).edit().putInt(KEY_DAY_OFFSET, next).commit()
         return next
     }
 

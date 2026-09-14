@@ -89,8 +89,33 @@ class TodayScheduleMapperTest {
             today = wednesday,
         )
         assertThat(result.phase).isEqualTo(TodayPhase.HAS_CLASS)
+        // 已上完的课不再占位，剩下的行数留给"接下来要上的课"。
         assertThat(result.rows.map { it.status })
-            .containsExactly(BlockStatus.FINISHED, BlockStatus.ONGOING)
+            .containsExactly(BlockStatus.ONGOING)
+    }
+
+    @Test
+    fun `未完成课程排在前面时不受过滤影响`() {
+        val result = TodayScheduleMapper.map(
+            state(listOf(block(BlockStatus.UPCOMING), block(BlockStatus.FINISHED))),
+            loggedIn = true,
+            today = wednesday,
+        )
+        assertThat(result.phase).isEqualTo(TodayPhase.HAS_CLASS)
+        assertThat(result.rows.map { it.status })
+            .containsExactly(BlockStatus.UPCOMING)
+    }
+
+    @Test
+    fun `只有已结束课程时给出已结束而不是今天没课`() {
+        // 这两者信息不同：用户看到"今天有课、都上完了"才不会以为数据错了。
+        val result = TodayScheduleMapper.map(
+            state(listOf(block(BlockStatus.FINISHED))),
+            loggedIn = true,
+            today = wednesday,
+        )
+        assertThat(result.phase).isEqualTo(TodayPhase.ALL_FINISHED)
+        assertThat(result.rows).isEmpty()
     }
 
     @Test

@@ -91,7 +91,15 @@ public object TodayScheduleMapper {
             return TodayScheduleWidgetState(TodayPhase.NO_CLASS, dateLine, emptyList(), dayOffset)
         }
 
-        val rows = blocks.map { block ->
+        // 已经上完的课不再占位：插件高度是按格数算的，位置有限，宝贵的行数要留给
+        // "接下来要上的课"。全部上完时 [pending] 为空，此时仍要给出 ALL_FINISHED ——
+        // "今天有课，都上完了" 和 "今天没课" 是两种完全不同的信息，不能合并。
+        val pending = blocks.filter { it.status != BlockStatus.FINISHED }
+        if (pending.isEmpty()) {
+            return TodayScheduleWidgetState(TodayPhase.ALL_FINISHED, dateLine, emptyList(), dayOffset)
+        }
+
+        val rows = pending.map { block ->
             WidgetCourseRow(
                 startClock = block.startClock,
                 name = block.course.name,
@@ -101,9 +109,7 @@ public object TodayScheduleMapper {
                 status = block.status,
             )
         }
-        val allFinished = blocks.all { it.status == BlockStatus.FINISHED }
-        val phase = if (allFinished) TodayPhase.ALL_FINISHED else TodayPhase.HAS_CLASS
-        return TodayScheduleWidgetState(phase, dateLine, rows, dayOffset)
+        return TodayScheduleWidgetState(TodayPhase.HAS_CLASS, dateLine, rows, dayOffset)
     }
 
     /**
