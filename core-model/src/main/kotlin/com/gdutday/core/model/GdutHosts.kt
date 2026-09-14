@@ -111,7 +111,7 @@ public data class GdutHosts(
     /** 单门课程上课信息明细。⚠ 必须带 [jxfwClassScheduleReferer] 指定的 Referer。 */
     public val jxfwClassScheduleDetail: String get() = "$jxfwBase/xsbjkbcx!getSkxxDataList.action"
 
-    /** 班级课表接口的通用 Referer。主接口实测不需要特殊 Referer，先用首页。 */
+    /** 班级课表接口的通用 Referer。实测 2026-09-13 起全站校验 Referer，站内任意路径即可。 */
     public val jxfwClassScheduleReferer: String get() = jxfwDefaultReferer
 
     /** 成绩。 */

@@ -414,6 +414,8 @@ class JxfwClientTest {
         val query = req.request.path!!.substringAfter('?')
         assertThat(query).contains("xnxqdm=202501")
         assertThat(query).contains("bjdm=116523137")
+        // 2026-09-13 实测全站 Referer 校验：必须站内，否则返回"非法访问"页
+        assertThat(req.request.getHeader("Referer")).isEqualTo("${baseUrl()}/")
     }
 
     @Test
@@ -430,6 +432,9 @@ class JxfwClientTest {
         // 请求顺序：先主接口后备接口
         val paths = recorded.map { it.request.path?.substringBefore('?') }
         assertThat(paths).containsExactly(CLASS_GET_KB_RQ_PATH, CLASS_ALL_KB_LIST_PATH).inOrder()
+        // 备接口同样受全站 Referer 校验约束
+        val fallback = recorded.last { it.request.path?.startsWith(CLASS_ALL_KB_LIST_PATH) == true }
+        assertThat(fallback.request.getHeader("Referer")).isEqualTo("${baseUrl()}/")
     }
 
     @Test

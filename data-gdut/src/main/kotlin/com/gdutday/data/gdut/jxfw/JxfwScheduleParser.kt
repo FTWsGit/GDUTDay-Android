@@ -322,9 +322,9 @@ public object JxfwScheduleParser {
     public fun parseClassScheduleAllKbList(html: String, term: Term): List<RawScheduleRow> =
         parseAllKbList(html, term)
 
-    /** `getKbRq` 的 Referer。实测非必需，用首页即可。 */
+    /** `getKbRq` 的 Referer。实测 2026-09-13 起全站校验，必须站内（首页即可）。 */
     public fun classScheduleGetKbRqReferer(hosts: GdutHosts): String = hosts.jxfwClassScheduleReferer
 
-    /** `xsAllKbList`（班级）的 Referer。实测非必需，用首页即可。 */
+    /** `xsAllKbList`（班级）的 Referer。同上，必须站内。 */
     public fun classScheduleAllKbListReferer(hosts: GdutHosts): String = hosts.jxfwClassScheduleReferer
 }
