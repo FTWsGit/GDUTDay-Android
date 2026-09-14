@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
@@ -126,9 +127,18 @@ public fun WeekGridView(
         else grid.timetable.periods.take(12)
     }
 
+    // 是否有早于第 1 节的"前置溢出槽"（自定义课程/考试）。节次栏的纵向对齐需要它：
+    // 有前置溢出时第 1 节整体下移一格，节次栏也必须跟着下移一格，否则数字和行错位。
+    val frontOverflowSlots = remember(grid) {
+        if (grid.verticalRange.first < CourseBlock.clockToMinute(grid.timetable.firstPeriodStart)) 1 else 0
+    }
+
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val drag = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    // 纵向滚动状态提升到这里，三页周视图与左侧节次栏共享同一份偏移：
+    // 内容上下滚动时节次栏用 graphicsLayer 同步移动，不再错位。
+    val verticalScroll = rememberScrollState()
 
     Column(modifier = modifier.fillMaxSize()) {
         DayHeaderRow(
@@ -139,10 +149,13 @@ public fun WeekGridView(
         )
 
         Row(Modifier.fillMaxWidth().weight(1f)) {
-            // 左侧节次栏：固定不动，不参与任何滑动/动画。
+            // 左侧节次栏：横向滑动时固定不动；纵向滚动时随内容同步移动。
             PeriodGutter(
                 periods = periods,
                 translucent = settings.backgroundImageUri != null,
+                periodHeightPx = periodHeightPx,
+                frontOverflowSlots = frontOverflowSlots,
+                scrollState = verticalScroll,
             )
 
             BoxWithConstraints(
@@ -157,6 +170,7 @@ public fun WeekGridView(
                             touchSlop = touchSlop,
                             threshold = 64.dp.toPx(),
                             onSwipe = { delta -> onSwipeWeek(grid.week + delta) },
+                            fullPageCommit = true,
                         )
                     },
             ) {
@@ -177,6 +191,7 @@ public fun WeekGridView(
                         WeekPage(
                             grid = prevWeekGrid,
                             fallback = grid,
+                            scrollState = verticalScroll,
                             visibleDays = visibleDays,
                             today = today,
                             isCurrentWeek = false,
@@ -194,6 +209,7 @@ public fun WeekGridView(
                         WeekPage(
                             grid = grid,
                             fallback = grid,
+                            scrollState = verticalScroll,
                             visibleDays = visibleDays,
                             today = today,
                             isCurrentWeek = isCurrentWeek,
@@ -211,6 +227,7 @@ public fun WeekGridView(
                         WeekPage(
                             grid = nextWeekGrid,
                             fallback = grid,
+                            scrollState = verticalScroll,
                             visibleDays = visibleDays,
                             today = today,
                             isCurrentWeek = false,
@@ -272,6 +289,7 @@ private fun WeekPage(
     settings: UserSettings,
     dayWidthPx: Float,
     gutterPx: Float,
+    scrollState: ScrollState,
     gridHeightPx: Float,
     insetPx: Float,
     gridHeightDp: Dp,
@@ -291,7 +309,7 @@ private fun WeekPage(
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
     ) {
         // 只在几何输入变化时重建色块列表，滚动/重组不重新分配。
         val placed = remember(
@@ -409,13 +427,20 @@ private fun DayHeaderRow(
 }
 
 /**
- * 左侧节次栏。独立 composable，**不**加 `graphicsLayer` / `AnimatedContent`：
+ * 左侧节次栏。独立 composable，**不**加横向 `graphicsLayer` / `AnimatedContent`：
  * 左右滑动切周时它保持静止，只有右侧内容区随手势平移。
+ *
+ * 纵向则相反：它需要与内容一起上下滚动。所以外层是一个裁剪到视口的 [Box]，
+ * 内层 [Canvas] 按"节数 × 每节高度"排满内容高度，再用 `graphicsLayer.translationY`
+ * 抵消共享的 [ScrollState] 偏移，于是纵向滚动时节次数字与课程行严格对齐。
  */
 @Composable
 private fun PeriodGutter(
     periods: List<Period>,
     translucent: Boolean,
+    periodHeightPx: Float,
+    frontOverflowSlots: Int,
+    scrollState: ScrollState,
 ) {
     val colors = LocalGdutDayColors.current
     val scheme = MaterialTheme.colorScheme
@@ -423,31 +448,40 @@ private fun PeriodGutter(
     val numberStyle = ScheduleBlockText.sectionNumber.copy(color = scheme.onSurfaceVariant)
     val timeStyle = ScheduleBlockText.sectionTime.copy(color = scheme.onSurfaceVariant)
     val widthPx = with(LocalDensity.current) { GUTTER_WIDTH.toPx() }
+    val heightPx = periods.size * periodHeightPx
+    val heightDp = with(LocalDensity.current) { heightPx.toDp() }
 
-    Canvas(Modifier.width(GUTTER_WIDTH).fillMaxHeight()) {
-        val slotHeight = size.height / periods.size.coerceAtLeast(1)
-        val gutterColor = if (translucent) colors.sectionGutter.copy(alpha = 0.6f) else colors.sectionGutter
-        drawRect(color = gutterColor, size = Size(widthPx, size.height))
-        // 右边界线（与网格纵向线同色，随内容滑动也不会出现断口）。
-        drawLine(colors.gridLine, Offset(widthPx, 0f), Offset(widthPx, size.height), strokeWidth = 1f)
-        periods.forEachIndexed { index, period ->
-            val y = index * slotHeight
-            val centerY = y + slotHeight / 2f
-            val number = measurer.measure(period.index.toString(), numberStyle)
-            drawText(
-                textLayoutResult = number,
-                topLeft = Offset((widthPx - number.size.width) / 2f, centerY - number.size.height - timeStyle.fontSize.toPx()),
-            )
-            val start = measurer.measure(formatClock(period.start), timeStyle)
-            drawText(
-                textLayoutResult = start,
-                topLeft = Offset((widthPx - start.size.width) / 2f, centerY - timeStyle.fontSize.toPx() / 2f),
-            )
-            val end = measurer.measure(formatClock(period.end), timeStyle)
-            drawText(
-                textLayoutResult = end,
-                topLeft = Offset((widthPx - end.size.width) / 2f, centerY + timeStyle.fontSize.toPx() / 2f),
-            )
+    Box(Modifier.width(GUTTER_WIDTH).fillMaxHeight().clipToBounds()) {
+        Canvas(
+            Modifier
+                .width(GUTTER_WIDTH)
+                .height(heightDp)
+                .graphicsLayer { translationY = frontOverflowSlots * periodHeightPx - scrollState.value },
+        ) {
+            val slotHeight = size.height / periods.size.coerceAtLeast(1)
+            val gutterColor = if (translucent) colors.sectionGutter.copy(alpha = 0.6f) else colors.sectionGutter
+            drawRect(color = gutterColor, size = Size(size.width, size.height))
+            // 右边界线（与网格纵向线同色，随内容滑动也不会出现断口）。
+            drawLine(colors.gridLine, Offset(size.width, 0f), Offset(size.width, size.height), strokeWidth = 1f)
+            periods.forEachIndexed { index, period ->
+                val y = index * slotHeight
+                val centerY = y + slotHeight / 2f
+                val number = measurer.measure(period.index.toString(), numberStyle)
+                drawText(
+                    textLayoutResult = number,
+                    topLeft = Offset((widthPx - number.size.width) / 2f, centerY - number.size.height - timeStyle.fontSize.toPx()),
+                )
+                val start = measurer.measure(formatClock(period.start), timeStyle)
+                drawText(
+                    textLayoutResult = start,
+                    topLeft = Offset((widthPx - start.size.width) / 2f, centerY - timeStyle.fontSize.toPx() / 2f),
+                )
+                val end = measurer.measure(formatClock(period.end), timeStyle)
+                drawText(
+                    textLayoutResult = end,
+                    topLeft = Offset((widthPx - end.size.width) / 2f, centerY + timeStyle.fontSize.toPx() / 2f),
+                )
+            }
         }
     }
 }
