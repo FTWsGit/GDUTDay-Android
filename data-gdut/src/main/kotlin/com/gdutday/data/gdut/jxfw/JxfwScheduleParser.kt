@@ -327,4 +327,112 @@ public object JxfwScheduleParser {
 
     /** `xsAllKbList`（班级）的 Referer。同上，必须站内。 */
     public fun classScheduleAllKbListReferer(hosts: GdutHosts): String = hosts.jxfwClassScheduleReferer
+
+    // ================================================================ 班级级联筛选（getFind，实测 2026-09-13）
+
+    /**
+     * `getFind` 的查询参数。
+     *
+     * `guid` 决定返回哪一级，其余字段全是可任意组合的过滤条件：
+     * - `guid=rxnf` → 班级列表（按 `rxnf`/`xsyxdm`/`zydm` 过滤，全部可空）；
+     * - `guid=zydm` → 班级列表（同上）；
+     * - `guid=xsyxdm` → 专业列表（按 `xsyxdm` 过滤）。
+     *
+     * `xqdm`（校区）在该页面没有控件，传空串即可。
+     */
+    public fun classCascadeQuery(
+        guid: String,
+        term: Term,
+        grade: String = "",
+        collegeCode: String = "",
+        majorCode: String = "",
+    ): Map<String, String> = linkedMapOf(
+        "guid" to guid,
+        "xnxqdm" to term.xnxqdm,
+        "xqdm" to "",
+        "rxnf" to grade,
+        "xsyxdm" to collegeCode,
+        "zydm" to majorCode,
+    )
+
+    /**
+     * 解析 `getFind` 的响应。
+     *
+     * 响应为 `text`，格式 `<guid>^getFind:<JSON数组>`，需先 split 再 parseJSON；
+     * 每个元素是 `{"dm":"116523137","mc":"计算机科学与技术25(5)"}`。
+     * `dm`/`mc` 任一为空的元素被丢弃（占位 option 不会出现在响应里，防御性处理）。
+     */
+    public fun parseClassCascade(body: String): List<ClassCascadeOption> {
+        if (LenientJson.looksLikeHtml(body) && body.contains("pwdEncryptSalt", ignoreCase = true)) {
+            throw GdutException.SessionExpired(detail = "请求班级级联（getFind）时被导回统一认证登录页")
+        }
+        val json = body.substringAfter("^getFind:", "")
+        if (json.isBlank()) {
+            throw GdutException.Parse(
+                what = "班级级联（getFind）",
+                snippet = "响应缺少 ^getFind: 分隔符。${LenientJson.snippet(body, 300)}",
+            )
+        }
+        val arr = LenientJson.parseOrNull(json) as? JsonArray
+            ?: throw GdutException.Parse(
+                what = "班级级联（getFind）",
+                snippet = "分隔符后不是 JSON 数组。${LenientJson.snippet(json, 300)}",
+            )
+        return arr.mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            val code = obj.str("dm").trim()
+            val name = obj.str("mc").trim()
+            if (code.isEmpty() || name.isEmpty()) return@mapNotNull null
+            ClassCascadeOption(code = code, name = name)
+        }
+    }
+
+    /** `getFind` 返回的一个选项（学院 / 专业 / 班级通用）。 */
+    public data class ClassCascadeOption(
+        /** 代码：学院是 `xsyxdm`，专业是 `zydm`，班级是 `bjdm`。 */
+        public val code: String,
+        /** 显示名，如 `[0711]计算机科学与技术` / `计算机科学与技术25(5)`。 */
+        public val name: String,
+    )
+
+    /**
+     * 解析班级课表主页面（`xsbjkbMain.action`）里级联下拉的 `<option>`。
+     *
+     * 页面由服务端渲染全部选项：学院/年级/专业下拉在这里一次拿全，
+     * 班级下拉虽然有全量 7000+ 项但 App 不用它（班级走 [parseClassCascade] 级联查询）。
+     *
+     * value 为空的 option（占位"(全部)/请选择"）被丢弃。
+     */
+    public fun parseClassCascadeMainPage(html: String): ClassCascadeMeta {
+        fun optionsOf(id: String): List<ClassCascadeOption> {
+            // select 属性是单引号（服务端模板），与普通 HTML 双引号并存，两种都兼容
+            val selectRegex = Regex("<select[^>]*id=['\"]%s['\"][^>]*>(.*?)</select>".replace("%s", Regex.escape(id)), RegexOption.DOT_MATCHES_ALL)
+            val block = selectRegex.find(html)?.groupValues?.get(1)
+                ?: throw GdutException.Parse(
+                    what = "班级课表主页（级联下拉）",
+                    snippet = "找不到 select#$id。${LenientJson.snippet(html, 200)}",
+                )
+            val optionRegex = Regex("<option[^>]*value=['\"]([^'\"]*)['\"][^>]*>(.*?)</option>", RegexOption.DOT_MATCHES_ALL)
+            return optionRegex.findAll(block).mapNotNull { m ->
+                val code = m.groupValues[1].trim()
+                val name = m.groupValues[2].trim()
+                if (code.isEmpty() || name.isEmpty()) null else ClassCascadeOption(code, name)
+            }.toList()
+        }
+        return ClassCascadeMeta(
+            colleges = optionsOf("xsyxdm"),
+            grades = optionsOf("rxnf"),
+            majors = optionsOf("zydm"),
+        )
+    }
+
+    /** 班级课表主页里级联下拉的静态选项。班级不在这里（走 `getFind` 查询）。 */
+    public data class ClassCascadeMeta(
+        /** 学院列表（`xsyxdm`）。 */
+        public val colleges: List<ClassCascadeOption>,
+        /** 年级列表（`rxnf`，如 `"2025"`）。 */
+        public val grades: List<ClassCascadeOption>,
+        /** 专业列表（`zydm`）。 */
+        public val majors: List<ClassCascadeOption>,
+    )
 }

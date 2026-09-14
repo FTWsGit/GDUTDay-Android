@@ -480,4 +480,65 @@ class JxfwScheduleParserTest {
         javaClass.classLoader.getResourceAsStream("fixtures/$name")
             ?.bufferedReader(Charsets.UTF_8)?.readText()
             ?: error("找不到 fixture: $name")
+
+    // ================================================================== 班级级联筛选（getFind）
+
+    @Test
+    fun `班级级联从fixture文件解析成功`() {
+        val options = JxfwScheduleParser.parseClassCascade(readFixture("class_cascade_get_find.real.txt"))
+
+        assertThat(options).hasSize(11)
+        // 计算机类/计科出现在 2025 级筛选结果里，dm 即 bjdm
+        assertThat(options).contains(JxfwScheduleParser.ClassCascadeOption("116523137", "计算机科学与技术25(5)"))
+        assertThat(options.map { it.code }).contains("114895095")
+    }
+
+    @Test
+    fun `班级级联解析丢弃空code或空name的元素`() {
+        val body = """xsyxdm^getFind:[{"dm":"0711","mc":"[0711]计算机科学与技术"},{"dm":"","mc":"坏行"},{"dm":"0712","mc":""}]"""
+        val options = JxfwScheduleParser.parseClassCascade(body)
+        assertThat(options).containsExactly(JxfwScheduleParser.ClassCascadeOption("0711", "[0711]计算机科学与技术"))
+    }
+
+    @Test
+    fun `班级级联响应缺少分隔符时抛Parse`() {
+        val e = assertThrows(GdutException.Parse::class.java) {
+            JxfwScheduleParser.parseClassCascade("""[{"dm":"0711","mc":"x"}]""")
+        }
+        assertThat(e.detail).contains("^getFind:")
+    }
+
+    @Test
+    fun `班级级联分隔符后不是JSON数组时抛Parse`() {
+        assertThrows(GdutException.Parse::class.java) {
+            JxfwScheduleParser.parseClassCascade("rxnf^getFind:不是JSON")
+        }
+    }
+
+    @Test
+    fun `班级级联查询参数包含guid与三个过滤条件`() {
+        val query = JxfwScheduleParser.classCascadeQuery(
+            guid = "rxnf", term = term, grade = "2025", collegeCode = "07", majorCode = "0711",
+        )
+        assertThat(query).containsExactlyEntriesIn(
+            linkedMapOf(
+                "guid" to "rxnf",
+                "xnxqdm" to "202501",
+                "xqdm" to "",
+                "rxnf" to "2025",
+                "xsyxdm" to "07",
+                "zydm" to "0711",
+            ),
+        )
+    }
+
+    @Test
+    fun `班级级联查询参数默认全部过滤条件为空`() {
+        val query = JxfwScheduleParser.classCascadeQuery(guid = "xsyxdm", term = term)
+        assertThat(query["rxnf"]).isEmpty()
+        assertThat(query["xsyxdm"]).isEmpty()
+        assertThat(query["zydm"]).isEmpty()
+        // 校区在该页面没有控件，恒为空串
+        assertThat(query["xqdm"]).isEmpty()
+    }
 }

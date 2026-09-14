@@ -22,6 +22,14 @@
     <string name="schedule_sync_source_class_bjdm">班级代码（bjdm）</string>
     <string name="schedule_sync_source_class_name">班级显示名（如 计算机25(5)）</string>
     <string name="schedule_sync_source_class_hint">班级代码可在教务系统"信息查询 → 班级课表"页面查看</string>
+    <string name="schedule_sync_source_cascade_college">学院</string>
+    <string name="schedule_sync_source_cascade_grade">年级</string>
+    <string name="schedule_sync_source_cascade_major">专业</string>
+    <string name="schedule_sync_source_cascade_all">全部</string>
+    <string name="schedule_sync_source_cascade_loading">正在从教务系统加载班级数据…</string>
+    <string name="schedule_sync_source_cascade_failed">班级数据加载失败，请检查网络或重新登录后再试</string>
+    <string name="schedule_sync_source_cascade_empty">没有符合条件的班级，可放宽上面的筛选条件</string>
+    <string name="schedule_sync_source_keep_saved">可沿用已保存：%1$s（直接点确认）</string>
     <string name="schedule_sync_source_current_personal">当前：个人课表</string>
     <string name="schedule_sync_source_current_class">当前：班级课表 · %1$s</string>
     <string name="schedule_menu_settings">设置</string>

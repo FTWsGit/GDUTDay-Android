@@ -11,10 +11,13 @@ import com.gdutday.core.datastore.SettingsStore
 import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
+import com.gdutday.core.model.GdutException
 import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.model.Term
 import com.gdutday.data.repository.AppContainer
+import com.gdutday.data.repository.ClassCascadeMeta
+import com.gdutday.data.repository.ClassCascadeOption
 import com.gdutday.data.repository.ScheduleRepository
 import com.gdutday.data.repository.ScheduleUiState
 import com.gdutday.data.repository.SyncScheduler
@@ -26,6 +29,31 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+
+/**
+ * 同步源对话框的班级级联筛选状态。
+ *
+ * [meta] 的学院/年级/专业列表来自班级课表主页；选中学院后 [majors] 会被
+ * `getFind` 结果替换（按学院过滤）。确认前一切选择只存在这里，对话框关闭即重置。
+ */
+public data class ClassCascadeUiState(
+    public val meta: ClassCascadeMeta? = null,
+    public val metaLoading: Boolean = false,
+    public val majors: List<ClassCascadeOption> = emptyList(),
+    public val classes: List<ClassCascadeOption> = emptyList(),
+    public val classesLoading: Boolean = false,
+    public val selectedCollege: String = "",
+    public val selectedGrade: String = "",
+    public val selectedMajor: String = "",
+    public val selectedClass: ClassCascadeOption? = null,
+    public val error: String? = null,
+)
+
+/** `getFind` 的 guid：返回专业列表。 */
+private const val GUID_MAJOR = "xsyxdm"
+
+/** `getFind` 的 guid：返回班级列表。 */
+private const val GUID_CLASS = "rxnf"
 
 /**
  * 课表页的 ViewModel。
@@ -207,6 +235,100 @@ public class ScheduleViewModel(
 
     public fun dismissSyncSourceBanner() {
         _syncSourceBannerDismissed.value = true
+    }
+
+    // ---------------------------------------------------------------------- 班级级联筛选（同步源对话框）
+
+    private val _classCascade = MutableStateFlow(ClassCascadeUiState())
+
+    /** 同步源对话框的班级级联筛选状态。对话框关闭时重置。 */
+    public val classCascade: StateFlow<ClassCascadeUiState> = _classCascade.asStateFlow()
+
+    /**
+     * 加载级联的静态选项（学院 / 年级 / 专业）与初始班级列表。
+     * 对话框打开时调用一次；重复调用无副作用。
+     */
+    public fun loadClassCascade() {
+        if (_classCascade.value.metaLoading || _classCascade.value.meta != null) return
+        viewModelScope.launch {
+            _classCascade.value = _classCascade.value.copy(metaLoading = true, error = null)
+            try {
+                val meta = repository.fetchClassCascadeMeta()
+                _classCascade.value = _classCascade.value.copy(metaLoading = false, meta = meta)
+                refreshCascadeMajors()
+                refreshCascadeClasses()
+            } catch (e: GdutException) {
+                _classCascade.value = _classCascade.value.copy(metaLoading = false, error = e.userMessage)
+            }
+        }
+    }
+
+    /** 选学院。清空专业选择（服务端按学院返回专业列表），并联动刷新班级。 */
+    public fun selectCascadeCollege(code: String) {
+        if (_classCascade.value.selectedCollege == code) return
+        _classCascade.value = _classCascade.value.copy(selectedCollege = code, selectedMajor = "", selectedClass = null)
+        refreshCascadeMajors()
+        refreshCascadeClasses()
+    }
+
+    /** 选年级。清空班级选择并刷新班级列表。 */
+    public fun selectCascadeGrade(code: String) {
+        if (_classCascade.value.selectedGrade == code) return
+        _classCascade.value = _classCascade.value.copy(selectedGrade = code, selectedClass = null)
+        refreshCascadeClasses()
+    }
+
+    /** 选专业。清空班级选择并刷新班级列表。 */
+    public fun selectCascadeMajor(code: String) {
+        if (_classCascade.value.selectedMajor == code) return
+        _classCascade.value = _classCascade.value.copy(selectedMajor = code, selectedClass = null)
+        refreshCascadeClasses()
+    }
+
+    /** 对话框内点选班级。只更新本地选择，确认时才落盘。 */
+    public fun selectCascadeClass(option: ClassCascadeOption) {
+        _classCascade.value = _classCascade.value.copy(selectedClass = option)
+    }
+
+    /** 对话框关闭时重置级联状态，下次打开重新加载。 */
+    public fun resetClassCascade() {
+        _classCascade.value = ClassCascadeUiState()
+    }
+
+    /** 专业列表按学院过滤（guid=xsyxdm）。学院为空 = 全量（来自主页 meta）。 */
+    private fun refreshCascadeMajors() {
+        val college = _classCascade.value.selectedCollege
+        if (college.isBlank()) {
+            _classCascade.value = _classCascade.value.copy(majors = _classCascade.value.meta?.majors.orEmpty())
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val majors = repository.fetchClassCascade(guid = GUID_MAJOR, collegeCode = college)
+                _classCascade.value = _classCascade.value.copy(majors = majors)
+            } catch (_: GdutException) {
+                // 专业列表拉取失败不阻塞主流程：班级列表仍可按学院+年级过滤
+            }
+        }
+    }
+
+    /** 班级列表按当前过滤条件查询（guid=rxnf，条件全空 = 全校，服务端 7000+ 行也可接受）。 */
+    private fun refreshCascadeClasses() {
+        val s = _classCascade.value
+        viewModelScope.launch {
+            _classCascade.value = s.copy(classesLoading = true)
+            try {
+                val classes = repository.fetchClassCascade(
+                    guid = GUID_CLASS,
+                    grade = s.selectedGrade,
+                    collegeCode = s.selectedCollege,
+                    majorCode = s.selectedMajor,
+                )
+                _classCascade.value = _classCascade.value.copy(classesLoading = false, classes = classes)
+            } catch (e: GdutException) {
+                _classCascade.value = _classCascade.value.copy(classesLoading = false, error = e.userMessage)
+            }
+        }
     }
 
     /** 下拉刷新 / 菜单同步。加急请求，用户正在等。 */

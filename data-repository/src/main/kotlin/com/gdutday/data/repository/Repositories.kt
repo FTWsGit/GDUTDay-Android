@@ -225,7 +225,57 @@ public interface ScheduleRepository {
      * 设置之后即使反推结果不同也不会被覆盖。
      */
     public suspend fun setSemesterStart(term: Term, startDate: java.time.LocalDate)
+
+    // ------------------------------------------------------------ 班级级联筛选（同步源对话框选班级用）
+
+    /**
+     * 拉取班级级联筛选的一个层级（`getFind`，需已登录）。
+     *
+     * - [guid] 决定返回哪一级：`"xsyxdm"` → 专业列表；`"rxnf"` / `"zydm"` → 班级列表；
+     * - 其余参数全是过滤条件，均可空（空 = 不过滤）。
+     *
+     * @throws com.gdutday.core.model.GdutException 会话失效 / 接口改版
+     */
+    public suspend fun fetchClassCascade(
+        guid: String,
+        grade: String = "",
+        collegeCode: String = "",
+        majorCode: String = "",
+    ): List<ClassCascadeOption>
+
+    /**
+     * 拉取班级课表主页面里的级联静态选项（学院 / 年级 / 专业列表，需已登录）。
+     *
+     * 班级列表不在这里 —— 走 [fetchClassCascade]（`guid=rxnf` / `"zydm"`）查询。
+     *
+     * @throws com.gdutday.core.model.GdutException 会话失效 / 页面改版
+     */
+    public suspend fun fetchClassCascadeMeta(): ClassCascadeMeta
 }
+
+/**
+ * 班级课表主页面里级联下拉的静态选项（学院 / 年级 / 专业）。
+ *
+ * @property colleges 学院列表（`xsyxdm`）
+ * @property grades 年级列表（`rxnf`，如 `"2025"`）
+ * @property majors 专业列表（`zydm`）
+ */
+public data class ClassCascadeMeta(
+    public val colleges: List<ClassCascadeOption>,
+    public val grades: List<ClassCascadeOption>,
+    public val majors: List<ClassCascadeOption>,
+)
+
+/**
+ * 班级级联筛选的一个选项（学院 / 专业 / 班级通用）。
+ *
+ * 对 `getFind` 响应里的 `{"dm":…,"mc":…}`：[code] 是选中的值
+ * （学院 `xsyxdm` / 专业 `zydm` / 班级 `bjdm`），[name] 是展示名。
+ */
+public data class ClassCascadeOption(
+    public val code: String,
+    public val name: String,
+)
 
 /**
  * 成绩与绩点。

@@ -426,6 +426,57 @@ public class JxfwClient(
         )
     }
 
+    // ------------------------------------------------------------------ 班级级联筛选
+
+    /**
+     * 班级级联筛选（`xsbjkbcx!getFind.action`），供"同步源"对话框选班级用。
+     *
+     * `guid` 决定返回哪一级，其余参数全是过滤条件（实测 2026-09-13，见 docs §4.7）：
+     * - `guid=rxnf` / `guid=zydm` → 班级列表（按 `grade`/`collegeCode`/`majorCode` 组合过滤，均可空）；
+     * - `guid=xsyxdm` → 专业列表（按 `collegeCode` 过滤）。
+     *
+     * @param grade 年级（如 `"2025"`），空 = 不过滤
+     * @param collegeCode 学院代码（`xsyxdm`），空 = 不过滤
+     * @param majorCode 专业代码（`zydm`），空 = 不过滤
+     * @throws GdutException.SessionExpired 会话失效
+     * @throws GdutException.Parse 响应结构变了
+     */
+    public fun fetchClassCascade(
+        term: Term,
+        guid: String,
+        grade: String = "",
+        collegeCode: String = "",
+        majorCode: String = "",
+    ): List<JxfwScheduleParser.ClassCascadeOption> {
+        val body = postForm(
+            url = hosts.jxfwClassScheduleFind,
+            // 实测（2026-09-13）：参数放 POST body（浏览器端 $.post 就是这么发的），
+            // 与 getKbRq/xsAllKbList "只认 URL 查询串" 相反。
+            params = JxfwScheduleParser.classCascadeQuery(guid, term, grade, collegeCode, majorCode),
+            referer = hosts.jxfwClassScheduleReferer,
+            what = "班级级联（getFind）",
+        )
+        return JxfwScheduleParser.parseClassCascade(body)
+    }
+
+    /**
+     * 拉取班级课表主页面并解析级联下拉的静态选项（学院 / 年级 / 专业）。
+     *
+     * 班级列表不在这里 —— 主页一次渲染 7000+ 个班级 option，走 [fetchClassCascade] 级联查询。
+     *
+     * @throws GdutException.SessionExpired 会话失效（含"非法访问"页形态）
+     * @throws GdutException.Parse 页面结构变了
+     */
+    public fun fetchClassCascadeMeta(): JxfwScheduleParser.ClassCascadeMeta {
+        val body = get(
+            url = hosts.jxfwClassScheduleMain,
+            referer = hosts.jxfwDefaultReferer,
+            what = "班级课表主页（级联下拉）",
+            allowHtml = true,
+        )
+        return JxfwScheduleParser.parseClassCascadeMainPage(body)
+    }
+
     // ------------------------------------------------------------------ 考试
 
     /**

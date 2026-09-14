@@ -60,6 +60,7 @@ class JxfwClientTest {
         const val SCORE_DATA_LIST_PATH = "/xskccjxx!getDataList.action"
         const val CLASS_GET_KB_RQ_PATH = "/xsbjkbcx!getKbRq.action"
         const val CLASS_ALL_KB_LIST_PATH = "/xsbjkbcx!xsAllKbList.action"
+        const val CLASS_CASCADE_FIND_PATH = "/xsbjkbcx!getFind.action"
     }
 
     /** 一次测试会触发的接口响应。默认全部成功，各测试只改自己关心的那一环。 */
@@ -74,6 +75,10 @@ class JxfwClientTest {
         var classGetKbRq: () -> MockResponse = { ok(classGetKbRqBody()) },
         /** 班级课表备接口（xsAllKbList，HTML `var kbxx`）。 */
         var classAllKbList: () -> MockResponse = { ok(allKbListHtml(allKbListRow(name = "班级英语"))) },
+        /** 班级级联筛选（getFind，`<guid>^getFind:<JSON数组>` 文本）。 */
+        var classCascadeFind: () -> MockResponse = {
+            ok("""rxnf^getFind:[{"dm":"116523137","mc":"计算机科学与技术25(5)"},{"dm":"116523138","mc":"计算机科学与技术25(6)"}]""")
+        },
     )
 
     @Before
@@ -110,6 +115,7 @@ class JxfwClientTest {
                 script.scoreDataList(parseForm(body)["page"]?.toIntOrNull() ?: -1)
             path.startsWith(CLASS_GET_KB_RQ_PATH) -> script.classGetKbRq()
             path.startsWith(CLASS_ALL_KB_LIST_PATH) -> script.classAllKbList()
+            path.startsWith(CLASS_CASCADE_FIND_PATH) -> script.classCascadeFind()
             else -> MockResponse().setResponseCode(404).setBody("unexpected: ${request.method} $path")
         }
     }
@@ -494,5 +500,55 @@ class JxfwClientTest {
         // 个人课表接口一次都不该碰
         assertThat(recorded.none { it.request.path?.startsWith(SCHEDULE_DATA_LIST_PATH) == true }).isTrue()
         assertThat(recorded.none { it.request.path?.startsWith(ALL_KB_LIST_PATH) == true }).isTrue()
+    }
+
+    // ================================================================== 班级级联筛选：fetchClassCascade
+
+    @Test
+    fun `班级级联返回解析后的选项列表`() {
+        val options = newClient().fetchClassCascade(term, guid = "rxnf", grade = "2025")
+
+        assertThat(options).hasSize(2)
+        assertThat(options[0].code).isEqualTo("116523137")
+        assertThat(options[0].name).isEqualTo("计算机科学与技术25(5)")
+    }
+
+    @Test
+    fun `班级级联参数走POSTbody且带站内Referer`() {
+        newClient().fetchClassCascade(term, guid = "rxnf", grade = "2025", collegeCode = "07", majorCode = "0711")
+
+        val req = recorded.single { it.request.path?.startsWith(CLASS_CASCADE_FIND_PATH) == true }
+        // 实测参数只认 POST body（与 getKbRq/xsAllKbList 只认 URL 查询串相反）
+        val form = parseForm(req.body)
+        assertThat(form["guid"]).isEqualTo("rxnf")
+        assertThat(form["xnxqdm"]).isEqualTo("202501")
+        assertThat(form["rxnf"]).isEqualTo("2025")
+        assertThat(form["xsyxdm"]).isEqualTo("07")
+        assertThat(form["zydm"]).isEqualTo("0711")
+        assertThat(form).containsEntry("xqdm", "")
+        // 全站 Referer 校验（2026-09-13 实测）
+        assertThat(req.request.getHeader("Referer")).isEqualTo("${baseUrl()}/")
+    }
+
+    @Test
+    fun `班级级联会话失效时抛SessionExpired`() {
+        script.classCascadeFind = {
+            MockResponse().setResponseCode(302)
+                .setHeader("Location", "https://authserver.gdut.edu.cn/authserver/login?service=x")
+        }
+
+        val e = assertThrows(GdutException.SessionExpired::class.java) {
+            newClient().fetchClassCascade(term, guid = "rxnf")
+        }
+        assertThat(e.shouldRetryLogin).isTrue()
+    }
+
+    @Test
+    fun `班级级联响应结构不对时抛Parse`() {
+        script.classCascadeFind = { ok("""{"unexpected":"shape"}""") }
+
+        assertThrows(GdutException.Parse::class.java) {
+            newClient().fetchClassCascade(term, guid = "rxnf")
+        }
     }
 }

@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>学生班级课表</title>
+</head>
+<body>
+<table>
+	<tr>
+		<td align="right">学年学期：</td>
+		<td><select id='xnxqdm' name='xnxqdm' style='width:120px' class='ntssselect' onchange='doChangeXnxq()'>
+			<option value='202601' selected='selected'>2025-2026学年第二学期</option>
+			<option value='202501'>2025-2026学年第一学期</option>
+		</select></td>
+		<td align="right">学院：</td>
+		<td><select id='xsyxdm' name='xsyxdm' style='width:260px' onchange='doChange(this)' class='ntssselect'>
+			<option value='' >(全部)</option>
+			<option value='07' >[07]计算机学院</option>
+			<option value='12' >[12]自动化学院</option>
+			<option value='115013154' >00100-校领导</option>
+		</select></td>
+		<td align="right">年级：</td>
+		<td><select id='rxnf' name='rxnf' style='width:80px' onchange='doChange(this)' class='ntssselect'>
+			<option value='' >(全部)</option>
+			<option value='2026' >2026</option>
+			<option value='2025' >2025</option>
+			<option value='2024' >2024</option>
+		</select></td>
+		<td align="right">专业：</td>
+		<td><select id='zydm' name='zydm' style='width:120px' onchange='doChange(this)' class='ntssselect'>
+			<option value='' >(全部)</option>
+			<option value='0711' >[0711]计算机科学与技术</option>
+			<option value='0712' >[0712]软件工程</option>
+		</select></td>
+		<td align="right">班级：</td>
+		<td><select id='bjdm' name='bjdm' style='width:260px' data-options='required:true' class='easyui-validatebox ntssselect'>
+			<option value='' >请选择</option>
+			<option value='116523137' >计算机科学与技术25(5)</option>
+		</select></td>
+	</tr>
+</table>
+</body>
+</html>

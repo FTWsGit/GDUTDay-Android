@@ -68,6 +68,14 @@ class ScheduleViewModelAddCourseTest {
         override suspend fun setCourseColor(courseName: String, colorKey: String) {}
         override suspend fun resetColors() {}
         override suspend fun setSemesterStart(term: Term, startDate: LocalDate) {}
+        override suspend fun fetchClassCascade(
+            guid: String,
+            grade: String,
+            collegeCode: String,
+            majorCode: String,
+        ): List<com.gdutday.data.repository.ClassCascadeOption> = emptyList()
+        override suspend fun fetchClassCascadeMeta(): com.gdutday.data.repository.ClassCascadeMeta =
+            throw UnsupportedOperationException()
     }
 
     private class FakeSettingsStore : SettingsStore {

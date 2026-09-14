@@ -522,6 +522,47 @@ public class ScheduleRepositoryImpl(
         }
     }
 
+    // ------------------------------------------------------------------ 班级级联筛选
+
+    override suspend fun fetchClassCascade(
+        guid: String,
+        grade: String,
+        collegeCode: String,
+        majorCode: String,
+    ): List<ClassCascadeOption> = withContext(Dispatchers.IO) {
+        val session = sessionStore.current()
+            ?: throw GdutException.SessionExpired("本地没有可用会话，请先登录")
+        // 级联选择只是"选班级"的辅助流程，不依赖同步源设置，
+        // 且必须用当前学期长码查询（服务端按学期返回班级列表）。
+        val client = jxfwClientFactory(session, JxfwConfig())
+        val term = resolveCurrentTerm(client)
+        val options = client.fetchClassCascade(term, guid, grade, collegeCode, majorCode)
+        // 会话过程中 jxfw 可能轮换 JSESSIONID，回写以保持登录态
+        sessionStore.save(session.copy(cookies = client.currentCookies()))
+        options.map { ClassCascadeOption(code = it.code, name = it.name) }
+    }
+
+    /** 取当前学期。级联查询只需要学期长码，学期列表本身也顺带校验了会话有效性。 */
+    private suspend fun resolveCurrentTerm(client: JxfwClient): Term {
+        val termList = client.fetchTermList()
+        return termList.current
+            ?: termList.terms.firstOrNull()
+            ?: throw GdutException.Local("教务系统没有返回任何学期")
+    }
+
+    override suspend fun fetchClassCascadeMeta(): ClassCascadeMeta = withContext(Dispatchers.IO) {
+        val session = sessionStore.current()
+            ?: throw GdutException.SessionExpired("本地没有可用会话，请先登录")
+        val client = jxfwClientFactory(session, JxfwConfig())
+        val meta = client.fetchClassCascadeMeta()
+        sessionStore.save(session.copy(cookies = client.currentCookies()))
+        ClassCascadeMeta(
+            colleges = meta.colleges.map { ClassCascadeOption(it.code, it.name) },
+            grades = meta.grades.map { ClassCascadeOption(it.code, it.name) },
+            majors = meta.majors.map { ClassCascadeOption(it.code, it.name) },
+        )
+    }
+
     // ------------------------------------------------------------------ 内部
 
     /**

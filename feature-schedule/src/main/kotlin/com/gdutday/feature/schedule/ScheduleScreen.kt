@@ -88,6 +88,7 @@ fun ScheduleScreen(
     val guessedDismissed by viewModel.guessedBannerDismissed.collectAsStateWithLifecycle()
     val campusDismissed by viewModel.campusBannerDismissed.collectAsStateWithLifecycle()
     val syncSourceDismissed by viewModel.syncSourceBannerDismissed.collectAsStateWithLifecycle()
+    val classCascade by viewModel.classCascade.collectAsStateWithLifecycle()
     val dayOffset by viewModel.selectedDayOffset.collectAsStateWithLifecycle()
     val isLoggedIn by container.authRepository.isLoggedIn
         .collectAsStateWithLifecycle(initialValue = true)
@@ -311,18 +312,30 @@ fun ScheduleScreen(
     }
 
     // 同步源切换：选班级并确认后由 ViewModel 触发一次加急同步。
+    // 打开时加载级联数据（学院/年级/专业/班级），关闭时重置，下次打开重新加载。
     if (showSyncSourceDialog) {
+        LaunchedEffect(Unit) { viewModel.loadClassCascade() }
         SyncSourceDialog(
             settings = settings,
-            onDismiss = { showSyncSourceDialog = false },
+            cascade = classCascade,
+            onDismiss = {
+                showSyncSourceDialog = false
+                viewModel.resetClassCascade()
+            },
             onSelectPersonal = {
                 showSyncSourceDialog = false
+                viewModel.resetClassCascade()
                 viewModel.switchSyncSourceType(SyncSourceType.PERSONAL)
             },
             onSelectClass = { bjdm, className ->
                 showSyncSourceDialog = false
+                viewModel.resetClassCascade()
                 viewModel.setClassSchedule(bjdm, className)
             },
+            onSelectCollege = viewModel::selectCascadeCollege,
+            onSelectGrade = viewModel::selectCascadeGrade,
+            onSelectMajor = viewModel::selectCascadeMajor,
+            onSelectClassOption = viewModel::selectCascadeClass,
         )
     }
 
