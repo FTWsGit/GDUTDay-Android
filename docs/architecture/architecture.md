@@ -1,3 +1,11 @@
+---
+name: "architecture"
+kind: "architecture"
+description: "Project architecture, module dependency graph, design decisions and rationale"
+alwaysApply: false
+---
+
+
 # 00 · 架构
 
 本文回答"项目为什么长成这样"。每条设计决策都写明**理由**与**被否决的替代方案**，

@@ -1,3 +1,11 @@
+---
+name: "api-probing"
+kind: "guide"
+description: "How to probe unknown jxfw APIs: DevTools, curl experiments, JS reverse engineering"
+alwaysApply: false
+---
+
+
 # 08 · 教务接口探测手册
 
 > 本文回答两个问题:**教务系统上有什么可查的**,以及**拿到一个陌生接口后,

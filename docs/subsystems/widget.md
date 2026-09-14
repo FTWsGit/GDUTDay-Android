@@ -1,3 +1,11 @@
+---
+name: "widget"
+kind: "subsystem"
+description: "Glance desktop widgets: today schedule (4x2) and next class (4x1), data-driven refresh"
+alwaysApply: false
+---
+
+
 # 04 · 桌面插件规格
 
 覆盖两个 Glance 插件（`widget` 模块）、数据驱动方式、刷新策略与 Glance 的实际限制。

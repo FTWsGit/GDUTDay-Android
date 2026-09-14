@@ -1,3 +1,11 @@
+---
+name: "agent-task-list"
+kind: "guide"
+description: "Task list for agents: P0 blockers, P1 features, P2 robustness, verified bugs"
+alwaysApply: false
+---
+
+
 # 05 · Agent 任务清单
 
 给后续实现者的任务清单。每项包含**现状**、**为什么**、**验收标准**。

@@ -1,3 +1,11 @@
+---
+name: "verify-login"
+kind: "guide"
+description: "End-to-end login verification tool, credential setup, failure diagnosis"
+alwaysApply: false
+---
+
+
 # 07 · 端到端登录验证工具
 
 一个**你自己在本机跑**的登录验证脚本。它走真实的 `AuthServerClient.login()` +

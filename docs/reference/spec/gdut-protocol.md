@@ -1,3 +1,11 @@
+---
+name: "gdut-protocol"
+kind: "spec"
+description: "GDUT authserver and jxfw protocol reverse engineering, login flow, API specs"
+alwaysApply: false
+---
+
+
 # 01 · 广工协议逆向报告
 
 > 本文是 `data-gdut` 模块全部 KDoc 的汇总与展开，是最重要的一份文档。

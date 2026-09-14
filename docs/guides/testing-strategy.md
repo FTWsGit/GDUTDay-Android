@@ -1,3 +1,11 @@
+---
+name: "testing-strategy"
+kind: "guide"
+description: "Test coverage, pure JVM strategy, MockWebServer usage, fixture conventions"
+alwaysApply: false
+---
+
+
 # 06 · 测试策略
 
 相关文档：[架构](./00-architecture.md) · [协议](./01-gdut-protocol.md) ·

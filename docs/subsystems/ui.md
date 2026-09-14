@@ -1,3 +1,11 @@
+---
+name: "ui"
+kind: "subsystem"
+description: "UI spec for all screens: schedule, login, grades, settings, toolbox; grid rendering"
+alwaysApply: false
+---
+
+
 # 03 · UI 规格
 
 覆盖五个页面（课表 / 登录 / 考试与成绩 / 设置 / 工具箱）、课表网格渲染方案、并排冲突布局、

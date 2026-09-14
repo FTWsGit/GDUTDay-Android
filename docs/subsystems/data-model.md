@@ -1,3 +1,11 @@
+---
+name: "data-model"
+kind: "subsystem"
+description: "Core model, Room database entities/DAOs, DataStore, semester start resolution"
+alwaysApply: false
+---
+
+
 # 02 · 数据模型
 
 覆盖 `core-model`（领域模型）、`core-database`（Room 实体/DAO/映射）、
