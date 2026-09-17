@@ -87,7 +87,6 @@ fun ScheduleScreen(
     val selectedBlock by viewModel.selectedBlock.collectAsStateWithLifecycle()
     val guessedDismissed by viewModel.guessedBannerDismissed.collectAsStateWithLifecycle()
     val campusDismissed by viewModel.campusBannerDismissed.collectAsStateWithLifecycle()
-    val syncSourceDismissed by viewModel.syncSourceBannerDismissed.collectAsStateWithLifecycle()
     val classCascade by viewModel.classCascade.collectAsStateWithLifecycle()
     val dayOffset by viewModel.selectedDayOffset.collectAsStateWithLifecycle()
     val isLoggedIn by container.authRepository.isLoggedIn
@@ -156,21 +155,6 @@ fun ScheduleScreen(
                 modifier = Modifier.padding(innerPadding).fillMaxSize(),
             ) {
                 Column(Modifier.fillMaxSize()) {
-                    // 班级课表同步源：提示当前显示的不是本人课表，避免误认为是自己的课。
-                    if (settings.syncSourceType == SyncSourceType.CLASS_SCHEDULE &&
-                        !syncSourceDismissed
-                    ) {
-                        StatusBanner(
-                            message = stringResource(
-                                R.string.schedule_sync_source_current_class,
-                                settings.classScheduleClassName.ifBlank { settings.classScheduleBjdm },
-                            ),
-                            tone = BannerTone.INFO,
-                            actionLabel = stringResource(R.string.schedule_menu_sync_source),
-                            onAction = { showSyncSourceDialog = true },
-                            onDismiss = viewModel::dismissSyncSourceBanner,
-                        )
-                    }
                     // 开学日期是推测的：这是全屏里最该被看见的提示，日期错了周次全错。
                     if (state.semesterStartSource.needsUserConfirmation && !guessedDismissed) {
                         StatusBanner(

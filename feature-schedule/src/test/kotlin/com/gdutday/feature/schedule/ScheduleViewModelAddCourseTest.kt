@@ -53,11 +53,12 @@ class ScheduleViewModelAddCourseTest {
             return emptyList()
         }
 
-        override suspend fun updateCustomCourse(course: Course): List<Course> = emptyList()
+        override suspend fun updateCustomCourse(course: Course, force: Boolean): List<Course> = emptyList()
         override suspend fun saveSchoolOverride(
             original: Course,
             editedFields: Course,
             scope: OverrideScope,
+            force: Boolean,
         ): List<Course> = emptyList()
 
         override suspend fun deleteCourse(id: Long) {}

@@ -69,3 +69,23 @@
 # 运行时不需要（没有反射框架读它），删掉能省不少体积。
 # 但如果将来引入了需要读 metadata 的库（如 Moshi 的反射适配器），要注掉这一行。
 # -keep class kotlin.Metadata { *; }   # 刻意不启用
+
+# ---- Glance ActionCallback ----
+# 桌面插件按钮用 `actionRunCallback<T>()` 注册点击事件：Glance 在收到点击广播时，
+# 按类名反射 `Class.forName(...).newInstance()` 实例化对应的 ActionCallback，
+# 要求一个公开无参构造函数。类名本身因为有 `T::class.java` 引用不会被删，
+# 但 R8 默认仍会混淆类名/成员，且可能把"看起来没人调用"的无参构造函数优化掉——
+# 两者任一发生，点击都会在 release 包上静默失败（不崩溃、不刷新，表现就是"点了没反应"）。
+-keep class * implements androidx.glance.appwidget.action.ActionCallback {
+    public <init>();
+}
+
+# ---- WorkManager 默认反射工厂 ----
+# ScheduleSyncWorker 由 GdutWorkerFactory 直接 `new` 出来，构造调用在源码里可见，
+# R8 天然不会动它；但 NextClassRefreshWorker 没注册进那个工厂，
+# 由 WorkManager 按 WorkSpec 里持久化的类名走默认反射工厂实例化，
+# 原理和上面的 ActionCallback 一样，同样需要保留标准 (Context, WorkerParameters) 构造函数，
+# 否则跨天定时刷新会在 release 包上悄悄失效。两个 Worker 一起保留，成本可忽略。
+-keep public class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}

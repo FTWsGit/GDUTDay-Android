@@ -174,7 +174,11 @@ public interface ScheduleRepository {
      */
     public suspend fun addCustomCourse(course: Course, force: Boolean = false): List<Course>
 
-    public suspend fun updateCustomCourse(course: Course): List<Course>
+    /**
+     * @return 与它冲突的已有课程。非空表示没有更新。同 [addCustomCourse]，
+     *   由调用方决定是提示用户还是 `force = true` 直接覆盖。
+     */
+    public suspend fun updateCustomCourse(course: Course, force: Boolean = false): List<Course>
 
     /**
      * 保存对教务课程的修改，形成 [CourseSource.OVERRIDE] 补丁。
@@ -185,12 +189,14 @@ public interface ScheduleRepository {
      * @param editedFields 用户在编辑页改好的字段（名称/老师/教室/星期/节次或绝对时间等），
      *   其 `weeks` 必须是**被作用的周次**（按 [scope] 拆出的那部分）。
      * @param scope 作用范围：全部周次 / 单周 / 周范围。
-     * @return 冲突的已有课程。非空表示没有保存。
+     * @param force 同 [addCustomCourse]：`true` 时忽略冲突直接保存。
+     * @return 冲突的已有课程。非空且 `force = false` 时表示没有保存。
      */
     public suspend fun saveSchoolOverride(
         original: Course,
         editedFields: Course,
         scope: OverrideScope,
+        force: Boolean = false,
     ): List<Course>
 
     /** 删除课程。[Course.source] 为 SCHOOL 时同样允许删（用户可能不想看某门课）。 */

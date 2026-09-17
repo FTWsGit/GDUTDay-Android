@@ -49,6 +49,7 @@ public enum class TodayPhase {
 /** 列表里的一行课程。 */
 public data class WidgetCourseRow(
     public val startClock: String,
+    public val endClock: String,
     public val name: String,
     public val teacher: String,
     public val classroom: String,
@@ -102,6 +103,7 @@ public object TodayScheduleMapper {
         val rows = pending.map { block ->
             WidgetCourseRow(
                 startClock = block.startClock,
+                endClock = block.endClock,
                 name = block.course.name,
                 teacher = block.course.teacher,
                 classroom = block.course.classroom,

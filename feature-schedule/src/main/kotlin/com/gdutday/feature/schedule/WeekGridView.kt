@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
@@ -134,11 +133,16 @@ public fun WeekGridView(
         if (periods.firstOrNull()?.start?.let { grid.verticalRange.first < CourseBlock.clockToMinute(it) } == true) 1 else 0
     }
 
+    // 溢出槽总数（前置 + 尾部，最多各 1 个）。节次栏和右侧内容区的总高度必须用同一个值，
+    // 否则尾部有溢出时内容区能往下滚出的范围比节次栏画布还高一截，滚到底两边错位。
+    val totalOverflowSlots = remember(periods, grid) { overflowSlots(periods, grid.verticalRange) }
+
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val drag = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     // 纵向滚动状态提升到这里，三页周视图与左侧节次栏共享同一份偏移：
-    // 内容上下滚动时节次栏用 graphicsLayer 同步移动，不再错位。
+    // 节次栏对同一个 ScrollState 再挂一次 verticalScroll(enabled = false) 跟着走，
+    // 两侧用的是同一套 Compose 滚动机制，而不是分别测量后手动换算。
     val verticalScroll = rememberScrollState()
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -155,6 +159,7 @@ public fun WeekGridView(
                 periods = periods,
                 translucent = settings.backgroundImageUri != null,
                 periodHeightPx = periodHeightPx,
+                totalSlots = periods.size.coerceAtLeast(1) + totalOverflowSlots,
                 frontOverflowSlots = frontOverflowSlots,
                 scrollState = verticalScroll,
             )
@@ -176,7 +181,7 @@ public fun WeekGridView(
                     },
             ) {
                 val pageWidth = constraints.maxWidth.toFloat()
-                val gridHeightPx = (periods.size.coerceAtLeast(1) + overflowSlots(periods, grid.verticalRange)) * periodHeightPx
+                val gridHeightPx = (periods.size.coerceAtLeast(1) + totalOverflowSlots) * periodHeightPx
                 val dayWidthPx = (pageWidth / visibleDays.size).coerceAtLeast(1f)
                 val dayWidthDp = with(density) { dayWidthPx.toDp() }
                 val gridHeightDp = with(density) { gridHeightPx.toDp() }
@@ -442,15 +447,24 @@ private fun DayHeaderRow(
  * 左侧节次栏。独立 composable，**不**加横向 `graphicsLayer` / `AnimatedContent`：
  * 左右滑动切周时它保持静止，只有右侧内容区随手势平移。
  *
- * 纵向则相反：它需要与内容一起上下滚动。所以外层是一个裁剪到视口的 [Box]，
- * 内层 [Canvas] 按"节数 × 每节高度"排满内容高度，再用 `graphicsLayer.translationY`
- * 抵消共享的 [ScrollState] 偏移，于是纵向滚动时节次数字与课程行严格对齐。
+ * 纵向则相反：它需要与内容一起上下滚动。这里直接对同一个 [ScrollState] 再挂一次
+ * `Modifier.verticalScroll(enabled = false)`——`enabled = false` 只是不让它自己接手
+ * 拖动手势（避免和右侧内容区抢同一次垂直拖动），但仍然按 `scrollState.value` 实时
+ * 定位内容，和右侧内容区走的是**完全相同**的 Compose 滚动机制。
+ *
+ * 之前的写法是自己在 `graphicsLayer` 里搬 `translationY = frontOverflowSlots * periodHeightPx
+ * - scrollState.value`，本质是用手写公式模拟"和内容区对齐"——只要这侧的 [Box] 和内容区的
+ * [Box] 在测量/放置上有任何细微差异（父链里任何一层的舍入、约束差异等），这个公式就会带着
+ * 一个固定的常量误差，且无法通过看代码发现（两边测量出的起点在理论上"应该"相同，实测却
+ * 有几十像素的恒定偏移，正是这类问题的症状）。改成同一套 `verticalScroll` 机制后，
+ * 两侧的像素定位由 Compose 用同一个内部实现算出来，不再有"两份独立公式对不对得上"的问题。
  */
 @Composable
 private fun PeriodGutter(
     periods: List<Period>,
     translucent: Boolean,
     periodHeightPx: Float,
+    totalSlots: Int,
     frontOverflowSlots: Int,
     scrollState: ScrollState,
 ) {
@@ -460,40 +474,59 @@ private fun PeriodGutter(
     val numberStyle = ScheduleBlockText.sectionNumber.copy(color = scheme.onSurfaceVariant)
     val timeStyle = ScheduleBlockText.sectionTime.copy(color = scheme.onSurfaceVariant)
     val widthPx = with(LocalDensity.current) { GUTTER_WIDTH.toPx() }
-    val heightPx = periods.size * periodHeightPx
+    // 用 totalSlots（节数 + 溢出槽）而不是单纯 periods.size：右侧内容区的高度
+    // （gridHeightPx）本来就把溢出槽算进去了，这里不算的话两侧总高度不一致，
+    // 尾部溢出时内容区能往下滚出的范围比节次栏的画布还高一截，滚到底会错位。
+    val heightPx = totalSlots.coerceAtLeast(1) * periodHeightPx
     val heightDp = with(LocalDensity.current) { heightPx.toDp() }
 
-    Box(Modifier.width(GUTTER_WIDTH).fillMaxHeight().clipToBounds()) {
-        Canvas(
-            Modifier
-                .width(GUTTER_WIDTH)
-                // requiredHeight：内容高度（节数 × 每节高）通常大于视口，必须强制、不能被
-                // 父约束压缩，否则 slotHeight 会退化成"视口高度 ÷ 节数"，与右侧网格错位。
-                .requiredHeight(heightDp)
-                .graphicsLayer { translationY = frontOverflowSlots * periodHeightPx - scrollState.value },
-        ) {
-            val slotHeight = size.height / periods.size.coerceAtLeast(1)
+    Box(
+        Modifier
+            .width(GUTTER_WIDTH)
+            .fillMaxHeight()
+            .clipToBounds()
+            .verticalScroll(scrollState, enabled = false),
+    ) {
+        Canvas(Modifier.width(GUTTER_WIDTH).height(heightDp)) {
+            // 除数同样用 totalSlots：分子 size.height 已经因为上面的改动变大了，
+            // 除数还用 periods.size 的话算出来的 slotHeight 会比 periodHeightPx 大，
+            // 让数字整体被拉伸到比实际的行更靠下。
+            val slotHeight = size.height / totalSlots.coerceAtLeast(1)
             val gutterColor = if (translucent) colors.sectionGutter.copy(alpha = 0.6f) else colors.sectionGutter
             drawRect(color = gutterColor, size = Size(size.width, size.height))
             // 右边界线（与网格纵向线同色，随内容滑动也不会出现断口）。
             drawLine(colors.gridLine, Offset(size.width, 0f), Offset(size.width, size.height), strokeWidth = 1f)
             periods.forEachIndexed { index, period ->
-                val y = index * slotHeight
+                // 前置溢出槽（0 或 1 个）固定排在最前面、不画数字，真正的节次整体往后错开
+                // frontOverflowSlots 格——和右侧内容区用 buildPeriodRanges 在最前面插入一个
+                // 溢出区间是同一个道理，都是把"前面多出一段"编码进位置本身，而不是另外
+                // 叠一次变换。
+                val y = (index + frontOverflowSlots) * slotHeight
                 val centerY = y + slotHeight / 2f
                 val number = measurer.measure(period.index.toString(), numberStyle)
+                val start = measurer.measure(formatClock(period.start), timeStyle)
+                val end = measurer.measure(formatClock(period.end), timeStyle)
+                // 三行（节次数字 + 起止时刻）作为一组整体在槽位内垂直居中：
+                // 按各自实际测量高度堆叠，而不是假设某个固定行高去反推偏移。
+                // 之前的写法用 `centerY - number.size.height - timeStyle.fontSize.toPx()`
+                // 硬算数字的位置，一旦系统字体的实际行高比这个假设值更大，
+                // 数字整行都会被推到本行顶部之外、糊到上一节里——这正是"2 显示在 1 的位置"的成因。
+                val gap = 2.dp.toPx()
+                val totalHeight = number.size.height + gap + start.size.height + end.size.height
+                var top = centerY - totalHeight / 2f
                 drawText(
                     textLayoutResult = number,
-                    topLeft = Offset((widthPx - number.size.width) / 2f, centerY - number.size.height - timeStyle.fontSize.toPx()),
+                    topLeft = Offset((widthPx - number.size.width) / 2f, top),
                 )
-                val start = measurer.measure(formatClock(period.start), timeStyle)
+                top += number.size.height + gap
                 drawText(
                     textLayoutResult = start,
-                    topLeft = Offset((widthPx - start.size.width) / 2f, centerY - timeStyle.fontSize.toPx() / 2f),
+                    topLeft = Offset((widthPx - start.size.width) / 2f, top),
                 )
-                val end = measurer.measure(formatClock(period.end), timeStyle)
+                top += start.size.height
                 drawText(
                     textLayoutResult = end,
-                    topLeft = Offset((widthPx - end.size.width) / 2f, centerY + timeStyle.fontSize.toPx() / 2f),
+                    topLeft = Offset((widthPx - end.size.width) / 2f, top),
                 )
             }
         }

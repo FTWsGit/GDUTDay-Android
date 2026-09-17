@@ -160,6 +160,8 @@ class ScheduleSyncSourceTest {
         }
 
         override suspend fun getOverrides(termCode: String): List<CourseEntity> = emptyList()
+
+        override suspend fun getAllOverrides(): List<CourseEntity> = emptyList()
         override suspend fun getSchoolCourses(termCode: String): List<CourseEntity> =
             rows.filter { it.termCode == termCode && it.source == "SCHOOL" }
 

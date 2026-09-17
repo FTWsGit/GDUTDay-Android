@@ -725,6 +725,59 @@ rm -rf temp/session/
 
 ---
 
+## 4.8 空闲教室查询（jwcwx.gdut.edu.cn）—— 实测 2026-09-17
+
+> 微信公众号"广东工业大学教务"里的教室占用查询，独立主机 `jwcwx.gdut.edu.cn`（非 jxfw）。
+> **可用 CAS 登录**（`/login/cas` 有"使用统一身份认证"入口），不需要微信 OAuth——App 可复用 `AuthServerClient`。
+
+### 登录链路
+
+```
+① GET https://authserver.gdut.edu.cn/authserver/login?service=https%3A%2F%2Fjwcwx.gdut.edu.cn%2Flogin%2Fcas
+   （登录页结构与 jxfw 完全一致：salt/execution/48字符表加密，主表单在页面后部，
+     ⚠ 页面前部还有 fido/dynamic 登录表单，抠 execution 时按主表单特征匹配）
+② POST 同 jxfw：username/password(密文)/captcha=""&rememberMe=true&_eventId=submit&execution
+   （实测额外带 rmShown=1 亦可成功；不带 salt 空名字段时不带也可）
+③ 302 → https://jwcwx.gdut.edu.cn/login/cas?ticket=ST-xxx → 302 → /login/cas → 会话建立
+   ⚠ jwcwx 的 302 Location 会降级为 http://，而本机 80 端口不通——手动跟随并把 http 换成 https
+   ⚠ 未登录访问任何业务路径 302 → /login/openid → 微信 OAuth，不要跟
+```
+
+### 接口（全部 GET，无 Referer 要求，响应 `{"code":0,"data":[...],"message":...}`）
+
+| 接口 | 参数 | 返回 |
+|---|---|---|
+| `/free-class-room/buildingData?jwCode=` | — | 全部 60 栋教学楼：`jzwdm`(教学楼代码) `jzwmc`(名称) `szxqdm`(校区代码) `xqmc`(校区名)。覆盖大学城/东风路/龙洞/番禺/揭阳五校区 |
+| `/free-class-room/classroomUsedData?jwCode=&jzwdm=<building>&rq=<yyyy-MM-dd>` | 日期 | 该楼当天**所有教室的占用行**（未占用教室无行，取差集即空闲教室） |
+
+占用行字段（与个人课表 `getDataList` 高度同构）：
+
+| 字段 | 含义 |
+|---|---|
+| `jxcdmc` | 教室名（如 `综合楼-701`） |
+| `kcmc` / `teaxms` / `jxbmc` | 课程名 / 教师 / 教学班 |
+| `jcdm` | 节次，**两位拼接** `"0102"`（同课表格式，按连续段切分） |
+| `jcdm2` | 逗号分隔节次 `"01,02"` |
+| `rq` 无对应字段 | 无；行内含 `xq`(星期) `zc`(周次) `xnxqdm`(学期长码) |
+| `rs` / `pkrs` | 实际人数 / 容量 |
+| `sytype` / `shztdm` | 使用类型 / 审核状态（语义未验证） |
+
+### 实测边界
+
+- 无效日期 / 无效 `jzwdm`：**不报错**，返回 `code:0, data:[]` —— 客户端需自己校验；
+- 未认证请求一律 302 到 `/login/openid`（无匿名访问）；
+- 会话有效期未长期观察，建议按 `SessionExpired` 常规处理；
+- 响应无 EasyUI 分页，直接 JSON 数组，无 rows/total。
+
+### App 接入注意
+
+1. 新增主机常量到 `GdutEndpoints`/`GdutHosts`（`jwcwx.gdut.edu.cn`）；
+2. CAS service 换成 jwcwx 的 URL 即可复用登录实现，但**票据兑换后的 302 会降级 http**，
+   `RedirectFollower` 跟随时需按主机强制 https 或以 jwcwx 200 响应为成功标志；
+3. fixture 抓取后脱敏 `teaxms`/`jxbmc`。
+
+---
+
 ## 5. 图书馆入馆二维码
 
 **完全本地生成，不需要任何网络请求。**

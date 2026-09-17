@@ -14,10 +14,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -39,6 +44,7 @@ import com.gdutday.core.common.CourseColors
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.OverrideScope
+import com.gdutday.core.ui.TimePickerDialog
 import com.gdutday.core.ui.toComposeColor
 import java.time.LocalTime
 
@@ -158,22 +164,22 @@ internal fun CourseEditSheet(
                     )
                 }
                 if (useRealTime) {
+                    // picking：null=没开着；true=在选开始时间；false=在选结束时间。
+                    var picking by rememberSaveable { mutableStateOf<Boolean?>(null) }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        OutlinedTextField(
+                        TimeField(
+                            label = stringResource(R.string.schedule_edit_start_time),
                             value = startTime,
-                            onValueChange = { startTime = it },
-                            label = { Text(stringResource(R.string.schedule_edit_start_time)) },
-                            singleLine = true,
+                            onClick = { picking = true },
                             modifier = Modifier.weight(1f),
                         )
-                        OutlinedTextField(
+                        TimeField(
+                            label = stringResource(R.string.schedule_edit_end_time),
                             value = endTime,
-                            onValueChange = { endTime = it },
-                            label = { Text(stringResource(R.string.schedule_edit_end_time)) },
-                            singleLine = true,
+                            onClick = { picking = false },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -182,6 +188,22 @@ internal fun CourseEditSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // 系统时间选择器，不用再手敲 HH:mm、操心冒号和补零。
+                    picking?.let { isStart ->
+                        val currentText = if (isStart) startTime else endTime
+                        val initial = runCatching { LocalTime.parse(currentText) }.getOrDefault(LocalTime.of(8, 0))
+                        TimePickerDialog(
+                            initial = initial,
+                            confirmLabel = stringResource(R.string.schedule_confirm),
+                            dismissLabel = stringResource(R.string.schedule_cancel),
+                            onConfirm = { time ->
+                                val formatted = "%02d:%02d".format(time.hour, time.minute)
+                                if (isStart) startTime = formatted else endTime = formatted
+                                picking = null
+                            },
+                            onDismiss = { picking = null },
+                        )
+                    }
                 } else {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -319,44 +341,50 @@ private fun ScopeOption(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** 起始节次 / 节数的滚动选择。用下拉菜单式 FilterChip 列表，保持依赖最小。 */
+/** 起止时间选一个只读展示框，点开系统 [TimePickerDialog]。和作息表编辑页同一套交互。 */
 @Composable
-private fun SectionPicker(label: String, value: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+private fun TimeField(label: String, value: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        FilterChip(
-            selected = false,
-            onClick = { expanded = !expanded },
-            label = { Text(if (expanded) "$value ▾" else "$value ▾") },
+        OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+            Text(value)
+        }
+    }
+}
+
+/** 起始节次 / 节数的选择，标准下拉框——点开菜单选一个数字，不用再自己滑一排数字找。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SectionPicker(label: String, value: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = value.toString(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
         )
-        if (expanded) {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                (1..Course.MAX_SECTION).forEach { n ->
-                    Text(
-                        text = "$n",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (n == value) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable {
-                                onPick(n)
-                                expanded = false
-                            }
-                            .padding(8.dp),
-                    )
-                }
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            (1..Course.MAX_SECTION).forEach { n ->
+                DropdownMenuItem(
+                    text = { Text("$n") },
+                    onClick = {
+                        onPick(n)
+                        expanded = false
+                    },
+                )
             }
         }
     }
@@ -382,11 +410,12 @@ internal fun affectedWeeksText(weeks: Set<Int>, currentWeek: Int): String =
         else -> ""
     }
 
-internal fun parseWeeksText(raw: String): Set<Int> =
-    raw.split(',', '，', ' ')
-        .mapNotNull { it.trim().toIntOrNull() }
-        .filter { it in 1..Course.MAX_WEEK }
-        .toSet()
+/**
+ * "指定周范围"输入框的解析。直接复用 [Course.parseWeeks]（教务原始数据的解析器），
+ * 支持 `"3-6"` 这样的区间写法，而不是只认单个数字的逗号列表——
+ * 后者会让用户输入 `"3-6"` 时被整段过滤掉，字段形同虚设。
+ */
+internal fun parseWeeksText(raw: String): Set<Int> = Course.parseWeeks(raw)
 
 /**
  * 把编辑页的各输入拼成待保存的 [Course]。

@@ -116,7 +116,7 @@ internal fun TodayScheduleContent(state: TodayScheduleWidgetState) {
             TodayHeader(state.dateLine)
             when (state.phase) {
                 TodayPhase.HAS_CLASS -> TodayCourseList(state.rows)
-                else -> TodayEmpty(state.phase, context)
+                else -> TodayEmpty(state.phase, state.dayOffset, context)
             }
         }
         DayToggleBar(dayOffset = state.dayOffset)
@@ -126,12 +126,15 @@ internal fun TodayScheduleContent(state: TodayScheduleWidgetState) {
 /**
  * 右侧竖条：今天 ↔ 明天 切换。
  *
- * 条上写的是**点下去会看到的那一天** —— 当前显示今天时写"明天"，显示明天时写"今天"，
- * 再点一下就切回来。两个汉字竖排，避免 18dp 宽横排放不下。
+ * 条上写的是**当前正在显示的那一天**——显示今天时写"今天"，显示明天时写"明天"，
+ * 点一下切到另一天，条上的字也跟着变。两个汉字竖排，避免 18dp 宽横排放不下。
+ *
+ * （曾经写的是"点下去会看到的那一天"，即显示明天时条上反而写"今天"——
+ * 语义正好反过来，看着像是"现在显示的是今天"，容易被当成没生效。）
  */
 @Composable
 private fun DayToggleBar(dayOffset: Int) {
-    val targetFirst = if (dayOffset == 0) "明" else "今"
+    val label = if (dayOffset == 0) "今" else "明"
     Column(
         modifier = GlanceModifier
             .width(18.dp)
@@ -142,7 +145,7 @@ private fun DayToggleBar(dayOffset: Int) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            targetFirst,
+            label,
             style = TextStyle(color = GlanceTheme.colors.onPrimaryContainer, fontSize = 10.sp),
         )
         Text(
@@ -209,26 +212,32 @@ private fun TodayCourseRow(row: WidgetCourseRow) {
         Box(
             modifier = GlanceModifier
                 .width(3.dp)
-                .height(20.dp)
+                .height(24.dp)
                 .background(accent)
                 .cornerRadius(2.dp),
         ) {}
-        Text(
-            text = row.startClock,
-            // 不写死宽度：之前固定 38dp，大字体下 "08:30" 会被截掉一半。
-            // 改成按内容自适应，右边留 8dp 与课程名分开。
-            modifier = GlanceModifier.padding(start = 6.dp, end = 8.dp),
-            style = TextStyle(
-                color = textColor,
-                fontSize = 11.sp,
-                fontWeight = if (ongoing) FontWeight.Bold else FontWeight.Normal,
-            ),
-            maxLines = 1,
-        )
+        // 起止时间上下两行堆叠，而不是拼成一行 "08:30-09:15"——两行各自可以自适应宽度，
+        // 不会因为加了结束时间就把横向空间挤占到课程名那一栏。
+        Column(modifier = GlanceModifier.padding(start = 6.dp, end = 8.dp)) {
+            Text(
+                text = row.startClock,
+                style = TextStyle(
+                    color = textColor,
+                    fontSize = 13.sp,
+                    fontWeight = if (ongoing) FontWeight.Bold else FontWeight.Normal,
+                ),
+                maxLines = 1,
+            )
+            Text(
+                text = row.endClock,
+                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp),
+                maxLines = 1,
+            )
+        }
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = row.name,
-                style = TextStyle(color = textColor, fontSize = 12.sp, fontWeight = nameWeight),
+                style = TextStyle(color = textColor, fontSize = 14.sp, fontWeight = nameWeight),
                 maxLines = 1,
             )
             val detail = listOf(row.teacher, row.classroom)
@@ -237,7 +246,7 @@ private fun TodayCourseRow(row: WidgetCourseRow) {
             if (detail.isNotBlank()) {
                 Text(
                     text = detail,
-                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 10.sp),
+                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp),
                     maxLines = 1,
                 )
             }
@@ -246,11 +255,19 @@ private fun TodayCourseRow(row: WidgetCourseRow) {
 }
 
 @Composable
-private fun TodayEmpty(phase: TodayPhase, context: Context) {
+private fun TodayEmpty(phase: TodayPhase, dayOffset: Int, context: Context) {
     val message = when (phase) {
         TodayPhase.LOADING -> context.getString(R.string.widget_loading)
         TodayPhase.NOT_LOGGED_IN -> context.getString(R.string.widget_empty_not_logged_in)
-        TodayPhase.NO_CLASS -> context.getString(R.string.widget_empty_no_class)
+        // "没有课"对今天/明天都可能发生，文案必须跟着 dayOffset 走，
+        // 否则显示明天的空课表时会说"今天没有课"，看起来像是插件显示错了天。
+        TodayPhase.NO_CLASS -> if (dayOffset == 0) {
+            context.getString(R.string.widget_empty_no_class_today)
+        } else {
+            context.getString(R.string.widget_empty_no_class_tomorrow)
+        }
+        // ALL_FINISHED 只可能发生在"今天"：明天的课程状态在 buildWeek 里恒为 UPCOMING，
+        // 不会被过滤成"全部完成"，所以这里不需要明天的文案变体。
         TodayPhase.ALL_FINISHED -> context.getString(R.string.widget_empty_no_more_class)
         TodayPhase.HAS_CLASS -> ""
     }

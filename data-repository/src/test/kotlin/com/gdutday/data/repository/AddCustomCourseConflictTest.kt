@@ -6,6 +6,7 @@ import com.gdutday.core.database.CourseColorEntity
 import com.gdutday.core.database.CourseDao
 import com.gdutday.core.database.CourseEntity
 import com.gdutday.core.database.ExamDao
+import com.gdutday.core.database.Mappers
 import com.gdutday.core.database.SyncStateDao
 import com.gdutday.core.database.SyncStateEntity
 import com.gdutday.core.database.TermMetaDao
@@ -16,6 +17,7 @@ import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.GdutSession
+import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.StudentProfile
 import com.gdutday.core.model.Term
 import kotlinx.coroutines.flow.Flow
@@ -81,6 +83,9 @@ class AddCustomCourseConflictTest {
 
         override suspend fun getOverrides(termCode: String): List<CourseEntity> =
             rows.filter { it.termCode == termCode && it.source == "OVERRIDE" }
+
+        override suspend fun getAllOverrides(): List<CourseEntity> =
+            rows.filter { it.source == "OVERRIDE" }
 
         override suspend fun getSchoolCourses(termCode: String): List<CourseEntity> =
             rows.filter { it.termCode == termCode && it.source == "SCHOOL" }
@@ -181,7 +186,7 @@ class AddCustomCourseConflictTest {
     @Test
     fun `force为false时冲突阻止插入`() = runTest {
         val dao = FakeCourseDao()
-        dao.upsert(with(com.gdutday.core.database.Mappers) { course("高数").toEntity() })
+        dao.upsert(with(Mappers) { course("高数").toEntity() })
         val repo = repository(dao)
 
         val conflicts = repo.addCustomCourse(course("社团活动"), force = false)
@@ -193,7 +198,7 @@ class AddCustomCourseConflictTest {
     @Test
     fun `force为true时允许冲突并插入`() = runTest {
         val dao = FakeCourseDao()
-        dao.upsert(with(com.gdutday.core.database.Mappers) { course("高数").toEntity() })
+        dao.upsert(with(Mappers) { course("高数").toEntity() })
         val repo = repository(dao)
 
         val conflicts = repo.addCustomCourse(course("社团活动"), force = true)
@@ -224,5 +229,88 @@ class AddCustomCourseConflictTest {
 
         assertThat(conflicts).isEmpty()
         assertThat(dao.rows).hasSize(1)
+    }
+
+    @Test
+    fun `清空自定义课程会把补丁接管的周次还给教务课程而不是直接删掉`() = runTest {
+        // 回归：编辑了物理课第 5 周会生成一条 OVERRIDE 补丁，同时把教务原行的第 5 周挖走。
+        // 之前"清空自定义课程"直接删掉补丁行，导致第 5 周的物理课凭空消失，
+        // 而不是像单条"还原"那样把周次还给教务原行。
+        val dao = FakeCourseDao()
+        val original = course("物理", weeks = (1..16).toSet())
+        dao.upsert(
+            with(Mappers) {
+                original.copy(weeks = original.weeks - 5, source = CourseSource.SCHOOL).toEntity()
+            },
+        )
+        dao.upsert(
+            with(Mappers) {
+                original.copy(
+                    classroom = "梯形教室",
+                    weeks = setOf(5),
+                    source = CourseSource.OVERRIDE,
+                    overrideScope = OverrideScope.THIS_WEEK,
+                    overrideTargetNaturalKey = original.naturalKey,
+                    overrideWeeks = setOf(5),
+                ).toEntity()
+            },
+        )
+        val repo = repository(dao)
+
+        repo.deleteAllCustomCourses()
+
+        val remaining = dao.rows.mapNotNull { with(Mappers) { it.toDomain() } }
+        assertThat(remaining).hasSize(1)
+        val restored = remaining.single()
+        assertThat(restored.source).isEqualTo(CourseSource.SCHOOL)
+        assertThat(restored.weeks).isEqualTo((1..16).toSet())
+    }
+
+    @Test
+    fun `编辑自定义课程force为true时冲突不会拦截保存`() = runTest {
+        // 回归：ScheduleViewModel#saveEdit 之前没传 force，updateCustomCourse 因为
+        // 撞上已有课程返回非空冲突列表后编辑就静默不生效，界面上却没有任何提示。
+        val dao = FakeCourseDao()
+        dao.upsert(with(Mappers) { course("高数").toEntity() })
+        val custom = course("社团活动", day = 1, start = 1, count = 2).copy(source = CourseSource.CUSTOM)
+        val addedId = dao.upsert(with(Mappers) { custom.toEntity() })
+        val repo = repository(dao)
+
+        // 编辑后依然和"高数"撞在同一天同一节次——force=false 应该被拒绝。
+        val edited = custom.copy(id = addedId, teacher = "王五")
+        val blocked = repo.updateCustomCourse(edited, force = false)
+        assertThat(blocked).isNotEmpty()
+        assertThat(dao.rows.first { it.id == addedId }.teacher).isEmpty()
+
+        val conflicts = repo.updateCustomCourse(edited, force = true)
+        assertThat(conflicts).isEmpty()
+        assertThat(dao.rows.first { it.id == addedId }.teacher).isEqualTo("王五")
+    }
+
+    @Test
+    fun `保存教务课程补丁force为true时冲突不会拦截保存`() = runTest {
+        // 同上，覆盖 saveSchoolOverride 这一侧——"选择全部周次却不生效"的报告
+        // 根因就是这里默认不 force，编辑撞上任何一门课就整体不保存。
+        val dao = FakeCourseDao()
+        val physics = course("物理", day = 1, start = 3, count = 2, weeks = (1..16).toSet())
+            .copy(source = CourseSource.SCHOOL)
+        val physicsId = dao.upsert(with(Mappers) { physics.toEntity() })
+        // 同一天同一节次的另一门课，用来制造冲突。
+        dao.upsert(with(Mappers) { course("英语", day = 1, start = 3, count = 2).toEntity() })
+        val repo = repository(dao)
+
+        val original = physics.copy(id = physicsId)
+        val edited = original.copy(classroom = "教5-301", weeks = (1..16).toSet())
+
+        val blocked = repo.saveSchoolOverride(original, edited, OverrideScope.ALL, force = false)
+        assertThat(blocked).isNotEmpty()
+        assertThat(dao.rows.none { it.source == "OVERRIDE" }).isTrue()
+
+        val conflicts = repo.saveSchoolOverride(original, edited, OverrideScope.ALL, force = true)
+        assertThat(conflicts).isEmpty()
+        val override = dao.rows.mapNotNull { with(Mappers) { it.toDomain() } }
+            .single { it.source == CourseSource.OVERRIDE }
+        assertThat(override.classroom).isEqualTo("教5-301")
+        assertThat(override.weeks).isEqualTo((1..16).toSet())
     }
 }

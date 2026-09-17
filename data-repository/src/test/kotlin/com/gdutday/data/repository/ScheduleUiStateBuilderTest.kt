@@ -96,6 +96,41 @@ class ScheduleUiStateBuilderTest {
     }
 
     @Test
+    fun `tomorrowBlocks 装配明天的课程而不是永远为空`() = runTest {
+        // 回归：ScheduleComputation 算出了 tomorrowBlocks，但构造 ScheduleUiState 时
+        // 漏传了这个字段，实际值永远停在 data class 默认值 emptyList()——
+        // 桌面插件切到"明天"因此总显示"没有课"，哪怕明天真的有课。
+        // fixedNow = 2025-09-01（周一，学期第 1 周），明天是 2025-09-02（周二）。
+        val src = ScheduleSources(
+            allTermMeta = flowOf(listOf(meta20251, meta20242)),
+            settings = flowOf(UserSettings(campus = Campus.UNIVERSITY_CITY)),
+            syncState = flowOf(
+                SyncStateEntity(lastSyncAt = Instant.parse("2025-09-10T10:00:00Z"), lastTermCode = "20251", lastSuccess = true),
+            ),
+            isSyncing = flowOf(false),
+            selectedWeek = MutableStateFlow(null),
+            colors = flowOf(emptyMap()),
+            coursesFor = { code ->
+                flowOf(
+                    when (code) {
+                        "20251" -> listOf(
+                            entity("20251", "高等数学"), // 周一，今天
+                            entity("20251", "概率论").copy(dayOfWeek = 2), // 周二，明天
+                        )
+                        else -> emptyList()
+                    },
+                )
+            },
+            examsFor = { flowOf(emptyList()) },
+        )
+
+        val state = buildScheduleUiStateFlow(src, fixedNow).first()
+
+        assertThat(state.todayBlocks.map { it.course.name }).containsExactly("高等数学")
+        assertThat(state.tomorrowBlocks.map { it.course.name }).containsExactly("概率论")
+    }
+
+    @Test
     fun `设置里锁定的学期优先于教务当前学期`() = runTest {
         val settings = flowOf(
             UserSettings(campus = Campus.UNIVERSITY_CITY, selectedTerm = Term(2024, 2)),

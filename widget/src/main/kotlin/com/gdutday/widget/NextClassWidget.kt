@@ -149,6 +149,6 @@ private fun emptyMessage(phase: NextPhase, context: Context): String = when (pha
     NextPhase.LOADING -> context.getString(R.string.widget_loading)
     NextPhase.NOT_LOGGED_IN -> context.getString(R.string.widget_empty_not_logged_in)
     // 已登录但近期没有课。复用"今天没有课"文案：语义上最接近，也避免新增字符串资源。
-    NextPhase.NONE -> context.getString(R.string.widget_empty_no_class)
+    NextPhase.NONE -> context.getString(R.string.widget_empty_no_class_today)
     NextPhase.HAS_CLASS -> ""
 }

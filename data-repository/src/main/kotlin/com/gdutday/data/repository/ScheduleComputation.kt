@@ -137,6 +137,10 @@ internal fun buildScheduleUiState(input: ScheduleInputs): ScheduleUiState {
         prevWeekGrid = prevWeekGrid,
         nextWeekGrid = nextWeekGrid,
         todayBlocks = todayBlocks,
+        // 回归：这里曾经漏传，tomorrowBlocks 字段永远停在 data class 默认值 emptyList()——
+        // 105 行明明算出来了，widget 切到"明天"却总是显示"没有课"，
+        // 而 105 行用的是同一个 ScheduleGridBuilder，课表页当天网格本身是对的。
+        tomorrowBlocks = tomorrowBlocks,
         colorAssignment = colorAssignment,
         courses = input.courses,
         exams = input.exams,

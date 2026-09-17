@@ -383,12 +383,12 @@ public class ScheduleRepositoryImpl(
         return emptyList()
     }
 
-    override suspend fun updateCustomCourse(course: Course): List<Course> {
+    override suspend fun updateCustomCourse(course: Course, force: Boolean): List<Course> {
         // updateCustomCourse 同时承接 CUSTOM 与 OVERRIDE 行的直接编辑：
         // OVERRIDE 行的用户改色/改备注不需要重新走一遍补丁生成。
         val existing = existingCourses(course.term)
         val conflicts = findScheduleConflicts(existing, course)
-        if (conflicts.isNotEmpty()) return conflicts
+        if (conflicts.isNotEmpty() && !force) return conflicts
         val source = if (course.source == CourseSource.OVERRIDE) CourseSource.OVERRIDE else CourseSource.CUSTOM
         courseDao.upsert(with(Mappers) { course.copy(source = source).toEntity() })
         return emptyList()
@@ -398,13 +398,14 @@ public class ScheduleRepositoryImpl(
         original: Course,
         editedFields: Course,
         scope: OverrideScope,
+        force: Boolean,
     ): List<Course> {
         require(original.source == CourseSource.SCHOOL) {
             "saveSchoolOverride 只接受教务课程，收到 ${original.source}"
         }
         val all = existingCourses(original.term)
         val conflicts = findScheduleConflicts(all, editedFields)
-        if (conflicts.isNotEmpty()) return conflicts
+        if (conflicts.isNotEmpty() && !force) return conflicts
 
         // 作用周次 = 按范围从原课程里拆出来的那部分；scope=ALL 时是全部周次。
         val affectedWeeks: Set<Int> = when (scope) {
@@ -439,8 +440,13 @@ public class ScheduleRepositoryImpl(
 
     override suspend fun deleteAllCustomCourses() {
         courseDao.deleteAllCustom()
-        // 补丁也是"用户自己弄出来的课"，清空自定义课程时必须一并清掉，
-        // 否则下次同步它们又会把教务课程拆一遍，看起来像没删干净。
+        // 补丁不能直接删：它接管的周次是从教务课程里挖走的，直接删等于把那部分课
+        // 从本地数据里彻底抹掉，要等下次联网同步才能恢复——用户看到的是"删除"而不是"还原"。
+        // 所以逐条按 restoreOriginal 的还原逻辑把周次还回去，再删补丁本身。
+        courseDao.getAllOverrides().forEach { entity ->
+            val patch = with(Mappers) { entity.toDomain() } ?: return@forEach
+            restorePatchToSchool(patch)
+        }
         courseDao.deleteAllOverrides()
     }
 
@@ -453,10 +459,18 @@ public class ScheduleRepositoryImpl(
         if (patch.source != CourseSource.OVERRIDE) return
 
         courseDao.deleteById(overrideId)
-        val term = patch.term
-        // 还原 = 把被补丁接管的周次还给教务课程。教务行可能已经没有周次可用
-        // （ALL 范围的补丁把原行删了），此时只能等下次同步重建教务版本。
-        val school = courseDao.getSchoolCourses(term.shortCode)
+        restorePatchToSchool(patch)
+    }
+
+    /**
+     * 还原 = 把被补丁接管的周次还给教务课程。教务行可能已经没有周次可用
+     * （ALL 范围的补丁把原行删了），此时只能等下次同步重建教务版本。
+     *
+     * 调用方负责先删掉补丁本身（[restoreOriginal] 单条删、[deleteAllCustomCourses] 批量删），
+     * 这里只管把周次还回去。
+     */
+    private suspend fun restorePatchToSchool(patch: Course) {
+        val school = courseDao.getSchoolCourses(patch.term.shortCode)
         val target = school.firstOrNull { with(Mappers) { it.toDomain() }?.naturalKey == patch.overrideTargetNaturalKey }
             ?: return
         val domain = with(Mappers) { target.toDomain() } ?: return

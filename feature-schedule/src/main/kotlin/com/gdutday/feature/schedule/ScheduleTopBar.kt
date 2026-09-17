@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,9 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.datastore.ScheduleView
 import com.gdutday.core.datastore.UserSettings
+import com.gdutday.core.model.SyncSourceType
 import com.gdutday.core.model.Term
 import com.gdutday.data.repository.ScheduleUiState
 import java.time.LocalDate
@@ -48,6 +49,10 @@ import java.time.LocalDate
  * 包含：学期名（可下拉切换）、当前周次、可选周次范围、[UserSettings.scheduleView] 切换、
  * 手动同步，以及"回到本周"按钮（只在浏览别的周次时出现，
  * 否则它会是一个永远没用的按钮，白白占位）。
+ *
+ * 同步源切到班级课表时，学期名下方多一行纯文字提示（不可点击）。切回本人课表走
+ * "更多菜单 → 同步源…"，这里只负责持续提醒"现在看的不是自己的课表"，不用每次
+ * 冷启动都像横幅那样弹一次，也不占 actions 区域宽度去挤压学期名。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +94,7 @@ internal fun ScheduleTopBar(
                             text = state.term?.displayName ?: stringResource(R.string.schedule_term_unknown),
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         if (state.availableTerms.isNotEmpty()) {
                             Icon(
@@ -139,7 +145,24 @@ internal fun ScheduleTopBar(
                     text = weekLabel(state),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                // 班级课表同步源：纯文字展示，不做成按钮——切回本人课表走"更多菜单 → 同步源"即可，
+                // 这里只是个持续存在的提醒，不需要承担交互职责（也不用占 actions 区域的宽度，
+                // 挤压学期名）。
+                if (settings.syncSourceType == SyncSourceType.CLASS_SCHEDULE) {
+                    Text(
+                        text = stringResource(
+                            R.string.schedule_sync_source_class_label,
+                            settings.classScheduleClassName.ifBlank { settings.classScheduleBjdm },
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         },
         actions = {

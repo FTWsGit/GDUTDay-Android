@@ -19,6 +19,7 @@
     <string name="schedule_sync_source_title">课表同步源</string>
     <string name="schedule_sync_source_personal">个人课表（默认）</string>
     <string name="schedule_sync_source_class">班级课表</string>
+    <string name="schedule_sync_source_class_label">班级课表 · %1$s</string>
     <string name="schedule_sync_source_class_bjdm">班级代码（bjdm）</string>
     <string name="schedule_sync_source_class_name">班级显示名（如 计算机25(5)）</string>
     <string name="schedule_sync_source_class_hint">班级代码可在教务系统"信息查询 → 班级课表"页面查看</string>
@@ -30,8 +31,6 @@
     <string name="schedule_sync_source_cascade_failed">班级数据加载失败，请检查网络或重新登录后再试</string>
     <string name="schedule_sync_source_cascade_empty">没有符合条件的班级，可放宽上面的筛选条件</string>
     <string name="schedule_sync_source_keep_saved">可沿用已保存：%1$s（直接点确认）</string>
-    <string name="schedule_sync_source_current_personal">当前：个人课表</string>
-    <string name="schedule_sync_source_current_class">当前：班级课表 · %1$s</string>
     <string name="schedule_menu_settings">设置</string>
 
     <string name="schedule_not_logged_in_title">还没有登录</string>
@@ -82,7 +81,7 @@
     <string name="schedule_edit_scope_this_week">仅第 %1$d 周</string>
     <string name="schedule_edit_scope_week_range">指定周范围</string>
     <string name="schedule_edit_scope_weeks">作用的周次</string>
-    <string name="schedule_edit_scope_weeks_hint">逗号分隔，如 3,4,5</string>
+    <string name="schedule_edit_scope_weeks_hint">支持范围与逗号，如 3-6,9,11-13</string>
     <string name="schedule_edit_scope_all">全部周次</string>
     <string name="schedule_edit_color">课程颜色</string>
 

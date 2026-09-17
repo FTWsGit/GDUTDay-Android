@@ -72,7 +72,7 @@ App Widget 运行在**主 App 进程**（没有声明 `android:process`），所
 
 - 表头：`{月}月{日}日 {周几}` + （周次在合法区间内时）` · 第N周`。
   放假 / 未开学时省略周次部分。
-- 每行：左侧 3dp 宽的课程色块 + 开始时刻 + 课程名 + 详情（老师 · 教室）。
+- 每行：左侧 3dp 宽的课程色块 + 起止时刻（上下两行）+ 课程名（14sp）+ 详情（老师 · 教室，11sp）。
 - 课程色块用课程自己的颜色，**不跟壁纸动态取色** —— 用户期望"高数一直是红色"。
   已完成的课只降低色块 alpha，颜色身份仍保留；课程名用 `outline` 色，正在上的加粗。
 - 表头右侧"刷新"是嵌套的第二个点击目标，只做一次 `WidgetUpdateManager.updateAll()`
@@ -84,17 +84,22 @@ App Widget 运行在**主 App 进程**（没有声明 `android:process`），所
 
 ```kotlin
 private const val HEADER_DP = 26f
-private const val ROW_DP = 24f
+private const val ROW_DP = 30f
 private const val MIN_ROWS = 1
 private const val MAX_ROWS = 6
 
 fun todayRowCount(heightDp: Float): Int {
-    if (heightDp <= 0f) return DEFAULT_TODAY_ROWS   // 预览/异常给 4×2 的默认值 3
+    if (heightDp <= 0f) return DEFAULT_TODAY_ROWS   // 预览/异常给 4×2 的默认值 2
     val usable = heightDp - HEADER_DP
     if (usable <= 0f) return MIN_ROWS
     return (usable / ROW_DP).toInt().coerceIn(MIN_ROWS, MAX_ROWS)
 }
 ```
+
+`ROW_DP` 从 24 调到 30：课程行加了结束时间（第二行）、字号也调大了（名称 12sp→14sp，
+备注 10sp→11sp），比最初单行开始时间的版本更高，行高估算不跟着调，
+高度富余的插件会把最后一行挤到裁切一半。默认 4×2（110dp）算出来是 2 行，
+`DEFAULT_TODAY_ROWS` 也从 3 改成 2 保持一致。
 
 取 `floor` 而不是 `round` —— 宁可少一行也不能把最后一行切掉一半。
 参数是 `Float` 而非 `DpSize`，这样这一层就是纯 JVM 代码，单元测试不需要 Compose/Android 环境。

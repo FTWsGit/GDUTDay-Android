@@ -18,6 +18,18 @@ import kotlinx.coroutines.flow.first
  * WorkManager 的重试语义。真正的编排全在 Repository —— 这样"同步流程"只有一份实现，
  * 手动下拉刷新与后台任务走的是同一段代码，不会出现"后台同步对了、手动同步漏了一步"。
  *
+ * ## `autoSyncOnLaunch` 只挡自动触发，不挡手动触发
+ *
+ * [SyncSchedulerImpl.schedulePeriodicSync] 和 [doWork] 里都读了这个设置，看起来重复，
+ * 但两处的用途不一样：`schedulePeriodicSync` 决定"要不要排周期任务"，
+ * 这里的检查是给"任务已经排进队列、用户之后才关掉开关"这种竞态兜底。
+ *
+ * 这个兜底**只能**用于自动触发的任务（周期任务、以及将来若有的"冷启动自动同步"），
+ * 绝不能套到 [SyncSchedulerImpl.requestImmediateSync] 发起的立即同步上 —— 那是用户
+ * 点了"同步"菜单或下拉刷新的显式请求，关掉"启动时自动同步"不代表用户不能手动同步，
+ * 两者是完全独立的开关。因此立即同步的 [androidx.work.WorkRequest] 会带上
+ * [KEY_MANUAL]，这里据此跳过设置检查。
+ *
  * ## 失败分级
  *
  * - [GdutException.SessionExpired]：**不重试**。后台拿不到滑块验证码，也没有用户在场，
@@ -33,8 +45,11 @@ public class ScheduleSyncWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        // 用户关掉自动同步后即使任务还在队列里也不执行，避免浪费流量。
-        if (!settingsStore.settings.first().autoSyncOnLaunch) return Result.success()
+        // 手动同步（下拉刷新/同步菜单/切同步源）不受"启动时自动同步"开关影响，见类注释。
+        val isManual = inputData.getBoolean(KEY_MANUAL, false)
+        if (shouldSkipDueToAutoSyncSetting(isManual, settingsStore.settings.first().autoSyncOnLaunch)) {
+            return Result.success()
+        }
 
         return try {
             scheduleRepository.sync()
@@ -48,7 +63,22 @@ public class ScheduleSyncWorker(
             Result.retry()
         }
     }
+
+    public companion object {
+        /** [androidx.work.Data] 里的 key：标记这是一次用户手动发起的立即同步。 */
+        public const val KEY_MANUAL: String = "manual"
+    }
 }
+
+/**
+ * 是否因为"启动时自动同步"关闭而跳过这次同步。
+ *
+ * 抽成纯函数只是为了能在纯 JVM 测试里锁死这条判断——它曾经写成
+ * `!settingsStore.settings.first().autoSyncOnLaunch`，忘了 `isManual` 这一半，
+ * 导致关掉开关后手动同步也被短路掉。
+ */
+internal fun shouldSkipDueToAutoSyncSetting(isManual: Boolean, autoSyncOnLaunch: Boolean): Boolean =
+    !isManual && !autoSyncOnLaunch
 
 /**
  * 给 WorkManager 注入依赖的工厂。

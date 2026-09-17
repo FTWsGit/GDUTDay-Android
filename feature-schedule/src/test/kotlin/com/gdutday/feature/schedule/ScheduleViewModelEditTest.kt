@@ -47,10 +47,15 @@ class ScheduleViewModelEditTest {
         var savedOverride: Triple<Course, Course, OverrideScope>? = null
         var updatedCustom: Course? = null
 
+        /** 记录最近一次调用带的 force 值，专门验证 [ScheduleViewModel.saveEdit] 是否传了 true。 */
+        var lastUpdateCustomForce: Boolean? = null
+        var lastSaveOverrideForce: Boolean? = null
+
         override suspend fun addCustomCourse(course: Course, force: Boolean): List<Course> = emptyList()
 
-        override suspend fun updateCustomCourse(course: Course): List<Course> {
+        override suspend fun updateCustomCourse(course: Course, force: Boolean): List<Course> {
             updatedCustom = course
+            lastUpdateCustomForce = force
             return emptyList()
         }
 
@@ -58,8 +63,10 @@ class ScheduleViewModelEditTest {
             original: Course,
             editedFields: Course,
             scope: OverrideScope,
+            force: Boolean,
         ): List<Course> {
             savedOverride = Triple(original, editedFields, scope)
+            lastSaveOverrideForce = force
             return emptyList()
         }
 
@@ -157,6 +164,24 @@ class ScheduleViewModelEditTest {
         assertThat(repository.updatedCustom).isEqualTo(edited)
         assertThat(repository.savedOverride).isNull()
         assertThat(vm.editingCourse.value).isNull()
+    }
+
+    @Test
+    fun `保存编辑始终 force=true，冲突不会让编辑静默不生效`() = runTest(dispatcher) {
+        // 回归：saveSchoolOverride/updateCustomCourse 会因为冲突返回非空列表拒绝保存，
+        // 但 saveEdit 从不读这个返回值——如果不传 force=true，编辑撞上任何一门课
+        // （哪怕只是"全部周次"里某一周撞了一次）就会整体不生效，界面却没有任何提示。
+        val vm = viewModel()
+
+        vm.openEdit(schoolCourse())
+        vm.saveEdit(schoolCourse().copy(classroom = "教5-301"), OverrideScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(repository.lastSaveOverrideForce).isTrue()
+
+        vm.openEdit(customCourse())
+        vm.saveEdit(customCourse().copy(teacher = "王五"), OverrideScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(repository.lastUpdateCustomForce).isTrue()
     }
 
     @Test

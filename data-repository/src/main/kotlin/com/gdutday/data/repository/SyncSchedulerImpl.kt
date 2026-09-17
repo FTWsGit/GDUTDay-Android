@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.gdutday.core.datastore.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -85,6 +86,10 @@ public class SyncSchedulerImpl(
         }
         val request = OneTimeWorkRequestBuilder<ScheduleSyncWorker>()
             .setConstraints(constraints)
+            // 立即同步都是用户显式触发的（下拉刷新/同步菜单/切同步源），
+            // 必须打上 manual 标记，让 Worker 跳过"启动时自动同步"开关的检查——
+            // 否则关掉那个开关后，手动同步会被 ScheduleSyncWorker.doWork() 直接短路成空操作。
+            .setInputData(workDataOf(ScheduleSyncWorker.KEY_MANUAL to true))
             .apply {
                 if (expedited) {
                     // 下拉刷新是用户正在等；配额不足时降级为普通任务，而不是失败。

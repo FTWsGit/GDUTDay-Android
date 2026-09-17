@@ -177,13 +177,20 @@ public class ScheduleViewModel(
     /**
      * 保存编辑。CUSTOM 行直接更新；SCHOOL 行生成 OVERRIDE 补丁。
      * [scope] 只对教务课程有意义，自定义课程一律直接 upsert。
+     *
+     * 始终 `force = true`：这个 App 的课表网格本来就支持同一时段多门课并排渲染
+     * （见 [com.gdutday.core.common.ConflictCluster]），冲突是被设计支持的正常状态，
+     * 不该在保存编辑这一步被当成错误静默拒绝——之前这里没传 force，
+     * `saveSchoolOverride`/`updateCustomCourse` 返回的冲突列表也没人读，
+     * 结果是编辑只要撞上任何一门课（哪怕只是"全部周次"里某一周撞了一次）就整体不生效，
+     * 界面上却什么提示都没有，看起来像"点了保存但没反应"。
      */
     public fun saveEdit(course: Course, scope: OverrideScope) {
         val original = _editingCourse.value ?: return
         viewModelScope.launch {
             when (original.source) {
-                CourseSource.SCHOOL -> repository.saveSchoolOverride(original, course, scope)
-                else -> repository.updateCustomCourse(course)
+                CourseSource.SCHOOL -> repository.saveSchoolOverride(original, course, scope, force = true)
+                else -> repository.updateCustomCourse(course, force = true)
             }
             _editingCourse.value = null
         }
@@ -226,15 +233,6 @@ public class ScheduleViewModel(
 
     public fun dismissCampusBanner() {
         _campusBannerDismissed.value = true
-    }
-
-    private val _syncSourceBannerDismissed = MutableStateFlow(false)
-
-    /** 班级课表同步源横幅是否被关掉。仅在本次进程内有效。 */
-    public val syncSourceBannerDismissed: StateFlow<Boolean> = _syncSourceBannerDismissed.asStateFlow()
-
-    public fun dismissSyncSourceBanner() {
-        _syncSourceBannerDismissed.value = true
     }
 
     // ---------------------------------------------------------------------- 班级级联筛选（同步源对话框）

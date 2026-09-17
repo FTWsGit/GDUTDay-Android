@@ -100,6 +100,13 @@ class CourseEditSheetLogicTest {
     }
 
     @Test
+    fun `周次文本解析支持区间写法`() {
+        // 回归：曾经只认单个数字的逗号列表，"指定周范围"填区间会被整段过滤掉、静默不生效。
+        assertThat(parseWeeksText("3-6")).containsExactly(3, 4, 5, 6)
+        assertThat(parseWeeksText("3-4,9,11-13")).containsExactly(3, 4, 9, 11, 12, 13)
+    }
+
+    @Test
     fun `时间解析对缺前导零的输入宽容`() {
         val edited = buildEditedCourse(
             original = school(), name = "X", teacher = "", classroom = "",

@@ -92,6 +92,10 @@ public interface CourseDao {
     @Query("SELECT * FROM course WHERE term_code = :termCode AND source = 'OVERRIDE' ORDER BY id")
     public suspend fun getOverrides(termCode: String): List<CourseEntity>
 
+    /** 全部学期的用户补丁（OVERRIDE）。"清空自定义课程"要在删之前逐条还原，得先拿到全部。 */
+    @Query("SELECT * FROM course WHERE source = 'OVERRIDE' ORDER BY term_code, id")
+    public suspend fun getAllOverrides(): List<CourseEntity>
+
     /** 某学期的全部教务课程。补丁应用时按 `override_target_nk` 在其中找目标。 */
     @Query("SELECT * FROM course WHERE term_code = :termCode AND source = 'SCHOOL'")
     public suspend fun getSchoolCourses(termCode: String): List<CourseEntity>

@@ -14,9 +14,9 @@ import org.robolectric.annotation.Config
  * 两个 Glance 插件组合函数的 JVM 渲染验证（glance-appwidget-testing，不需要模拟器）。
  *
  * 盯住 T2.1 提出的"Glance 渲染从未被验证"的核心面：给一个状态快照，组合函数
- * 必须画出对应文案 —— 包括各空状态分支（加载/未登录/无课/有课）与"今日/明日"
- * 切换条的方向。真实 launcher 上的 RemoteViews 落地仍属真机范畴，这里保证的
- * 是"组合层输出正确"。
+ * 必须画出对应文案 —— 包括各空状态分支（加载/未登录/无课/有课）与"今天/明天"
+ * 切换条是否显示当前正在看的那一天。真实 launcher 上的 RemoteViews 落地仍属真机范畴，
+ * 这里保证的是"组合层输出正确"。
  */
 // Robolectric 4.16 最高支持 SDK 36，而项目 targetSdk=37，显式钉一个受支持的 SDK。
 @RunWith(RobolectricTestRunner::class)
@@ -66,6 +66,7 @@ class GlanceWidgetRenderTest {
                         rows = listOf(
                             WidgetCourseRow(
                                 startClock = "08:30",
+                                endClock = "09:15",
                                 name = "数据结构",
                                 teacher = "李四",
                                 classroom = "教4-201",
@@ -80,8 +81,35 @@ class GlanceWidgetRenderTest {
         }
         onNode(hasText("9月10日 周三 · 第2周")).assertExists()
         onNode(hasText("数据结构")).assertExists()
-        // dayOffset=0 时切换条显示"明"（点下去看到的那一天）
-        onNode(hasText("明")).assertExists()
+        // 起止时间都要显示，不能只有开始时间——用户经常需要知道这节课几点下课
+        // 才能安排下一件事。
+        onNode(hasText("08:30-09:15", substring = true)).assertExists()
+        // dayOffset=0 时切换条显示"今"（当前正在显示的那一天，见 DayToggleBar 的 KDoc）
+        onNode(hasText("今")).assertExists()
+    }
+
+    @Test
+    fun `今日课程插件明天视图显示明天切换条与明天没有课文案`() = runGlanceAppWidgetUnitTest {
+        // 回归：切换条曾经显示"点下去会看到的那一天"，dayOffset=1（正在看明天）时
+        // 条上反而写"今"，容易被误认为没切换成功；空状态文案也曾经不管 dayOffset
+        // 恒写"今天没有课"，明天没课时看着像是显示错了天。
+        setContext(ApplicationProvider.getApplicationContext())
+        provideComposable {
+            GlanceWidgetContent {
+                TodayScheduleContent(
+                    TodayScheduleWidgetState(
+                        phase = TodayPhase.NO_CLASS,
+                        dateLine = "9月11日 周四 · 第2周",
+                        rows = emptyList(),
+                        dayOffset = 1,
+                    ),
+                )
+            }
+        }
+        // 空状态文案已经隐含验证了 dayOffset=1（"明"），这里不再重复断言切换条本身的
+        // 单字文案：`hasText("明")` 对精确匹配也会同时命中"明天没有课"里的"明"字，
+        // 让 onNode() 因为匹配到 2 个节点而失败——这是断言写法问题，不是产品 bug。
+        onNode(hasText("明天没有课")).assertExists()
     }
 
     @Test

@@ -35,11 +35,13 @@ import com.gdutday.core.model.Term
  * "我添加/修改的课程"列表页。
  *
  * 汇总全部 [CourseSource.CUSTOM]（用户手动添加）与 [CourseSource.OVERRIDE]
- * （对教务课程的修改补丁）条目，按学期分组展示。补丁额外提供"还原"操作：
- * 删除补丁行并把被接管的周次还给教务课程。
+ * （对教务课程的修改补丁）条目，按学期分组展示。
  *
- * 数据库匹配不到目标的补丁（教务改了课、调了节次）显示"未生效"标记，
- * 用户可删除或自行重新编辑。
+ * 两种来源的收尾操作**不对称**，故意不给同一套按钮：
+ * - CUSTOM 只有"删除"——它是用户凭空加的，没有"原始版本"可还原。
+ * - OVERRIDE 只有"还原"——直接删补丁行会把它接管的周次也一并从本地抹掉
+ *   （那是教务原始数据的一部分，不是这条补丁"拥有"的东西），用户想要的
+ *   其实永远是"还原"，给一个额外的"删除"入口只会有人点错、误删了课。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -153,12 +155,16 @@ private fun MyCourseRow(
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (onRestore != null) {
+                    // 补丁只提供"还原"，不给单独的"删除"——直接删补丁行会把它接管的周次
+                    // 一并从本地抹掉（那是教务原始数据的一部分，不是这条补丁"拥有"的东西），
+                    // 用户想要的其实永远是"还原"，给两个入口只会有人点错。
                     IconButton(onClick = onRestore) {
                         Icon(Icons.Filled.Restore, contentDescription = stringResource(R.string.settings_my_courses_restore))
                     }
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.settings_my_courses_delete))
+                } else {
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.settings_my_courses_delete))
+                    }
                 }
             }
         },

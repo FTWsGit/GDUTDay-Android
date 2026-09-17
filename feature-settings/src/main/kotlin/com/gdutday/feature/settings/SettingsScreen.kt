@@ -71,6 +71,7 @@ import com.gdutday.core.model.Campus
 import com.gdutday.core.model.ScheduleFetchStrategy
 import com.gdutday.core.ui.BannerTone
 import com.gdutday.core.ui.StatusBanner
+import com.gdutday.core.ui.TimePickerDialog
 import com.gdutday.core.ui.toComposeColor
 import com.gdutday.data.repository.AppContainer
 import java.time.LocalDate
@@ -962,43 +963,14 @@ private fun TimetableEditor(
         }.getOrDefault(java.time.LocalTime.of(8, 0))
         TimePickerDialog(
             initial = initial,
+            confirmLabel = stringResource(R.string.settings_confirm),
+            dismissLabel = stringResource(R.string.settings_cancel),
             onConfirm = { time ->
                 if (index in draft.indices) draft[index] = SettingsLogic.formatTime(time)
                 picking = null
             },
             onDismiss = { picking = null },
         )
-    }
-}
-
-/** 自绘的时间选择 Dialog。AlertDialog 容不下 TimePicker，用 [androidx.compose.ui.window.Dialog]。 */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TimePickerDialog(
-    initial: java.time.LocalTime,
-    onConfirm: (java.time.LocalTime) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val state = androidx.compose.material3.rememberTimePickerState(
-        initialHour = initial.hour,
-        initialMinute = initial.minute,
-        is24Hour = true,
-    )
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        androidx.compose.material3.Surface(shape = RoundedCornerShape(28.dp), tonalElevation = 6.dp) {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                androidx.compose.material3.TimePicker(state = state)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) }
-                    TextButton(onClick = { onConfirm(java.time.LocalTime.of(state.hour, state.minute)) }) {
-                        Text(stringResource(R.string.settings_confirm))
-                    }
-                }
-            }
-        }
     }
 }
 

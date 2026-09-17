@@ -130,6 +130,7 @@ class TodayScheduleMapperTest {
         assertThat(row.teacher).isEqualTo("张老师")
         assertThat(row.classroom).isEqualTo("教5-301")
         assertThat(row.startClock).isEqualTo("08:30")
+        assertThat(row.endClock).isEqualTo("10:05")
     }
 
     @Test

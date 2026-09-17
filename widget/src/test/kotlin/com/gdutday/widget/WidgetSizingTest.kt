@@ -11,8 +11,11 @@ import org.junit.Test
 class WidgetSizingTest {
 
     @Test
-    fun `4x2 标准尺寸（110dp）显示 3 行`() {
-        assertThat(WidgetSizing.todayRowCount(110f)).isEqualTo(3)
+    fun `4x2 标准尺寸（110dp）显示 2 行`() {
+        // 回归校准：课程行加了结束时间、字号调大后每行更高（ROW_DP 24→30），
+        // 同样 110dp 现在装得下的行数从 3 变成 2——这也刚好符合默认声明的
+        // targetCellHeight=2 大致对应 2 行的直觉。
+        assertThat(WidgetSizing.todayRowCount(110f)).isEqualTo(2)
     }
 
     @Test
