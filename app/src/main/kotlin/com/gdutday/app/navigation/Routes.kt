@@ -16,6 +16,9 @@ public object Routes {
     /** 工具箱页。 */
     public const val TOOLBOX: String = "toolbox"
 
+    /** 空闲教室查询页（工具箱下钻）。 */
+    public const val FREE_ROOM: String = "free_room"
+
     /** 设置页。 */
     public const val SETTINGS: String = "settings"
 

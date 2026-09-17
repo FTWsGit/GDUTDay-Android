@@ -27,15 +27,35 @@ public data class FreeRoomBuilding(
     public val campusName: String,
 )
 
+/**
+ * 占用类型（`sytype` 字段的语义，实测 2026-09-17，教学三号楼全天 68 行）：
+ *
+ * - `1` = **上课**（62 行）：有课程名、教学班、教室名；
+ * - `2` = **借用**（6 行）：无课程名/教学班/教室名，只有教师与节次 ——
+ *   非教学排课的场地借用（讲座、监考、活动等），UI 用不同图标区分。
+ *
+ * 其它取值未出现过，一律归入 [UNKNOWN] 并原样保留原始码。
+ */
+public enum class UsageType(public val rawCode: String?) {
+    /** 上课（排课占用）。 */
+    CLASS("1"),
+
+    /** 借用（非排课占用，无课程/教学班信息）。 */
+    BORROWED("2"),
+
+    /** 未知取值（学校新增类型时的兜底）。 */
+    UNKNOWN(null),
+}
+
 /** 一条教室占用记录。 */
 public data class RoomOccupancy(
-    /** 教室名（`jxcdmc`），如"教3-101"。 */
+    /** 教室名（`jxcdmc`），如"教3-101"。借用行可能缺失，为空串。 */
     public val room: String,
-    /** 课程名（`kcmc`）。 */
+    /** 课程名（`kcmc`）。借用行为空串。 */
     public val courseName: String,
     /** 教师（`teaxms`），可能为空。 */
     public val teacher: String,
-    /** 教学班（`jxbmc`）。 */
+    /** 教学班（`jxbmc`）。借用行为空串。 */
     public val teachingClass: String,
     /** 两位拼接节次（`jcdm`），如 `"0607"` = 第 6、7 节。 */
     public val sectionCode: String,
@@ -49,11 +69,24 @@ public data class RoomOccupancy(
     public val attendees: Int?,
     /** 容量（`pkrs`）。 */
     public val capacity: Int?,
+    /** 占用类型（`sytype`）。 */
+    public val usageType: UsageType = UsageType.UNKNOWN,
+    /** 授课内容简介（`sknrjj`），可能为空。 */
+    public val summary: String = "",
+    /** 教学环节（`jxhjmc`），如"理论教学"。可能为空。 */
+    public val teachingLink: String = "",
 )
 
 /** 一次教室占用查询的结果。 */
 public data class RoomUsageResult(
+    /** 有教室名的占用行（上课 + 有归属的借用）。 */
     public val rows: List<RoomOccupancy>,
+    /**
+     * 无教室名的占用行（实测 2026-09-17：借用行 `jxcdmc` 可为 null）。
+     * 学校接口不标注这些借用发生在哪间教室，但"该楼该时段有借用"仍是有效信息，
+     * UI 单独展示，不丢弃。
+     */
+    public val unassigned: List<RoomOccupancy> = emptyList(),
 ) {
     /** 按教室名聚合的占用行。 */
     public val byRoom: Map<String, List<RoomOccupancy>>
@@ -145,12 +178,12 @@ public class FreeClassroomClient(
         val json = LenientJson.requireObject(body, "教室占用")
         requireSuccess(json, "教室占用", body)
         val data = json.arr("data") ?: return RoomUsageResult(emptyList())
-        val rows = data.mapNotNull { el ->
-            val obj = el as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
-            val room = obj.str("jxcdmc")
-            if (room.isBlank()) return@mapNotNull null
-            RoomOccupancy(
-                room = room,
+        val assigned = mutableListOf<RoomOccupancy>()
+        val unassigned = mutableListOf<RoomOccupancy>()
+        for (el in data) {
+            val obj = el as? kotlinx.serialization.json.JsonObject ?: continue
+            val row = RoomOccupancy(
+                room = obj.str("jxcdmc"),
                 courseName = obj.str("kcmc"),
                 teacher = obj.str("teaxms"),
                 teachingClass = obj.str("jxbmc"),
@@ -160,9 +193,18 @@ public class FreeClassroomClient(
                 termCode = obj.str("xnxqdm"),
                 attendees = obj.int("rs"),
                 capacity = obj.int("pkrs"),
+                usageType = when (obj.str("sytype")) {
+                    "1" -> UsageType.CLASS
+                    "2" -> UsageType.BORROWED
+                    else -> UsageType.UNKNOWN
+                },
+                summary = obj.str("sknrjj"),
+                teachingLink = obj.str("jxhjmc"),
             )
+            // 借用行可能没有教室名（学校接口不标注借用了哪间），归入 unassigned
+            if (row.room.isBlank()) unassigned += row else assigned += row
         }
-        return RoomUsageResult(rows)
+        return RoomUsageResult(rows = assigned, unassigned = unassigned)
     }
 
     // ------------------------------------------------------------------ 内部

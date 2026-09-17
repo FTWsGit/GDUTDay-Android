@@ -104,9 +104,16 @@ class FreeClassroomClientTest {
 
     private fun defaultRow(): String =
         """{"dm":"3403654","flfzmc":null,"jcdm":"0607","jcdm2":"06,07","jxbmc":"班级A",""" +
-            """"jxcddm":"019010101","jxcdmc":"教3-101","jxhjmc":"理论教学","kcmc":"形势与政策",""" +
+            """"jxcddm":"011030109","jxcdmc":"教3-101","jxhjmc":"理论教学","kcmc":"形势与政策",""" +
             """"kxh":3,"pkrs":189,"rs":189,"shztdm":"3","sknrjj":null,"sytype":"1","teaxms":"某老师",""" +
             """"xnxqdm":"202601","xq":"4","zc":"3","zxs":24}"""
+
+    /** 借用行（实测 2026-09-17：sytype=2 无课程名/教学班/教室名，只有教师与节次）。 */
+    private fun borrowedRow(): String =
+        """{"dm":"3403655","flfzmc":null,"jcdm":"09101112","jcdm2":"09,10,11,12","jxbmc":null,""" +
+            """"jxcddm":null,"jxcdmc":null,"jxhjmc":null,"kcmc":null,""" +
+            """"kxh":0,"pkrs":null,"rs":null,"shztdm":"3","sknrjj":null,"sytype":"2","teaxms":"某老师",""" +
+            """"xnxqdm":"202601","xq":"4","zc":"3","zxs":40}"""
 
     // ================================================================== 教学楼列表
 
@@ -159,6 +166,33 @@ class FreeClassroomClientTest {
         assertThat(row.termCode).isEqualTo("202601")
         assertThat(row.attendees).isEqualTo(189)
         assertThat(row.capacity).isEqualTo(189)
+        assertThat(row.usageType).isEqualTo(UsageType.CLASS)
+        assertThat(row.teachingLink).isEqualTo("理论教学")
+    }
+
+    @Test
+    fun `借用行解析为 BORROWED 且缺失字段容错`() {
+        script.usedData = { ok(usedDataBody(borrowedRow())) }
+
+        val result = newClient().fetchRoomUsage("0005", "2026-09-17")
+
+        // 借用行无教室名，归入 unassigned 而不是丢弃
+        val row = result.unassigned.single()
+        assertThat(result.rows).isEmpty()
+        assertThat(row.usageType).isEqualTo(UsageType.BORROWED)
+        assertThat(row.courseName).isEmpty()
+        assertThat(row.teachingClass).isEmpty()
+        assertThat(row.teacher).isEqualTo("某老师")
+        assertThat(row.sectionCode).isEqualTo("09101112")
+    }
+
+    @Test
+    fun `未知 sytype 归入 UNKNOWN 不抛异常`() {
+        script.usedData = { ok(usedDataBody(defaultRow().replace(""""sytype":"1"""", """"sytype":"9""""))) }
+
+        val rows = newClient().fetchRoomUsage("0005", "2026-09-17").rows
+
+        assertThat(rows.single().usageType).isEqualTo(UsageType.UNKNOWN)
     }
 
     @Test

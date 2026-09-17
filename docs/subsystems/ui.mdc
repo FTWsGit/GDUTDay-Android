@@ -424,16 +424,24 @@ content URI 调用 `takePersistableUriPermission` 持久化授权（部分机型
 按项目约定，ViewModel 仅用于需要跨屏幕数据流的页面，
 这种"一次性工具宿主"用 composable-local 状态即可。
 
-### 8.5 空闲教室查询 Dialog（`FreeRoomDialog`）
+### 8.5 空闲教室（`FreeRoomScreen`，独立路由 `free_room`）
 
-与二维码 Dialog 同一套"无 ViewModel"模式：选教学楼（按校区分组下拉）→
-输入日期（默认今天）→ 展示该楼当天的占用行（按教室聚合，节次连续段展示，
-`"0607"` 显示为 `6-7节`）。协议与会话打通见 [gdut-protocol](../reference/spec/gdut-protocol.md) §4.8：
-jwcwx 走标准 CAS，用现有 authserver TGT 免密打通（`data-gdut` 的 `JwcwxSso`），
-jwcwx 的 JSESSIONID 只存内存、不持久化，每次冷启动重新打通（一次跳转链，无交互）。
+工具箱条目**跳转到独立全屏页**（旧的小对话框放不下"楼 → 教室 → 节次"三层信息，已删除）。
 
-状态分支：Loading（进度圈）/ 错误文案（区分 `SessionExpired` → "请重新登录"，
-其它 `GdutException` → `userMessage`）/ 空占用（"全部空闲"）。
+三层结构：
+
+1. **楼列表**：校区分 `PrimaryTabRow`（五校区），楼按类型分组（教学/实验/学院/公共/其他，
+   `FreeRoomLogic.buildingKind` 按名称关键词归类，对不上的进"其他"不混入教学）；
+2. **教室时间轴**（`RoomTimelineScreen`）：每间教室一行，右侧按节次连续段排图标——
+   空闲=半透明圆、上课=红圆、借用=菱形（形状+颜色双编码，色弱可辨）；点格弹详情；
+3. **详情 BottomSheet**（`SlotDetailSheet`）：全部中文标签（`人数: 90` 而非 `studentCount: 90`），
+   字段按有无动态展示。
+
+数据映射：`FreeRoomLogic.expandSlots` 把两位拼接节次展开成 1..12 节状态数组再合并相邻同状态段，
+占用行覆盖之外 = 空闲；`sytype` 语义见 [gdut-protocol](../reference/spec/gdut-protocol.md) §4.8。
+学校接口不标注借用发生在哪间教室（`jxcdmc` 为 null 的行），归入 `unassigned` 单独展示成卡片。
+日期默认今天，顶栏"回到今天"按钮可归位。会话打通仍由 `FreeRoomRepositoryImpl` 收口。
+
 线程切换收口在 `FreeRoomRepositoryImpl`（`withContext(Dispatchers.IO)`），UI 不碰阻塞调用。
 
 ---

@@ -70,9 +70,9 @@ import kotlinx.coroutines.flow.first
 fun ToolboxScreen(
     container: AppContainer,
     modifier: Modifier = Modifier,
+    onOpenFreeRoom: () -> Unit = {},
 ) {
     var showQrDialog by remember { mutableStateOf(false) }
-    var showFreeRoomDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -126,7 +126,7 @@ fun ToolboxScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
-                    modifier = Modifier.clickable { showFreeRoomDialog = true },
+                    modifier = Modifier.clickable { onOpenFreeRoom() },
                 )
             }
         }
@@ -136,13 +136,6 @@ fun ToolboxScreen(
         LibraryQrDialog(
             container = container,
             onDismiss = { showQrDialog = false },
-        )
-    }
-
-    if (showFreeRoomDialog) {
-        FreeRoomDialog(
-            container = container,
-            onDismiss = { showFreeRoomDialog = false },
         )
     }
 }

@@ -31,6 +31,7 @@ import com.gdutday.feature.auth.LoginScreen
 import com.gdutday.feature.grade.GradeScreen
 import com.gdutday.feature.schedule.ScheduleScreen
 import com.gdutday.feature.settings.SettingsScreen
+import com.gdutday.feature.toolbox.FreeRoomScreen
 import com.gdutday.feature.toolbox.ToolboxScreen
 
 /** 底部导航栏的一个条目。 */
@@ -176,7 +177,13 @@ fun GdutDayNavHost(
                 enterTransition = { EnterTransition.None },
                 exitTransition = { ExitTransition.None },
             ) {
-                ToolboxScreen(container = container)
+                ToolboxScreen(
+                    container = container,
+                    onOpenFreeRoom = { navController.navigate(Routes.FREE_ROOM) },
+                )
+            }
+            composable(Routes.FREE_ROOM) {
+                FreeRoomScreen(container = container, onBack = { navController.popBackStack() })
             }
             composable(
                 Routes.SETTINGS,
