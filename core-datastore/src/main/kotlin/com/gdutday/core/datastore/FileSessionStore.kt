@@ -67,6 +67,7 @@ internal object SessionJson : FileCodec<GdutSession> {
             buildJsonObject {
                 put("authserverBase", value.hosts.authserverBase)
                 put("jxfwBase", value.hosts.jxfwBase)
+                put("jwcwxBase", value.hosts.jwcwxBase)
             },
         )
     }.toString()
@@ -148,11 +149,15 @@ internal object SessionJson : FileCodec<GdutSession> {
         if (obj == null) return GdutHosts.PRODUCTION
         val authserver = obj["authserverBase"]?.jsonPrimitive?.contentOrNull
         val jxfw = obj["jxfwBase"]?.jsonPrimitive?.contentOrNull
+        val jwcwx = obj["jwcwxBase"]?.jsonPrimitive?.contentOrNull
         // GdutHosts 的构造器会校验 URL；非法值会抛异常，被外层 catch 变成"整份会话损坏"。
+        // jwcwxBase 是新加的字段，老会话没有它 —— 缺失时回退生产默认值（与整个 hosts 缺失同策略）。
         return if (authserver.isNullOrBlank() || jxfw.isNullOrBlank()) {
             GdutHosts.PRODUCTION
-        } else {
+        } else if (jwcwx.isNullOrBlank()) {
             GdutHosts(authserverBase = authserver, jxfwBase = jxfw)
+        } else {
+            GdutHosts(authserverBase = authserver, jxfwBase = jxfw, jwcwxBase = jwcwx)
         }
     }
 

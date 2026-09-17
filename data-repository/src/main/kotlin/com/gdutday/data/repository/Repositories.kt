@@ -346,3 +346,28 @@ public interface LibraryRepository {
      */
     public suspend fun moduleCount(): Int?
 }
+
+/**
+ * 空闲教室查询（jwcwx，微信公众号教务 Web 端）。
+ *
+ * 会话与教务系统同源：jwcwx 走标准 CAS，用现有 authserver TGT 免密打通（见
+ * `data-gdut` 的 `JwcwxSso`），用户无感。错误约定与其它 Repository 一致：直接抛
+ * [com.gdutday.core.model.GdutException]，`SessionExpired` 由上层统一处置。
+ */
+public interface FreeRoomRepository {
+
+    /**
+     * 取全部教学楼（覆盖五校区，约 60 栋）。
+     *
+     * @throws com.gdutday.core.model.GdutException.SessionExpired 会话失效且无法静默重登
+     */
+    public suspend fun fetchBuildings(): List<com.gdutday.data.gdut.freeroom.FreeRoomBuilding>
+
+    /**
+     * 查某栋楼某天的教室占用行。空闲教室 = 该楼全部教室 − 占用行，
+     * 但"全部教室"接口只给占用行，UI 展示占用情况而非空房列表。
+     *
+     * @throws com.gdutday.core.model.GdutException.SessionExpired 会话失效且无法静默重登
+     */
+    public suspend fun fetchRoomUsage(buildingCode: String, date: String): com.gdutday.data.gdut.freeroom.RoomUsageResult
+}

@@ -391,7 +391,7 @@ content URI 调用 `takePersistableUriPermission` 持久化授权（部分机型
 ### 8.1 结构
 
 页面结构为工具列表，每个工具是一个可点击的 `ListItem`。
-当前只有一个工具（图书馆入馆二维码），后续新增工具只需在列表中追加条目。
+当前有两个工具（图书馆入馆二维码、空闲教室查询），后续新增工具只需在列表中追加条目。
 
 ### 8.2 二维码 Dialog
 
@@ -423,6 +423,18 @@ content URI 调用 `takePersistableUriPermission` 持久化授权（部分机型
 在对话框打开时按需生成，对话框关闭后状态随之释放。
 按项目约定，ViewModel 仅用于需要跨屏幕数据流的页面，
 这种"一次性工具宿主"用 composable-local 状态即可。
+
+### 8.5 空闲教室查询 Dialog（`FreeRoomDialog`）
+
+与二维码 Dialog 同一套"无 ViewModel"模式：选教学楼（按校区分组下拉）→
+输入日期（默认今天）→ 展示该楼当天的占用行（按教室聚合，节次连续段展示，
+`"0607"` 显示为 `6-7节`）。协议与会话打通见 [gdut-protocol](../reference/spec/gdut-protocol.md) §4.8：
+jwcwx 走标准 CAS，用现有 authserver TGT 免密打通（`data-gdut` 的 `JwcwxSso`），
+jwcwx 的 JSESSIONID 只存内存、不持久化，每次冷启动重新打通（一次跳转链，无交互）。
+
+状态分支：Loading（进度圈）/ 错误文案（区分 `SessionExpired` → "请重新登录"，
+其它 `GdutException` → `userMessage`）/ 空占用（"全部空闲"）。
+线程切换收口在 `FreeRoomRepositoryImpl`（`withContext(Dispatchers.IO)`），UI 不碰阻塞调用。
 
 ---
 

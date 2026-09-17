@@ -260,6 +260,45 @@ public object GdutEndpoints {
     /** 访问 jxfw 所有 `!getDataList.action` 接口时应带的 Referer。 */
     public const val JXFW_DEFAULT_REFERER: String = "https://jxfw.gdut.edu.cn/"
 
+    // ------------------------------------------------------------------ 空闲教室查询（jwcwx，实测 2026-09-17）
+
+    /**
+     * 微信公众号教务 Web 端主机（空闲教室查询等轻应用）。同上，代码里请用 [GdutHosts]。
+     */
+    public const val JWCWX_BASE: String = "https://jwcwx.gdut.edu.cn"
+
+    /**
+     * jwcwx 的 CAS 登录 service（指向其回调入口 `/login/cas`）。
+     *
+     * 实测（2026-09-17）：jwcwx 默认入口 `/login/openid` 走微信 OAuth（不可用），
+     * 但 `/login` 页面有"使用统一身份认证"入口 → `/login/cas` → 标准 authserver CAS。
+     * 登录页结构与 jxfw 完全一致（salt/execution/48 字符表加密），可复用登录实现。
+     * ⚠ 票据兑换后的 302 Location 会降级为 `http://`，需要按主机强制回 https。
+     */
+    public const val JWCWX_CAS_SERVICE: String = "$JWCWX_BASE/login/cas"
+
+    /**
+     * 教学楼列表。GET，参数 `jwCode=`（可空）。
+     * 响应 `{code:0,data:[{jzwdm,jzwmc,szxqdm,xqmc}…]}`，60 栋，覆盖五校区。
+     * 无 Referer 要求。
+     */
+    public const val JWCWX_FREE_ROOM_BUILDINGS: String =
+        "$JWCWX_BASE/free-class-room/buildingData"
+
+    /**
+     * 教室占用查询。GET，参数 `jwCode=&jzwdm=<楼代码>&rq=<yyyy-MM-dd>`。
+     * 返回该楼当天**所有教室的占用行**（空闲教室 = 全部教室 − 占用行）。
+     * 响应 `{code:0,data:[…]}`，无分页。
+     * ⚠ 无效日期/楼号**静默返回空数组不报错**，客户端需自行校验。
+     * ⚠ 未登录访问一律 302 → `/login/openid`（微信 OAuth），没有匿名访问。
+     *
+     * 占用行字段：`jxcdmc`(教室名) `kcmc`(课程) `teaxms`(教师) `jxbmc`(教学班)
+     * `jcdm`(两位拼接节次，同课表) `jcdm2`(逗号分隔) `xq`(星期) `zc`(周次)
+     * `xnxqdm`(学期长码) `rs`(人数) `pkrs`(容量) `sytype`/`shztdm`(语义未验证)
+     */
+    public const val JWCWX_FREE_ROOM_USED_DATA: String =
+        "$JWCWX_BASE/free-class-room/classroomUsedData"
+
     // ------------------------------------------------------------------ 研究生（未实现，仅记录）
 
     /**

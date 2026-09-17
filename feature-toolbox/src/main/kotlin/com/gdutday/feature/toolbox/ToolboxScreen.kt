@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,6 +72,7 @@ fun ToolboxScreen(
     modifier: Modifier = Modifier,
 ) {
     var showQrDialog by remember { mutableStateOf(false) }
+    var showFreeRoomDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -106,6 +108,27 @@ fun ToolboxScreen(
                     modifier = Modifier.clickable { showQrDialog = true },
                 )
             }
+            item(key = "free_room_entry") {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.toolbox_free_room_title)) },
+                    supportingContent = { Text(stringResource(R.string.toolbox_free_room_subtitle)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Filled.MeetingRoom,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    modifier = Modifier.clickable { showFreeRoomDialog = true },
+                )
+            }
         }
     }
 
@@ -113,6 +136,13 @@ fun ToolboxScreen(
         LibraryQrDialog(
             container = container,
             onDismiss = { showQrDialog = false },
+        )
+    }
+
+    if (showFreeRoomDialog) {
+        FreeRoomDialog(
+            container = container,
+            onDismiss = { showFreeRoomDialog = false },
         )
     }
 }

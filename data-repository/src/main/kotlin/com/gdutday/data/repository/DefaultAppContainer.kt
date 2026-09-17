@@ -147,6 +147,10 @@ public class DefaultAppContainer(
         LibraryRepositoryImpl(sessionStore, settingsStore)
     }
 
+    override val freeRoomRepository: FreeRoomRepository by lazy {
+        FreeRoomRepositoryImpl(sessionStore, okHttpClient)
+    }
+
     override val syncScheduler: SyncScheduler by lazy {
         SyncSchedulerImpl(
             workManager = workManager,

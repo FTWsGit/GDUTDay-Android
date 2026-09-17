@@ -68,6 +68,8 @@ public interface AppContainer {
 
     public val libraryRepository: LibraryRepository
 
+    public val freeRoomRepository: FreeRoomRepository
+
     /** 后台同步的编排者。WorkManager 的 Worker 只调用它，不含业务逻辑。 */
     public val syncScheduler: SyncScheduler
 }

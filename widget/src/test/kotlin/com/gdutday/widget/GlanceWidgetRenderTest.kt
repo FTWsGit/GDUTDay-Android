@@ -81,9 +81,9 @@ class GlanceWidgetRenderTest {
         }
         onNode(hasText("9月10日 周三 · 第2周")).assertExists()
         onNode(hasText("数据结构")).assertExists()
-        // 起止时间都要显示，不能只有开始时间——用户经常需要知道这节课几点下课
-        // 才能安排下一件事。
-        onNode(hasText("08:30-09:15", substring = true)).assertExists()
+        // 起止时间上下两行堆叠渲染（见 TodayScheduleWidget 的注释），分别断言两行都存在
+        onNode(hasText("08:30")).assertExists()
+        onNode(hasText("09:15")).assertExists()
         // dayOffset=0 时切换条显示"今"（当前正在显示的那一天，见 DayToggleBar 的 KDoc）
         onNode(hasText("今")).assertExists()
     }

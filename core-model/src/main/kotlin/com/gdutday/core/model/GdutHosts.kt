@@ -26,9 +26,14 @@ package com.gdutday.core.model
 public data class GdutHosts(
     public val authserverBase: String = DEFAULT_AUTHSERVER_BASE,
     public val jxfwBase: String = DEFAULT_JXFW_BASE,
+    public val jwcwxBase: String = DEFAULT_JWCWX_BASE,
 ) {
     init {
-        for ((name, base) in listOf("authserverBase" to authserverBase, "jxfwBase" to jxfwBase)) {
+        for ((name, base) in listOf(
+            "authserverBase" to authserverBase,
+            "jxfwBase" to jxfwBase,
+            "jwcwxBase" to jwcwxBase,
+        )) {
             if (base.isBlank()) throw IllegalArgumentException("$name 不能为空")
             if (base.endsWith("/")) throw IllegalArgumentException("$name 不应以 '/' 结尾: $base")
             if (!base.startsWith("http://") && !base.startsWith("https://")) {
@@ -40,10 +45,12 @@ public data class GdutHosts(
     /** 主机名，用于 `Origin` / `sec-fetch-site` 头和 cookie 域匹配。 */
     public val authserverHost: String get() = hostOf(authserverBase)
     public val jxfwHost: String get() = hostOf(jxfwBase)
+    public val jwcwxHost: String get() = hostOf(jwcwxBase)
 
     /** 是否指向真实的生产环境。测试里为 false。 */
     public val isProduction: Boolean
-        get() = authserverBase == DEFAULT_AUTHSERVER_BASE && jxfwBase == DEFAULT_JXFW_BASE
+        get() = authserverBase == DEFAULT_AUTHSERVER_BASE && jxfwBase == DEFAULT_JXFW_BASE &&
+            jwcwxBase == DEFAULT_JWCWX_BASE
 
     // ------------------------------------------------------- 统一身份认证
 
@@ -120,6 +127,22 @@ public data class GdutHosts(
     /** jxfw 所有 XHR 接口通用的 Referer。 */
     public val jxfwDefaultReferer: String get() = "$jxfwBase/"
 
+    // ------------------------------------------------- 空闲教室查询（jwcwx，实测 2026-09-17）
+
+    /**
+     * CAS 登录 service 参数（指向 jwcwx 的回调入口）。
+     *
+     * 实测（2026-09-17）：jwcwx 有 `/login/cas` 统一认证入口，登录页结构与 jxfw 完全一致，
+     * 可复用 authserver 登录实现，不需要微信 OAuth。
+     */
+    public val jwcwxCasService: String get() = "$jwcwxBase/login/cas"
+
+    /** 教学楼列表：GET，返回 `{code,data:[{jzwdm,jzwmc,szxqdm,xqmc}…]}`。 */
+    public val jwcwxFreeRoomBuildings: String get() = "$jwcwxBase/free-class-room/buildingData"
+
+    /** 教室占用查询：GET `jzwdm=<楼>&rq=<yyyy-MM-dd>`，返回该楼当天所有占用行。 */
+    public val jwcwxFreeRoomUsedData: String get() = "$jwcwxBase/free-class-room/classroomUsedData"
+
     public companion object {
         /** 生产默认地址（与 `data-gdut` 的 `GdutEndpoints` 交叉校验，勿单边修改）。 */
         public const val DEFAULT_AUTHSERVER_BASE: String = "https://authserver.gdut.edu.cn"
@@ -127,18 +150,25 @@ public data class GdutHosts(
         /** 生产默认地址（与 `data-gdut` 的 `GdutEndpoints` 交叉校验，勿单边修改）。 */
         public const val DEFAULT_JXFW_BASE: String = "https://jxfw.gdut.edu.cn"
 
+        /** 生产默认地址（微信公众号教务的 Web 端，空闲教室查询，实测 2026-09-17）。 */
+        public const val DEFAULT_JWCWX_BASE: String = "https://jwcwx.gdut.edu.cn"
+
         /** 生产环境配置。 */
         public val PRODUCTION: GdutHosts = GdutHosts()
 
         /**
          * 指向本地 MockWebServer 的测试配置。
          *
-         * ⚠ MockWebServer 只有一个端口，所以这里把两个 base 都指向同一个地址。
+         * ⚠ MockWebServer 只有一个端口，所以这里把所有 base 都指向同一个地址。
          * 测试脚本要按 **path** 区分请求（`/authserver/login` vs `/new/ssoLogin`），
          * 这与生产环境的路径布局一致，因此业务代码不需要做任何特判。
          */
         public fun forTestServer(baseUrl: String): GdutHosts =
-            GdutHosts(authserverBase = baseUrl.trimEnd('/'), jxfwBase = baseUrl.trimEnd('/'))
+            GdutHosts(
+                authserverBase = baseUrl.trimEnd('/'),
+                jxfwBase = baseUrl.trimEnd('/'),
+                jwcwxBase = baseUrl.trimEnd('/'),
+            )
 
         private fun hostOf(base: String): String =
             base.substringAfter("://").substringBefore('/').substringBefore(':')

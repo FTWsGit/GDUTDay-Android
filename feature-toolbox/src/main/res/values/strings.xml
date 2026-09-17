@@ -11,4 +11,15 @@
     <string name="toolbox_qr_not_logged_in">请先到「设置 → 工具」中配置图书馆二维码学号</string>
     <string name="toolbox_qr_generate_failed">二维码生成失败，请稍后重试</string>
     <string name="toolbox_close">关闭</string>
+
+    <!-- 空闲教室查询 -->
+    <string name="toolbox_free_room_title">空闲教室查询</string>
+    <string name="toolbox_free_room_subtitle">按教学楼查询当天教室占用与空闲情况</string>
+    <string name="toolbox_free_room_pick_building">选择教学楼</string>
+    <string name="toolbox_free_room_usage">教室占用</string>
+    <string name="toolbox_free_room_empty">该楼当天没有占用记录（全部空闲）</string>
+    <string name="toolbox_free_room_not_logged_in">请先登录后再查询</string>
+    <string name="toolbox_free_room_failed">查询失败，请稍后重试</string>
+    <string name="toolbox_free_room_session_expired">登录状态已过期，请重新登录</string>
+    <string name="toolbox_free_room_capacity">%1$d/%2$d 人</string>
 </resources>
