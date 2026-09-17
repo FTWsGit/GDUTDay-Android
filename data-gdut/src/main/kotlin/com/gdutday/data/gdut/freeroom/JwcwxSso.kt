@@ -34,6 +34,10 @@ public object JwcwxSso {
 
     private const val MAX_HOPS = 8
 
+    /** 这些主机的 http 一律升级 https（jwcwx 的 302 会把全部 Location 降级 http）。 */
+    private fun knownHosts(hosts: GdutHosts): Set<String> =
+        setOf(hosts.jwcwxHost, hosts.authserverHost, hosts.jxfwHost)
+
     /**
      * 用现有会话的 authserver TGT 换取 jwcwx 会话 cookie。
      *
@@ -83,11 +87,15 @@ public object JwcwxSso {
                 }
                 val currentUrl = response.request.url
                 response.close()
-                // jwcwx 的 302 会降级 http；其 80 端口不可达，强制回 https。
-                val nextUrl = if (location.startsWith("http://${hosts.jwcwxHost}")) {
-                    "https://${location.removePrefix("http://${hosts.jwcwxHost}")}"
+                // jwcwx 的 302 会把所有 Location 降级 http（含跳往 authserver 的那一跳）；
+                // 80 端口不可达且 Android 禁止明文通信。先用 HttpUrl 正式解析（兼容相对 Location），
+                // 再对已知主机的 http 替换 scheme —— 不做字符串手术，避免拼出畸形主机。
+                val resolved = currentUrl.resolve(location)
+                    ?: throw GdutException.Parse(what = "jwcwx 会话打通", snippet = "无法解析 Location: $location")
+                val nextUrl = if (resolved.scheme == "http" && resolved.host in knownHosts(hosts)) {
+                    resolved.newBuilder().scheme("https").build()
                 } else {
-                    currentUrl.resolve(location)?.toString() ?: location
+                    resolved
                 }
                 request = Request.Builder()
                     .url(nextUrl)
