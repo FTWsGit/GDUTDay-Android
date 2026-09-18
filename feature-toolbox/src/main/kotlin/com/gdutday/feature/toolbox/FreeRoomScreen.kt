@@ -284,6 +284,7 @@ private fun RoomTimelineScreen(
                             )
                         }
                     }
+                    item(key = "header") { PeriodHeaderRow() }
                     items(s.rooms, key = { it.first }) { (room, slots) ->
                         RoomTimelineRow(
                             room = room,
@@ -362,7 +363,7 @@ private fun SlotIcon(state: FreeRoomLogic.SlotState, size: androidx.compose.ui.u
     }
 }
 
-/** 一间教室的时间轴行：教室名 + 12 节图标序列。 */
+/** 一间教室的时间轴行：教室名 + 固定 6 列大图标均分（Excel 式，一列一个时间段）。 */
 @Composable
 private fun RoomTimelineRow(
     room: String,
@@ -372,36 +373,52 @@ private fun RoomTimelineRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                // 默认点行 = 看第一个非空闲段；没有就给第一段
-                onSlotClick(slots.firstOrNull { it.state != FreeRoomLogic.SlotState.FREE } ?: slots.first())
-            }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = room,
             style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.weight(0.32f),
+            modifier = Modifier.weight(0.30f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Row(
-            modifier = Modifier.weight(0.68f),
-            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.End),
-        ) {
+        // 固定 6 列，每列等宽（weight(1f)），图标大、可点区域大
+        Row(modifier = Modifier.weight(0.70f)) {
             slots.forEach { slot ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { onSlotClick(slot) },
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSlotClick(slot) }
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    SlotIcon(slot.state, size = 12.dp)
-                    Text(
-                        text = FreeRoomLogic.sectionRangeLabel(slot.startSection, slot.endSection),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    SlotIcon(slot.state, size = 22.dp)
                 }
+            }
+        }
+    }
+}
+
+/** 列头：与教室行的 6 列对齐的时间段标签。 */
+@Composable
+private fun PeriodHeaderRow(modifier: Modifier = Modifier) {
+    Row(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Text(
+            text = stringResource(R.string.toolbox_free_room_column_room),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.30f),
+        )
+        Row(modifier = Modifier.weight(0.70f)) {
+            FreeRoomLogic.Period.entries.forEach { period ->
+                Text(
+                    text = period.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -459,14 +476,14 @@ private fun SlotDetailSheet(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SlotIcon(slot.state, size = 14.dp)
                 Text(
-                    text = "$room · 第${FreeRoomLogic.sectionRangeLabel(slot.startSection, slot.endSection)}节",
+                    text = "$room · 第${slot.period.label}节",
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
             val occ = slot.occupancy
             if (occ == null) {
                 DetailRow(stringResource(R.string.toolbox_free_room_detail_state), stringResource(R.string.toolbox_free_room_state_free))
-                DetailRow(stringResource(R.string.toolbox_free_room_detail_sections), "${slot.startSection} 到 ${slot.endSection} 节")
+                DetailRow(stringResource(R.string.toolbox_free_room_detail_sections), "${slot.period.startSection} 到 ${slot.period.endSection} 节")
                 DetailRow(stringResource(R.string.toolbox_free_room_detail_note), stringResource(R.string.toolbox_free_room_detail_free_note))
             } else {
                 DetailRow(stringResource(R.string.toolbox_free_room_detail_state), when (slot.state) {

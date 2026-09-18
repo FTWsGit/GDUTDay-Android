@@ -101,65 +101,61 @@ class FreeRoomLogicTest {
         assertThat(FreeRoomLogic.sectionNumbers("0a")).isEmpty()
     }
 
-    // ------------------------------------------------------------------ 时间轴展开
+    // ------------------------------------------------------------------ 固定 6 列网格
 
     @Test
-    fun `占用行展开为连续段且其余为空闲`() {
+    fun `固定6列模型各列状态正确`() {
         val slots = FreeRoomLogic.expandSlots(
             rows = listOf(occupancy("0102"), occupancy("0607", UsageType.BORROWED)),
         )
 
-        // 1-2 上课、3-5 空闲、6-7 借用、8-12 空闲
-        assertThat(slots).hasSize(4)
-        assertThat(slots[0].startSection).isEqualTo(1)
-        assertThat(slots[0].endSection).isEqualTo(2)
-        assertThat(slots[0].state).isEqualTo(FreeRoomLogic.SlotState.CLASS)
-        assertThat(slots[1]).isEqualTo(
-            FreeRoomLogic.Slot(3, 5, FreeRoomLogic.SlotState.FREE, null),
-        )
-        assertThat(slots[2].state).isEqualTo(FreeRoomLogic.SlotState.BORROWED)
-        assertThat(slots[2].occupancy).isNotNull()
-        assertThat(slots[3].endSection).isEqualTo(12)
-        assertThat(slots[3].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
-    }
-
-    @Test
-    fun `无占用时全天一整格空闲`() {
-        val slots = FreeRoomLogic.expandSlots(emptyList())
-
-        assertThat(slots).hasSize(1)
-        assertThat(slots.single()).isEqualTo(
-            FreeRoomLogic.Slot(1, 12, FreeRoomLogic.SlotState.FREE, null),
-        )
-    }
-
-    @Test
-    fun `同状态相邻占用合并为一段`() {
-        val slots = FreeRoomLogic.expandSlots(
-            rows = listOf(occupancy("0102"), occupancy("0304")),
-        )
-
-        // 1-4 合并为一段上课，5-12 是一段空闲
-        assertThat(slots).hasSize(2)
-        assertThat(slots[0].startSection).isEqualTo(1)
-        assertThat(slots[0].endSection).isEqualTo(4)
+        // 6 列固定：1-2 上课、3-4/5 空闲、6-7 借用、8-9/10-12 空闲
+        assertThat(slots).hasSize(6)
+        assertThat(slots[0].period).isEqualTo(FreeRoomLogic.Period.P12)
         assertThat(slots[0].state).isEqualTo(FreeRoomLogic.SlotState.CLASS)
         assertThat(slots[1].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
+        assertThat(slots[2].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
+        assertThat(slots[3].state).isEqualTo(FreeRoomLogic.SlotState.BORROWED)
+        assertThat(slots[3].occupancy).isNotNull()
+        assertThat(slots[4].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
+        assertThat(slots[5].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
     }
 
     @Test
-    fun `超出12节的占用行被裁剪不越界`() {
+    fun `无占用时6列全部空闲`() {
+        val slots = FreeRoomLogic.expandSlots(emptyList())
+
+        assertThat(slots).hasSize(6)
+        assertThat(slots.all { it.state == FreeRoomLogic.SlotState.FREE }).isTrue()
+    }
+
+    @Test
+    fun `跨列占用行只命中实际节次所在列`() {
+        // "0307" 按两位一组 = 第 3、7 节（实测 jcdm2=03,07 佐证，非 3-7 连续段）
+        // → 只命中 3-4 与 6-7 两列，5 节不占
+        val slots = FreeRoomLogic.expandSlots(rows = listOf(occupancy("0307")))
+
+        assertThat(slots[0].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
+        assertThat(slots[1].state).isEqualTo(FreeRoomLogic.SlotState.CLASS)
+        assertThat(slots[2].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
+        assertThat(slots[3].state).isEqualTo(FreeRoomLogic.SlotState.CLASS)
+        assertThat(slots[4].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
+        assertThat(slots[5].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
+    }
+
+    @Test
+    fun `超出12节的占用行不越界`() {
         val slots = FreeRoomLogic.expandSlots(rows = listOf(occupancy("11121314")))
 
-        assertThat(slots.last().endSection).isEqualTo(12)
-        assertThat(slots.last().state).isEqualTo(FreeRoomLogic.SlotState.CLASS)
+        // 10-12 列命中（11、12 节在区间内），其余列空闲
+        assertThat(slots[5].state).isEqualTo(FreeRoomLogic.SlotState.CLASS)
+        assertThat(slots.take(5).all { it.state == FreeRoomLogic.SlotState.FREE }).isTrue()
     }
 
     @Test
     fun `未知占用类型按占用展示不误报空闲`() {
         val slots = FreeRoomLogic.expandSlots(rows = listOf(occupancy("0304", UsageType.UNKNOWN)))
 
-        // 1-2 空闲、3-4 未知占用（按占用展示）、5-12 空闲
         assertThat(slots[0].state).isEqualTo(FreeRoomLogic.SlotState.FREE)
         assertThat(slots[1].state).isNotEqualTo(FreeRoomLogic.SlotState.FREE)
         assertThat(slots[2].state).isEqualTo(FreeRoomLogic.SlotState.FREE)

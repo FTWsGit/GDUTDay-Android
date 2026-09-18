@@ -432,8 +432,13 @@ content URI 调用 `takePersistableUriPermission` 持久化授权（部分机型
 
 1. **楼列表**：校区分 `PrimaryTabRow`（五校区），楼按类型分组（教学/实验/学院/公共/其他，
    `FreeRoomLogic.buildingKind` 按名称关键词归类，对不上的进"其他"不混入教学）；
-2. **教室时间轴**（`RoomTimelineScreen`）：每间教室一行，右侧按节次连续段排图标——
-   空闲=半透明圆、上课=红圆、借用=菱形（形状+颜色双编码，色弱可辨）；点格弹详情；
+2. **教室时间轴**（`RoomTimelineScreen`）：**Excel 式固定 6 列网格**——列 = 大节
+   （1-2 / 3-4 / 5 / 6-7 / 8-9 / 10-12，`FreeRoomLogic.Period`），行 = 教室，
+   列头统一标注时间段，所有行共用同一组列，横向可比"某个时段哪些教室空"。
+   每格一个大图标（22dp，等宽均分一行）：空闲=半透明圆、上课=红圆、借用=菱形
+   （形状+颜色双编码，色弱可辨）；点格弹详情。占用节次与列区间有交集即命中该列
+   （跨列占用出现在多列）；`jcdm` 按两位一组解析（`0307` = 第 3、7 节，
+   见 [gdut-protocol](../reference/spec/gdut-protocol.md) §4.8）；
 3. **详情 BottomSheet**（`SlotDetailSheet`）：全部中文标签（`人数: 90` 而非 `studentCount: 90`），
    字段按有无动态展示。
 

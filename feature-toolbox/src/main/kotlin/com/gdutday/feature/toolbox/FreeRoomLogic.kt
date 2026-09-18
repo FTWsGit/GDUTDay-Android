@@ -55,58 +55,46 @@ public object FreeRoomLogic {
     /** 一间教室某节课的状态。 */
     public enum class SlotState { FREE, CLASS, BORROWED }
 
-    /** 一间教室一天的时间轴格。 */
+    /**
+     * 固定时间列。与作息对齐的 6 个大节（上午两节连堂 ×2 + 单节 + 下午/晚上连堂），
+     * Excel 式"一个时间段一列"，所有教室行共用同一组列头，便于横向比较。
+     */
+    public enum class Period(val label: String, val startSection: Int, val endSection: Int) {
+        P12("1-2", 1, 2),
+        P34("3-4", 3, 4),
+        P5("5", 5, 5),
+        P67("6-7", 6, 7),
+        P89("8-9", 8, 9),
+        P1012("10-12", 10, 12),
+    }
+
+    /** 一间教室一列（大节）的状态。 */
     public data class Slot(
-        /** 起始节（1-based，含）。 */
-        public val startSection: Int,
-        /** 结束节（含）。 */
-        public val endSection: Int,
+        public val period: Period,
         public val state: SlotState,
-        /** 该格对应的占用行（FREE 为 null）。 */
+        /** 该格对应的占用行（FREE 为 null；跨列占用行会出现在多列）。 */
         public val occupancy: RoomOccupancy?,
     )
 
     /**
-     * 把两位拼接节次的占用行展开成 1..12 节的状态数组，
-     * 再合并相邻同状态格为连续段（`[1,1,2,2,0,0,…]` → `1-2节上课、3-4节上课、5-6节空闲`）。
+     * 把占用行铺进 [Period] 固定列。
      *
-     * 占用行覆盖范围之外的节 = 空闲。同一节出现多行占用时**取先出现的行**
-     * （实测一节最多一条排课；借用与排课冲突时以排课优先展示，数据层保证不重叠）。
+     * 占用节次与列区间有交集即命中该列（如 `0307` 同时占据 3-4、5、6-7 三列）。
+     * 一列命中多行时取第一个出现的行。未命中任何占用 = 空闲。
+     * 超出 12 节的占用节次被忽略。
      */
-    public fun expandSlots(
-        rows: List<RoomOccupancy>,
-        totalSections: Int = 12,
-    ): List<Slot> {
-        val stateBySection = arrayOfNulls<Pair<SlotState, RoomOccupancy>>(totalSections)
-        for (row in rows) {
-            val state = when (row.usageType) {
+    public fun expandSlots(rows: List<RoomOccupancy>): List<Slot> =
+        Period.entries.map { period ->
+            val hit = rows.firstOrNull { row ->
+                sectionNumbers(row.sectionCode).any { it in period.startSection..period.endSection }
+            } ?: return@map Slot(period, SlotState.FREE, null)
+            val state = when (hit.usageType) {
                 UsageType.CLASS -> SlotState.CLASS
                 UsageType.BORROWED -> SlotState.BORROWED
                 UsageType.UNKNOWN -> SlotState.CLASS   // 未知类型按占用展示，避免误报"空闲"
             }
-            for ((idx, sec) in sectionNumbers(row.sectionCode).withIndex()) {
-                if (sec in 1..totalSections && stateBySection[sec - 1] == null) {
-                    stateBySection[sec - 1] = state to row
-                }
-            }
+            Slot(period, state, hit)
         }
-        // 合并相邻同状态的节为连续段（占用行取该段首个，相邻两行是不同实例不能按引用判等）
-        val slots = mutableListOf<Slot>()
-        var i = 0
-        while (i < totalSections) {
-            val cur = stateBySection[i]
-            var j = i
-            while (j + 1 < totalSections && stateBySection[j + 1]?.first == cur?.first) j++
-            slots += Slot(
-                startSection = i + 1,
-                endSection = j + 1,
-                state = cur?.first ?: SlotState.FREE,
-                occupancy = cur?.second,
-            )
-            i = j + 1
-        }
-        return slots
-    }
 
     /**
      * 解析两位拼接节次（`"0607"` → [6,7]）。

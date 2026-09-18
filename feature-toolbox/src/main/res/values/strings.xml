@@ -23,6 +23,7 @@
     <string name="toolbox_free_room_session_expired">登录状态已过期，请重新登录</string>
     <string name="toolbox_free_room_capacity">%1$d/%2$d 人</string>
     <string name="toolbox_back">返回</string>
+    <string name="toolbox_free_room_column_room">教室</string>
     <string name="toolbox_free_room_today">回到今天</string>
     <string name="toolbox_free_room_state_free">空闲</string>
     <string name="toolbox_free_room_state_class">上课</string>

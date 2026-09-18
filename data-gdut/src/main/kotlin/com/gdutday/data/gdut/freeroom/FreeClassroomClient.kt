@@ -49,8 +49,10 @@ public enum class UsageType(public val rawCode: String?) {
 
 /** 一条教室占用记录。 */
 public data class RoomOccupancy(
-    /** 教室名（`jxcdmc`），如"教3-101"。借用行可能缺失，为空串。 */
+    /** 教室名（`jxcdmc`），如"教3-101"。借用行可能缺失，为空串（可用 [roomCode] 回查）。 */
     public val room: String,
+    /** 教室代码（`jxcddm`），如"011030109"。上课行与借用行都有；借用行靠它回填教室名。 */
+    public val roomCode: String = "",
     /** 课程名（`kcmc`）。借用行为空串。 */
     public val courseName: String,
     /** 教师（`teaxms`），可能为空。 */
@@ -184,6 +186,7 @@ public class FreeClassroomClient(
             val obj = el as? kotlinx.serialization.json.JsonObject ?: continue
             val row = RoomOccupancy(
                 room = obj.str("jxcdmc"),
+                roomCode = obj.str("jxcddm"),
                 courseName = obj.str("kcmc"),
                 teacher = obj.str("teaxms"),
                 teachingClass = obj.str("jxbmc"),
@@ -201,10 +204,33 @@ public class FreeClassroomClient(
                 summary = obj.str("sknrjj"),
                 teachingLink = obj.str("jxhjmc"),
             )
-            // 借用行可能没有教室名（学校接口不标注借用了哪间），归入 unassigned
+            // 借用行可能没有教室名（jxcdmc 为 null）——归入 unassigned，
+            // 由 collectRoomRows 用同楼上课行的 jxcddm→jxcdmc 映射回填。
             if (row.room.isBlank()) unassigned += row else assigned += row
         }
-        return RoomUsageResult(rows = assigned, unassigned = unassigned)
+        return collectRoomRows(assigned, unassigned)
+    }
+
+    /**
+     * 用教室代码（`jxcddm`）→ 教室名（`jxcdmc`）映射回填借用行的教室名。
+     *
+     * 实测（2026-09-17）：借用行 `jxcdmc` 为 null 但 `jxcddm` 有值（如 `011030209`），
+     * 与同楼上课行的代码同一编码体系（`011 03 0 209` = 校区+楼号+层+房间号）。
+     * 上课行数据齐全时借用行可完全归属到教室；映射不到的才留在 unassigned。
+     */
+    private fun collectRoomRows(
+        assigned: List<RoomOccupancy>,
+        unassigned: List<RoomOccupancy>,
+    ): RoomUsageResult {
+        if (unassigned.isEmpty()) return RoomUsageResult(rows = assigned)
+        val codeToName = assigned.associate { it.roomCode to it.room }
+        val resolved = mutableListOf<RoomOccupancy>()
+        val stillUnassigned = mutableListOf<RoomOccupancy>()
+        for (row in unassigned) {
+            val name = codeToName[row.roomCode]
+            if (name != null) resolved += row.copy(room = name) else stillUnassigned += row
+        }
+        return RoomUsageResult(rows = assigned + resolved, unassigned = stillUnassigned)
     }
 
     // ------------------------------------------------------------------ 内部
