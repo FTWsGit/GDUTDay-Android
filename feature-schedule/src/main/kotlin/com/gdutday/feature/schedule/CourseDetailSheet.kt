@@ -57,7 +57,7 @@ internal fun CourseDetailSheet(
     val editable = !isExam && course.id != 0L
 
     InstantBottomSheet(onDismiss = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = course.name,

@@ -584,7 +584,7 @@ private fun AddOccurrenceSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(R.string.schedule_advanced_add_title), style = MaterialTheme.typography.titleLarge)

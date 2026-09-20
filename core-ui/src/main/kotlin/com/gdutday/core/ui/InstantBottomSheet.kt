@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,10 +71,11 @@ public fun InstantBottomSheet(
             tonalElevation = 3.dp,
         ) {
             // 底部安全区/输入法：内容整体抬到键盘之上，面板底色延伸到屏幕底。
+            // 顶部 20dp：去掉 ModalBottomSheet 的拖拽横条后，内容不能贴着圆角顶边。
             Column(
-                modifier = Modifier.windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
-                ),
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                    .padding(top = 20.dp),
             ) {
                 content()
             }

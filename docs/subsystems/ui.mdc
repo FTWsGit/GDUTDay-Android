@@ -28,8 +28,10 @@ alwaysApply: false
   显示导航栏会让返回语义混乱。
 - 所有页面用 `enableEdgeToEdge()` + `WindowInsets` 处理状态栏/手势区。
   Android 15（API 35）起 `targetSdk 35` 强制边到边。
-- 外层 `Scaffold`（`GdutDayNavHost`）的 `contentWindowInsets` 置 0：每个页面自己的
-  `Scaffold`/`TopAppBar` 已经处理状态栏 inset，外层再垫一次会让内容整体下移一个状态栏高度。
+- 外层 `Scaffold`（`GdutDayNavHost`）的 `contentWindowInsets` 置 0，并把 `innerPadding`
+  通过 `consumeWindowInsets` 传给 `NavHost`：每个页面自己的 `Scaffold`/`TopAppBar` 处理状态栏，
+  底部导航栏的高度由外层 `bottomBar` 让出。少了这两步，顶部会多一个状态栏高度、
+  底部会多一条导航栏高度的白边。
 - 弹层统一用 `InstantBottomSheet`（core-ui），不用 Material3 `ModalBottomSheet`：
   后者的滑出动画会短暂保留一层遮罩，点空白收起后动画结束前再点其它色块会被遮罩吃掉。
   `InstantBottomSheet` 条件渲染，出现/消失同一帧完成。

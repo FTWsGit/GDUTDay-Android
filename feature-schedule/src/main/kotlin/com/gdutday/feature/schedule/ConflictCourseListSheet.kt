@@ -35,7 +35,7 @@ internal fun ConflictCourseListSheet(
     onPick: (CourseBlock) -> Unit,
 ) {
     InstantBottomSheet(onDismiss = onDismiss) {
-        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
+        Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp)) {
             Text(
                 text = stringResource(R.string.schedule_conflict_title, blocks.size),
                 style = MaterialTheme.typography.titleLarge,

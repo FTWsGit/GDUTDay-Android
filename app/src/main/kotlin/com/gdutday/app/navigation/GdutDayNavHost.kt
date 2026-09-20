@@ -3,6 +3,7 @@ package com.gdutday.app.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
@@ -151,7 +152,11 @@ fun GdutDayNavHost(
         NavHost(
             navController = navController,
             startDestination = Routes.SCHEDULE,
-            modifier = Modifier.padding(innerPadding),
+            // consumeWindowInsets：外层 Scaffold 的 innerPadding 已经把底部导航栏的高度
+            // 让出来了，内层页面的 Scaffold 不能再按系统 inset 垫一次，否则底部会多出一条白边。
+            modifier = Modifier
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding),
         ) {
             composable(
                 Routes.SCHEDULE,
