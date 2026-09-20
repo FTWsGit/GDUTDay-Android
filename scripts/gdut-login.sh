@@ -88,7 +88,7 @@ CIPHER="$(printf '%s' "$PREFIX$PLAIN" \
 
 # ---------- ③ 提交 ----------
 SERVICE_ENC='https%3A%2F%2Fjxfw.gdut.edu.cn%2Fnew%2FssoLogin'
-BODY="username=$(enc "$GDUT_STUDENT_ID")&password=$(enc "$CIPHER")&=$SALT&rememberMe=true&_eventId=submit&execution=$(enc "$EXEC")"
+BODY="username=$(enc "$GDUT_STUDENT_ID")&password=$(enc "$CIPHER")&=$(enc "$SALT")&rememberMe=true&_eventId=submit&execution=$(enc "$EXEC")"
 
 REDIRECT="$(curl -sS "${CURL_TLS[@]}" -b "$SESSION_DIR/cookies.txt" -c "$SESSION_DIR/cookies.txt" -A "$UA" \
     -H 'Content-Type: application/x-www-form-urlencoded' \
