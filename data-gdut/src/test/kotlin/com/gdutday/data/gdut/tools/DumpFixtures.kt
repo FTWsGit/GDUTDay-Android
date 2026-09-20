@@ -14,7 +14,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.net.URLEncoder
-import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
@@ -141,23 +140,18 @@ public object DumpFixtures {
             body
         }
 
-    /** 本机 JDK 缺学校证书链，走 Windows 系统信任库（与 verifyLogin 的 jvmArg 等价）。 */
-    private fun baseClient(): OkHttpClient {
-        val trustManager = object : javax.net.ssl.X509TrustManager {
-            override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
-            override fun checkClientTrusted(chain: Array<out java.security.cert.X509Certificate>, authType: String) {}
-            override fun checkServerTrusted(chain: Array<out java.security.cert.X509Certificate>, authType: String) {}
-        }
-        val ssl = javax.net.ssl.SSLContext.getInstance("TLS")
-        ssl.init(null, arrayOf<javax.net.ssl.TrustManager>(trustManager), SecureRandom())
-        return OkHttpClient.Builder()
-            .sslSocketFactory(ssl.socketFactory, trustManager)
+    /**
+     * 本机 JDK 缺学校证书链，依赖 build.gradle 的
+     * `-Djavax.net.ssl.trustStoreType=Windows-ROOT` 走 Windows 系统信任库
+     * （与 verifyLogin 一致），不做任何自定义 TLS 降级。
+     */
+    private fun baseClient(): OkHttpClient =
+        OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .followRedirects(false)
             .followSslRedirects(false)
             .build()
-    }
 
     /** 环境变量优先；否则读根目录 secrets.properties（shell export 格式）。 */
     private fun loadCredentials(): Pair<String, String>? {
