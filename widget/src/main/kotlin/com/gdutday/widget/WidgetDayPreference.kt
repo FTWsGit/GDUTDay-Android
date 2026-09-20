@@ -32,13 +32,13 @@ internal object WidgetDayPreference {
     /**
      * 在"今天"与"明天"之间翻转，落盘后返回新值。
      *
-     * 用 `commit()` 而不是 `apply()`：紧接着的 `update()` 会在别的线程重新读这个值，
-     * 而 `apply()` 只保证"将来某个时刻"写到磁盘，内存里虽然已更新，但跨平台 / 多进程
-     * 下不保证另一个读取者立刻可见，于是点了竖条看起来"没反应"。
+     * 用 `apply()`：本进程内 SharedPreferences 内存缓存写入后立即对新读取可见，
+     * 紧接着的 `update()` 能读到新值；同步 `commit()` 在 Glance 主线程上是一次
+     * 阻塞磁盘写（ANR 风险），没有必要。
      */
     fun toggle(context: Context): Int {
         val next = if (read(context) == 0) 1 else 0
-        prefs(context).edit().putInt(KEY_DAY_OFFSET, next).commit()
+        prefs(context).edit().putInt(KEY_DAY_OFFSET, next).apply()
         return next
     }
 
