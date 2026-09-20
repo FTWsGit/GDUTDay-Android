@@ -82,6 +82,7 @@ public data class ScheduleFetchResult(
     /**
      * 班级课表 `getKbRq` 返回的周日期（`rows[1]`）。个人课表恒为 null。
      * 周一的 `rq` 即该周开学日，可作为 `KnownSemesterStarts` 的动态来源。
+     * 当前**解析但未消费**：doSync 不读它，学期起点推断尚未接线。
      */
     public val classWeekDates: List<ClassWeekDate>? = null,
 ) {
