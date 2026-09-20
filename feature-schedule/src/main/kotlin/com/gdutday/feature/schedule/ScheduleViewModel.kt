@@ -291,6 +291,13 @@ public class ScheduleViewModel(
                 refreshCascadeClasses()
             } catch (e: GdutException) {
                 _classCascade.value = _classCascade.value.copy(metaLoading = false, error = e.userMessage)
+            } catch (e: Exception) {
+                // 非业务异常（IOException 包装、RuntimeException 等）也要解除 loading，
+                // 否则对话框永远转圈、无任何提示。
+                _classCascade.value = _classCascade.value.copy(
+                    metaLoading = false,
+                    error = e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName,
+                )
             }
         }
     }
