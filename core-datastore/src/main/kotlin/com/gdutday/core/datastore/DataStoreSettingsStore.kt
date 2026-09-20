@@ -75,13 +75,16 @@ internal class DataStoreSettingsBackend(
 ) : SettingsBackend {
 
     override val values: Flow<Map<String, Any?>> = dataStore.data.map { prefs ->
-        prefs.asMap().entries.associate { (key, value) -> key.name to value }
+        prefs.asMap().entries
+            .associate { (key, value) -> key.name to value }
+            .minus(DEAD_KEYS)
     }
 
     override suspend fun edit(transform: (MutableMap<String, Any?>) -> Unit) {
         dataStore.edit { prefs ->
             val working = LinkedHashMap<String, Any?>()
             for ((key, value) in prefs.asMap()) working[key.name] = value
+            working.keys.removeAll(DEAD_KEYS)
             transform(working)
             prefs.clear()
             for ((name, value) in working) write(prefs, name, value)
@@ -103,6 +106,14 @@ internal class DataStoreSettingsBackend(
             // null 与未知类型都不写入；因为上面 clear 过，效果就是删除该键。
             else -> Unit
         }
+    }
+
+    private companion object {
+        /**
+         * 历史版本删除的键。不参与读取；edit 是 clear+全量重写，
+         * 用户下次改任何设置时它们就会从磁盘上消失。
+         */
+        val DEAD_KEYS = setOf("privacy_blur_enabled", "privacy_blur_in_widget")
     }
 }
 
