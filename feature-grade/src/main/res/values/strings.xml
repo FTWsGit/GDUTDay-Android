@@ -25,7 +25,7 @@
     <string name="grade_col_gpa">绩点</string>
 
     <string name="grade_not_counted">不计入绩点</string>
-    <string name="grade_not_counted_explain">等级制成绩（优秀/合格等）或未获得学分的课程不参与加权绩点计算。</string>
+    <string name="grade_not_counted_explain">等级制成绩（优秀/合格等）或未获得学分的课程不参与加权绩点计算；挂科按 0 绩点计入。</string>
 
     <string name="grade_empty_not_logged_in">还没有登录</string>
     <string name="grade_empty_not_logged_in_subtitle">登录后即可同步成绩与考试安排</string>
