@@ -87,12 +87,27 @@ public object JxfwScheduleParser {
     public const val KBXX_MARKER: String = "var kbxx"
 
     /**
+     * Referer 校验失败时 jxfw 返回 200 + 一个 ~272 字节的"非法访问"页，
+     * 会话本身没过期，但依赖 SessionExpired 的静默重登流程能直接换会话重试，
+     * 所以归到同一分类而不是抛通用 Parse。
+     */
+    private fun requireNotForbidden(body: String, where: String) {
+        if (LenientJson.looksLikeHtml(body) &&
+            body.contains("非法访问", ignoreCase = true) &&
+            body.contains("你没有该权限", ignoreCase = true)
+        ) {
+            throw GdutException.SessionExpired(detail = "请求$where 时被 jxfw 拒绝（非法访问页，多半是 Referer 不对或会话失效）")
+        }
+    }
+
+    /**
      * 解析接口 A（`xsAllKbList`）的 HTML 响应。
      *
      * @throws GdutException.SessionExpired 响应是登录页 HTML（会话失效）
      * @throws GdutException.Parse 找不到 `var kbxx` 或数组为空
      */
     public fun parseAllKbList(html: String, term: Term): List<RawScheduleRow> {
+        requireNotForbidden(html, " xsAllKbList")
         if (LenientJson.looksLikeHtml(html) && html.contains("authserver", ignoreCase = true) &&
             html.contains("pwdEncryptSalt", ignoreCase = true)
         ) {
@@ -254,6 +269,7 @@ public object JxfwScheduleParser {
      * @throws GdutException.Parse 响应不是合法的 JSON 数组
      */
     public fun parseClassScheduleGetKbRq(body: String, term: Term): ClassScheduleGetKbRq {
+        requireNotForbidden(body, " getKbRq")
         if (LenientJson.looksLikeHtml(body) && body.contains("pwdEncryptSalt", ignoreCase = true)) {
             throw GdutException.SessionExpired(detail = "请求班级课表（getKbRq）时被导回统一认证登录页")
         }
@@ -363,6 +379,7 @@ public object JxfwScheduleParser {
      * `dm`/`mc` 任一为空的元素被丢弃（占位 option 不会出现在响应里，防御性处理）。
      */
     public fun parseClassCascade(body: String): List<ClassCascadeOption> {
+        requireNotForbidden(body, " getFind")
         if (LenientJson.looksLikeHtml(body) && body.contains("pwdEncryptSalt", ignoreCase = true)) {
             throw GdutException.SessionExpired(detail = "请求班级级联（getFind）时被导回统一认证登录页")
         }

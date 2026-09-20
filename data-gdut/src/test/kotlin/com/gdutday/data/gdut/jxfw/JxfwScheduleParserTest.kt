@@ -137,6 +137,21 @@ class JxfwScheduleParserTest {
     }
 
     @Test
+    fun `非法访问页报 SessionExpired 而不是 Parse`() {
+        // 2026-09-13 起 jxfw Referer 校验失败返回 200 + ~272 字节的"非法访问"页
+        val forbidden = "<html><head><title>非法访问</title></head><body>你没有该权限</body></html>"
+        assertThrows(GdutException.SessionExpired::class.java) {
+            JxfwScheduleParser.parseAllKbList(forbidden, term)
+        }
+        assertThrows(GdutException.SessionExpired::class.java) {
+            JxfwScheduleParser.parseClassScheduleGetKbRq(forbidden, term)
+        }
+        assertThrows(GdutException.SessionExpired::class.java) {
+            JxfwScheduleParser.parseClassCascade(forbidden)
+        }
+    }
+
+    @Test
     fun `kbxx 是空数组时返回空列表，由上层决定怎么提示`() {
         val rows = JxfwScheduleParser.parseAllKbList(
             "<script>var kbxx = [];</script>", term,
