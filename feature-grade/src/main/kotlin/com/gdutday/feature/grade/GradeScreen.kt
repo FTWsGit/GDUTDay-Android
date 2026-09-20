@@ -253,7 +253,8 @@ private fun ExamRow(exam: Exam, today: LocalDate) {
                         style = MaterialTheme.typography.titleMedium,
                         color = if (past) scheme.onSurfaceVariant else scheme.onSurface,
                     )
-                    if (relative == stringResource(R.string.grade_exam_today)) {
+                    // 用数据判别而不是比较显示文案：文案改词时徽标不应静默退化
+                    if (exam.date == today) {
                         ExamBadge(text = relative, tone = ExamBadgeTone.TODAY)
                     } else if (!past) {
                         ExamBadge(text = relative, tone = ExamBadgeTone.UPCOMING)
