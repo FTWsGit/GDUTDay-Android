@@ -3,7 +3,6 @@ package com.gdutday.feature.grade
 import com.gdutday.core.model.Exam
 import com.gdutday.core.model.Term
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -50,9 +49,4 @@ public object ExamLogic {
         }
     }
 
-    /** 周次摘要（考试接口的 `zc` 已落进 [Exam] 吗？没有，这里不强依赖）。保留扩展位。 */
-    public const val NO_WEEK: Int = -1
-
-    /** 同一日期的考试聚成一组时用的日期格式器（ISO），用于稳定分组 key。 */
-    public val ISO_DATE: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 }
