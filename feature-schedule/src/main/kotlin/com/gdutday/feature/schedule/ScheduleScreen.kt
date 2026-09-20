@@ -121,6 +121,15 @@ fun ScheduleScreen(
         state.errorMessage?.let { snackbarHostState.showSnackbar(it) }
     }
 
+    // 保存编辑失败的提示（如周次范围解析为空）。
+    val editError by viewModel.editError.collectAsStateWithLifecycle()
+    LaunchedEffect(editError) {
+        editError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.dismissEditError()
+        }
+    }
+
     // 背景图需要在最底层、铺满整个页面（含顶栏后面），所以包在最外层：
     // Scaffold / 顶栏都改透明，否则不透明底色会把图完全盖住。
     Box(Modifier.fillMaxSize()) {

@@ -412,7 +412,11 @@ public class ScheduleRepositoryImpl(
             OverrideScope.ALL -> original.weeks
             else -> editedFields.weeks intersect original.weeks
         }
-        if (affectedWeeks.isEmpty()) return emptyList()
+        if (affectedWeeks.isEmpty()) {
+            // 静默返回空列表会被调用方当成"保存成功"，编辑器直接关闭，
+            // 用户看到的就是"点了保存没反应"——必须显式失败。
+            throw IllegalArgumentException("无效的周次范围：解析结果为空")
+        }
 
         // 补丁是非破坏性覆盖层：教务行永远完整保留，被接管的周次只在读取时
         // （ScheduleUiStateBuilder 重放 applyUserOverrides）让给补丁。这样：

@@ -93,8 +93,18 @@ public class ScheduleViewModel(
 
     private val _editingCourse = MutableStateFlow<Course?>(null)
 
+    /** 保存编辑失败的提示（走 Snackbar）。显示一次后即清空。 */
+    private val _editError = MutableStateFlow<String?>(null)
+
     /** 正在编辑的课程（详情页点了"编辑"）。非 null 时弹出 [CourseEditSheet]。 */
     public val editingCourse: StateFlow<Course?> = _editingCourse.asStateFlow()
+
+    public val editError: StateFlow<String?> = _editError.asStateFlow()
+
+    /** Snackbar 显示过错误后调用，避免重复弹出。 */
+    public fun dismissEditError() {
+        _editError.value = null
+    }
 
     private val _advancedEditCourseName = MutableStateFlow<String?>(null)
 
@@ -206,12 +216,17 @@ public class ScheduleViewModel(
     public fun saveEdit(course: Course) {
         val original = _editingCourse.value ?: return
         viewModelScope.launch {
-            when (original.source) {
-                CourseSource.SCHOOL ->
-                    repository.saveSchoolOverride(original, course, OverrideScope.THIS_WEEK, force = true)
-                else -> repository.updateCustomCourse(course, force = true)
+            try {
+                when (original.source) {
+                    CourseSource.SCHOOL ->
+                        repository.saveSchoolOverride(original, course, OverrideScope.THIS_WEEK, force = true)
+                    else -> repository.updateCustomCourse(course, force = true)
+                }
+                _editingCourse.value = null
+            } catch (e: Exception) {
+                // 保存失败（如周次范围解析为空）必须可见：编辑面板保持打开，错误走 Snackbar。
+                _editError.value = e.message ?: e.javaClass.simpleName
             }
-            _editingCourse.value = null
         }
     }
 
