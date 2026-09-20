@@ -227,17 +227,27 @@ internal fun applyUserOverrides(
     for (patch in overrides) {
         if (patch.source != CourseSource.OVERRIDE) continue
         val targetNk = patch.overrideTargetNaturalKey ?: continue
-        val target = result.firstOrNull { it.naturalKey == targetNk } ?: continue
+        // 同一门课（同自然键）可能被教务拆成多行（如 1-8 周教室 A、9-16 周教室 B），
+        // 补丁的目标必须取"与补丁接管周次交集最大"的那一行，取错行会把周次
+        // 还给/拆走别的教学班行，用户看到的就是"教室变了的别的课"。
+        val target = result.filter { it.naturalKey == targetNk }
+            .maxByOrNull { it.weeks.intersect(patch.overrideWeeks).size }
+            ?: continue
 
         when (patch.overrideScope) {
             OverrideScope.ALL -> {
-                result.removeAll { it.naturalKey == targetNk }
+                result.remove(target)
                 result += patch
             }
 
             OverrideScope.THIS_WEEK, OverrideScope.WEEK_RANGE -> {
                 val taken = patch.overrideWeeks intersect target.weeks
-                if (taken.isEmpty()) continue
+                // 交集为空说明目标行的这些周次已经被（旧版破坏式写入或另一条补丁）拆走：
+                // 补丁自身仍然要显示，否则那一周的课程会从课表上消失。
+                if (taken.isEmpty()) {
+                    result += patch
+                    continue
+                }
                 val remaining = target.weeks - taken
                 result[result.indexOf(target)] =
                     if (remaining.isEmpty()) patch.copy(weeks = taken)

@@ -270,13 +270,10 @@ private fun TemplatePanel(
     var sectionCount by rememberSaveable { mutableIntStateOf(2) }
     var startTime by rememberSaveable { mutableStateOf("08:00") }
     var endTime by rememberSaveable { mutableStateOf("09:30") }
-    var weeksOn by rememberSaveable { mutableStateOf(false) }
-    var weeks by rememberSaveable { mutableStateOf<Set<Int>>(emptySet()) }
     var colorOn by rememberSaveable { mutableStateOf(false) }
     var colorKey by rememberSaveable { mutableStateOf(CourseColors.DEFAULT.key) }
 
-    val anyFieldOn = teacherOn || classroomOn || dayOn || timeOn || weeksOn || colorOn
-    val weeksValid = !weeksOn || weeks.isNotEmpty()
+    val anyFieldOn = teacherOn || classroomOn || dayOn || timeOn || colorOn
     val timeValid = !timeOn || !useRealTime || (isValidClock(startTime) && isValidClock(endTime))
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -366,14 +363,6 @@ private fun TemplatePanel(
                     }
                 }
             }
-            TemplateFieldRow(checked = weeksOn, onCheckedChange = { weeksOn = it }, label = stringResource(R.string.schedule_advanced_field_weeks)) {
-                WeekMultiSelectGrid(
-                    selectedWeeks = weeks,
-                    totalWeeks = totalWeeks,
-                    onWeeksChange = { weeks = it },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
             TemplateFieldRow(checked = colorOn, onCheckedChange = { colorOn = it }, label = stringResource(R.string.schedule_edit_color)) {
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -402,14 +391,13 @@ private fun TemplatePanel(
             }
 
             TextButton(
-                enabled = selectedCount > 0 && anyFieldOn && weeksValid && timeValid,
+                enabled = selectedCount > 0 && anyFieldOn && timeValid,
                 onClick = {
                     onApply(
                         OccurrenceTemplate(
                             teacher = if (teacherOn) teacher.trim() else null,
                             classroom = if (classroomOn) classroom.trim() else null,
                             colorKey = if (colorOn) colorKey else null,
-                            weeks = if (weeksOn) weeks else null,
                             dayOfWeek = if (dayOn) dayOfWeek else null,
                             startSection = if (timeOn && !useRealTime) startSection else null,
                             sectionCount = if (timeOn && !useRealTime) sectionCount else null,
@@ -422,7 +410,6 @@ private fun TemplatePanel(
                     classroomOn = false
                     dayOn = false
                     timeOn = false
-                    weeksOn = false
                     colorOn = false
                 },
                 modifier = Modifier.fillMaxWidth(),

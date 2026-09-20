@@ -6,6 +6,7 @@ import com.gdutday.core.database.Mappers
 import com.gdutday.core.database.SyncStateEntity
 import com.gdutday.core.database.TermMetaEntity
 import com.gdutday.core.datastore.UserSettings
+import com.gdutday.core.model.CourseSource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -120,7 +121,13 @@ internal fun buildScheduleUiStateFlow(
     }
 
     return combine(base, sources.colors) { b, colors ->
-        val courses = with(Mappers) { b.data.courses.mapNotNull { it.toDomain() } }
+        // 补丁（OVERRIDE）是非破坏性覆盖层：读取时才覆盖到教务行上。
+        // 教务行在库里永远完整，删补丁即还原；同步只换教务行，补丁自动重新生效。
+        val allCourses = with(Mappers) { b.data.courses.mapNotNull { it.toDomain() } }
+        val courses = applyUserOverrides(
+            school = allCourses.filter { it.source == CourseSource.SCHOOL },
+            overrides = allCourses.filter { it.source == CourseSource.OVERRIDE },
+        ) + allCourses.filter { it.source == CourseSource.CUSTOM }
         val exams = with(Mappers) { b.data.exams.mapNotNull { it.toDomain() } }
         buildScheduleUiState(
             ScheduleInputs(

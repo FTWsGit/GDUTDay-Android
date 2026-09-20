@@ -244,9 +244,9 @@ public class ScheduleRepositoryImpl(
             targetTerm.shortCode,
             with(Mappers) { schoolCourses.map { it.toEntity() } },
         )
-        // 同步把教务课程整体换成了新版，用户的补丁必须重新覆盖上去，
-        // 否则"改过的教室/时间"会被这一次同步悄悄还原。
-        applyUserOverrides(targetTerm)
+        // 补丁（OVERRIDE）是非破坏性覆盖层，读取时才覆盖到教务行上
+        // （见 ScheduleUiStateBuilder），同步这里不需要也不能重放——
+        // 写路径重放会把教务行删掉，读路径的补丁就匹配不到目标了。
         // 只有成功拿到考试数据才替换；失败时保留上一次的考试安排（存量数据不动）。
         if (!examFetchFailed) {
             examDao.replaceByTerm(
@@ -414,13 +414,23 @@ public class ScheduleRepositoryImpl(
         }
         if (affectedWeeks.isEmpty()) return emptyList()
 
-        // 原课程被作用周次之外的部分保留原样；全被覆盖时整行删除。
-        val remaining = original.weeks - affectedWeeks
-        if (remaining.isEmpty()) {
-            courseDao.deleteById(original.id)
-        } else {
-            courseDao.upsert(with(Mappers) { original.copy(weeks = remaining).toEntity() })
-        }
+        // 补丁是非破坏性覆盖层：教务行永远完整保留，被接管的周次只在读取时
+        // （ScheduleUiStateBuilder 重放 applyUserOverrides）让给补丁。这样：
+        // - 还原 = 删补丁行，教务版本立刻回来，无需回填周次；
+        // - 同步只替换教务行，补丁自动重新覆盖，不存在"同步后多出重复课程"。
+        // 新补丁接管之前，先把它目标自然键相同、周次有交集的旧补丁让出这些周次，
+        // 避免"改了又改"之后多个补丁在同一时段叠加出重复色块。
+        courseDao.getOverrides(original.term.shortCode)
+            .mapNotNull { with(Mappers) { it.toDomain() } }
+            .filter { it.overrideTargetNaturalKey == original.naturalKey && it.overrideWeeks.intersect(affectedWeeks).isNotEmpty() }
+            .forEach { old ->
+                val kept = old.overrideWeeks - affectedWeeks
+                if (kept.isEmpty()) {
+                    courseDao.deleteById(old.id)
+                } else {
+                    courseDao.upsert(with(Mappers) { old.copy(weeks = kept, overrideWeeks = kept).toEntity() })
+                }
+            }
 
         val patch = editedFields.copy(
             id = 0L, // 补丁是新行，不复用教务课程的 id
@@ -440,13 +450,7 @@ public class ScheduleRepositoryImpl(
 
     override suspend fun deleteAllCustomCourses() {
         courseDao.deleteAllCustom()
-        // 补丁不能直接删：它接管的周次是从教务课程里挖走的，直接删等于把那部分课
-        // 从本地数据里彻底抹掉，要等下次联网同步才能恢复——用户看到的是"删除"而不是"还原"。
-        // 所以逐条按 restoreOriginal 的还原逻辑把周次还回去，再删补丁本身。
-        courseDao.getAllOverrides().forEach { entity ->
-            val patch = with(Mappers) { entity.toDomain() } ?: return@forEach
-            restorePatchToSchool(patch)
-        }
+        // 补丁是非破坏性覆盖层，教务行从未被拆过，直接删补丁行就是还原。
         courseDao.deleteAllOverrides()
     }
 
@@ -458,23 +462,10 @@ public class ScheduleRepositoryImpl(
         }
         if (patch.source != CourseSource.OVERRIDE) return
 
+        // 补丁是非破坏性覆盖层，教务行从未被拆过，删补丁即还原，无需回填周次。
+        // （旧版本补丁是破坏式写入的——教务行周次被挖走；这种存量数据在同步时
+        // 会被 replaceSchoolCourses 整体换成完整的教务行，自然修复。）
         courseDao.deleteById(overrideId)
-        restorePatchToSchool(patch)
-    }
-
-    /**
-     * 还原 = 把被补丁接管的周次还给教务课程。教务行可能已经没有周次可用
-     * （ALL 范围的补丁把原行删了），此时只能等下次同步重建教务版本。
-     *
-     * 调用方负责先删掉补丁本身（[restoreOriginal] 单条删、[deleteAllCustomCourses] 批量删），
-     * 这里只管把周次还回去。
-     */
-    private suspend fun restorePatchToSchool(patch: Course) {
-        val school = courseDao.getSchoolCourses(patch.term.shortCode)
-        val target = school.firstOrNull { with(Mappers) { it.toDomain() }?.naturalKey == patch.overrideTargetNaturalKey }
-            ?: return
-        val domain = with(Mappers) { target.toDomain() } ?: return
-        courseDao.upsert(with(Mappers) { domain.copy(weeks = domain.weeks + patch.overrideWeeks).toEntity() })
     }
 
     override fun observeCustomAndOverrideCourses(): Flow<Map<Term, List<Course>>> =
@@ -578,39 +569,6 @@ public class ScheduleRepositoryImpl(
     }
 
     // ------------------------------------------------------------------ 内部
-
-    /**
-     * 把用户的 [CourseSource.OVERRIDE] 补丁重新覆盖到同步来的教务课程上。
-     *
-     * 必须在 `replaceSchoolCourses` **之后**调用：同步刚把教务课程整体换掉，
-     * 补丁此刻才有新目标可匹配。匹配键是 `override_target_nk`（原课程的自然键）。
-     *
-     * 匹配不到（教务改了课、调了节次等）的补丁**保留在库里**不删除 ——
-     * 那是用户的数据，只能由用户在设置页里删除；UI 通过
-     * [isOverrideEffective] 把它标成"未生效"。
-     *
-     * 周次拆分语义（见 plan-003 3.3）：
-     * - ALL：整行替换原教务课程；
-     * - THIS_WEEK / WEEK_RANGE：原课程让出被覆盖的周次，补丁接管这些周次。
-     */
-    private suspend fun applyUserOverrides(term: Term) {
-        val overrides = courseDao.getOverrides(term.shortCode)
-        if (overrides.isEmpty()) return
-        val school = courseDao.getSchoolCourses(term.shortCode)
-            .mapNotNull { with(Mappers) { it.toDomain() } }
-        val patches = overrides.mapNotNull { with(Mappers) { it.toDomain() } }
-        // 拆分语义集中在 applyUserOverrides 纯函数里（可单测）；这里只负责落库。
-        val desired = applyUserOverrides(school, patches)
-        val existingIds = school.map { it.id }.toSet()
-        for (course in desired) {
-            if (course.id in existingIds && course in school) continue
-            // 补丁行 upsert 保留原 id；教务行被删/被改时这里分别对应 INSERT/UPDATE。
-            courseDao.upsert(with(Mappers) { course.toEntity() })
-        }
-        // 教务行若在 desired 里消失（被 ALL 补丁整行替换 / 周次被拆空），删除它。
-        val desiredIds = desired.filter { it.id in existingIds }.map { it.id }.toSet()
-        for (id in existingIds - desiredIds) courseDao.deleteById(id)
-    }
 
     private suspend fun existingCourses(term: Term): List<Course> =
         courseDao.getByTerm(term.shortCode).mapNotNull { with(Mappers) { it.toDomain() } }

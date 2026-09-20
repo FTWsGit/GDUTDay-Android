@@ -232,15 +232,15 @@ class AddCustomCourseConflictTest {
     }
 
     @Test
-    fun `清空自定义课程会把补丁接管的周次还给教务课程而不是直接删掉`() = runTest {
-        // 回归：编辑了物理课第 5 周会生成一条 OVERRIDE 补丁，同时把教务原行的第 5 周挖走。
-        // 之前"清空自定义课程"直接删掉补丁行，导致第 5 周的物理课凭空消失，
-        // 而不是像单条"还原"那样把周次还给教务原行。
+    fun `清空自定义课程后教务课程保持完整周次`() = runTest {
+        // 补丁是非破坏性覆盖层：教务行在库里永远完整（第 5 周并没有被挖走），
+        // 被覆盖的周次只在读取时让给补丁。所以"清空自定义课程"直接删掉补丁行，
+        // 教务版本就原样回来了——它本来就没少周次。
         val dao = FakeCourseDao()
         val original = course("物理", weeks = (1..16).toSet())
         dao.upsert(
             with(Mappers) {
-                original.copy(weeks = original.weeks - 5, source = CourseSource.SCHOOL).toEntity()
+                original.toEntity()
             },
         )
         dao.upsert(
