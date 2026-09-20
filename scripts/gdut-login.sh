@@ -37,7 +37,14 @@ fi
 }
 
 # ---------- TLS ----------
-CURL_TLS=(-k)   # 本机调试;要严格校验就去掉,并把学校 CA 导入系统信任链
+# 默认严格校验证书。校园网外或本机缺学校证书链时才显式降级:
+#   GDUT_INSECURE_TLS=1 scripts/gdut-login.sh temp/session
+if [[ "${GDUT_INSECURE_TLS:-0}" == "1" ]]; then
+    CURL_TLS=(-k)
+    echo "WARN 已关闭 TLS 证书校验(GDUT_INSECURE_TLS=1),凭据可能被中间人截获" >&2
+else
+    CURL_TLS=()
+fi
 
 # ---------- 工具 ----------
 die() { echo "FAIL $*" >&2; exit 1; }

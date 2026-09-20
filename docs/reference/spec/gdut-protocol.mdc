@@ -704,17 +704,17 @@ Referer: https://jxfw.gdut.edu.cn/xsbjkbcx!xsAllKbList.action   ← 实测必须
 scripts/gdut-login.sh temp/session/
 # ⚠ 2026-09-13 起所有接口必须带 jxfw 站内 Referer，统一加 -H 'Referer: https://jxfw.gdut.edu.cn/'
 # 主接口（第 1 周；去掉 &zc=1 得全学期）
-curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
+curl -sS -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
   'https://jxfw.gdut.edu.cn/xsbjkbcx!getKbRq.action?xnxqdm=202601&bjdm=116523137&zc=1'
 # 备接口（HTML，抠 var kbxx）
-curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
+curl -sS -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
   'https://jxfw.gdut.edu.cn/xsbjkbcx!xsAllKbList.action?xnxqdm=202601&bjdm=116523137'
 # 班级列表（计算机学院 07 / 计算机科学与技术 0711）
-curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
+curl -sS -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
   --data 'guid=zydm&xnxqdm=202601&xqdm=&rxnf=&xsyxdm=07&zydm=0711' \
   'https://jxfw.gdut.edu.cn/xsbjkbcx!getFind.action'
 # 级联筛选：2025 级 + 计算机学院 → 该院 2025 级全部班级（App 班级选择器建议用这个）
-curl -sS -k -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
+curl -sS -b temp/session/cookies.txt -H 'Referer: https://jxfw.gdut.edu.cn/' \
   --data 'guid=rxnf&xnxqdm=202601&xqdm=&rxnf=2025&xsyxdm=07&zydm=' \
   'https://jxfw.gdut.edu.cn/xsbjkbcx!getFind.action'
 # 用完清理

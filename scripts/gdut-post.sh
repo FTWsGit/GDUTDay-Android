@@ -40,7 +40,12 @@ case "$API" in
 esac
 
 # ---------- TLS ----------
-CURL_TLS=(-k)   # 与 gdut-login.sh 保持一致;严格校验时同步去掉
+# 默认严格校验;仅调试时用 GDUT_INSECURE_TLS=1 显式降级(与 gdut-login.sh 一致)
+if [[ "${GDUT_INSECURE_TLS:-0}" == "1" ]]; then
+    CURL_TLS=(-k)
+else
+    CURL_TLS=()
+fi
 
 # ---------- 请求 ----------
 TMP="$(mktemp)"
