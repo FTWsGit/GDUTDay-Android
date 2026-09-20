@@ -121,8 +121,8 @@ public open class AesGcmCipher(
      * 用 null 比用异常更贴切，也避免在冷启动路径上抛异常。
      */
     override fun decrypt(ciphertext: ByteArray): ByteArray? {
-        // 至少要有 IV 和一个 GCM Tag（16 字节），否则连 Cipher.init 都会抛。
-        if (ciphertext.size <= KeystoreCipher.GCM_IV_LENGTH) return null
+        // 至少要有 IV(12) + GCM Tag(16)，否则连 Cipher.init/doFinal 都会抛。
+        if (ciphertext.size <= KeystoreCipher.GCM_IV_LENGTH + TAG_LENGTH_BYTES) return null
         val key = keys.getExistingKey() ?: return null
 
         return try {
@@ -165,6 +165,9 @@ public open class AesGcmCipher(
     private companion object {
         /** GCM 认证标签长度。128 位是推荐值，也是 AndroidKeyStore 默认值。 */
         const val TAG_LENGTH_BITS: Int = 128
+
+        /** 标签字节数（128 位 = 16 字节），用于密文最小长度守卫。 */
+        const val TAG_LENGTH_BYTES: Int = TAG_LENGTH_BITS / 8
     }
 }
 
