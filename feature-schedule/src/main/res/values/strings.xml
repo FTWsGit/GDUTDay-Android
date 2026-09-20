@@ -78,7 +78,7 @@
     <string name="schedule_edit_start_section">起始节次</string>
     <string name="schedule_edit_section_count">节数</string>
     <string name="schedule_edit_this_week_only">这次修改只影响第 %1$d 周，其它周的这门课不受影响</string>
-    <string name="schedule_edit_rename_hint">改名字 / 批量改这门课的多次上课时间 →</string>
+    <string name="schedule_edit_rename_hint">高级编辑</string>
     <string name="schedule_edit_color">课程颜色</string>
 
     <!-- 新增课程 -->

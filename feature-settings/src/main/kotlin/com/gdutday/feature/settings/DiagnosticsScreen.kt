@@ -1,5 +1,6 @@
 package com.gdutday.feature.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -47,6 +48,9 @@ fun DiagnosticsScreen(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    // 内嵌替换出来的子页，不在 NavHost 回退栈里：接管返回键回到设置页。
+    BackHandler(onBack = onBack)
+
     val clipboard = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

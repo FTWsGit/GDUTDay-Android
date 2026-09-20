@@ -95,7 +95,7 @@ private val WEEKDAY_LABELS = listOf("周一", "周二", "周三", "周四", "周
  * 左侧节次栏和顶部星期表头在滑动区域**之外**，任何位移都不带动它们；
  * 滑动区内三页并排（前一周 / 本周 / 后一周），`translationX = drag - pageWidth`
  * 让本周初始停在中间页，拖动时相邻周内容实时跟手进入视野。
- * 松手不足阈值弹回原位，超过阈值提交翻页并把 [drag] 归零。
+ * 松手不足阈值直接归零，超过阈值立即提交翻页并把 [drag] 归零，全程无动画。
  * 具体手势逻辑见 [detectHorizontalSwipe]。
  */
 @Composable
@@ -176,7 +176,6 @@ public fun WeekGridView(
                             touchSlop = touchSlop,
                             threshold = 64.dp.toPx(),
                             onSwipe = { delta -> onSwipeWeek(grid.week + delta) },
-                            fullPageCommit = true,
                         )
                     },
             ) {

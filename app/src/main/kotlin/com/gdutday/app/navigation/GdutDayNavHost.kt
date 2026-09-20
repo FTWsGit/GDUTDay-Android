@@ -2,6 +2,7 @@ package com.gdutday.app.navigation
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
@@ -115,8 +116,11 @@ fun GdutDayNavHost(
         }
     }
 
+    // contentWindowInsets = 0：每个页面自己的 Scaffold/TopAppBar 已经处理状态栏 inset。
+    // 外层再保留一次顶部 inset 会让顶栏下移一个状态栏高度，额头白占一块（浪费空间）。
     Scaffold(
         modifier = modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
@@ -182,7 +186,11 @@ fun GdutDayNavHost(
                     onOpenFreeRoom = { navController.navigate(Routes.FREE_ROOM) },
                 )
             }
-            composable(Routes.FREE_ROOM) {
+            composable(
+                Routes.FREE_ROOM,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+            ) {
                 FreeRoomScreen(container = container, onBack = { navController.popBackStack() })
             }
             composable(
@@ -200,7 +208,11 @@ fun GdutDayNavHost(
                     onBack = {},
                 )
             }
-            composable(Routes.LOGIN) {
+            composable(
+                Routes.LOGIN,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+            ) {
                 // 不传 onLoggedIn：登录成功后的导航**只由上面 isLoggedIn 的 LaunchedEffect 负责**。
                 // 若这里再导航一次，两次几乎同时执行，回退栈会叠出两个 SCHEDULE，
                 // 用户按返回键会落到另一个 SCHEDULE 而不是退出 App。

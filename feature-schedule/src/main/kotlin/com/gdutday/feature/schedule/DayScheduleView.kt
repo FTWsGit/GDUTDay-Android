@@ -58,7 +58,7 @@ public fun DayScheduleView(
     modifier: Modifier = Modifier,
     onSwipeDay: ((Int) -> Unit)? = null,
 ) {
-    // 左右滑动切天：页面随手势平移，不足阈值弹回原位，超过阈值触发切天。
+    // 左右滑动切天：页面随手势平移，不足阈值直接归零，超过阈值触发切天，全程无动画。
     // 空的那天也要能滑走，所以容器修饰符在空状态分支之前算好。
     val drag = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()

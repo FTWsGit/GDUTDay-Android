@@ -29,7 +29,6 @@ import kotlinx.coroutines.launch
 public data class OccurrenceTemplate(
     val teacher: String? = null,
     val classroom: String? = null,
-    val colorKey: String? = null,
     val dayOfWeek: Int? = null,
     val startSection: Int? = null,
     val sectionCount: Int? = null,
@@ -40,7 +39,7 @@ public data class OccurrenceTemplate(
     val useRealTime: Boolean? = null,
 ) {
     public val isEmpty: Boolean
-        get() = teacher == null && classroom == null && colorKey == null &&
+        get() = teacher == null && classroom == null &&
             dayOfWeek == null && startSection == null && sectionCount == null && useRealTime == null
 }
 
@@ -157,7 +156,6 @@ public class AdvancedCourseEditViewModel(
                 val edited = course.copy(
                     teacher = template.teacher ?: course.teacher,
                     classroom = template.classroom ?: course.classroom,
-                    colorKey = template.colorKey ?: course.colorKey,
                     dayOfWeek = template.dayOfWeek ?: course.dayOfWeek,
                     startSection = template.startSection ?: course.startSection,
                     sectionCount = template.sectionCount ?: course.sectionCount,

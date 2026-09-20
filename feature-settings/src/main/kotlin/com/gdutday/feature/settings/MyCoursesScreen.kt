@@ -1,5 +1,6 @@
 package com.gdutday.feature.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -60,6 +61,9 @@ fun MyCoursesScreen(
     onRestore: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    // 内嵌替换出来的子页，不在 NavHost 回退栈里：接管返回键回到设置页。
+    BackHandler(onBack = onBack)
+
     val sortedTerms = remember(coursesByTerm) { coursesByTerm.keys.sortedDescending() }
 
     Scaffold(

@@ -14,27 +14,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.common.CourseColors
+import com.gdutday.core.ui.InstantBottomSheet
 import com.gdutday.core.ui.toComposeColor
 
 /**
@@ -45,7 +38,6 @@ import com.gdutday.core.ui.toComposeColor
  * 保存走 [ScheduleViewModel.addCourse]，始终 `force = true` ——
  * 自定义课程允许与已有课程冲突，冲突在网格上并排 / 堆叠呈现。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AddCourseSheet(
     form: AddCourseForm,
@@ -55,11 +47,10 @@ internal fun AddCourseSheet(
     onDismiss: () -> Unit,
     onSave: (AddCourseForm) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val valid = form.isValid(currentWeek, totalWeeks) &&
         (!form.useRealTime || (isValidClock(form.startTime) && isValidClock(form.endTime)))
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    InstantBottomSheet(onDismiss = onDismiss) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -135,18 +126,16 @@ internal fun AddCourseSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        OutlinedTextField(
+                        TimePickerField(
+                            label = stringResource(R.string.schedule_edit_start_time),
                             value = form.startTime,
                             onValueChange = { onFormChange(form.copy(startTime = it)) },
-                            label = { Text(stringResource(R.string.schedule_edit_start_time)) },
-                            singleLine = true,
                             modifier = Modifier.weight(1f),
                         )
-                        OutlinedTextField(
+                        TimePickerField(
+                            label = stringResource(R.string.schedule_edit_end_time),
                             value = form.endTime,
                             onValueChange = { onFormChange(form.copy(endTime = it)) },
-                            label = { Text(stringResource(R.string.schedule_edit_end_time)) },
-                            singleLine = true,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -294,49 +283,6 @@ private fun AddWeekModeOption(label: String, selected: Boolean, onClick: () -> U
     ) {
         RadioButton(selected = selected, onClick = onClick)
         Text(label, style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-/** 起始节次 / 节数的滚动选择，与 [CourseEditSheet] 的同名组件保持一致。 */
-@Composable
-private fun SectionPicker(label: String, value: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    Column(modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        FilterChip(
-            selected = false,
-            onClick = { expanded = !expanded },
-            label = { Text("$value ▾") },
-        )
-        if (expanded) {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                (1..com.gdutday.core.model.Course.MAX_SECTION).forEach { n ->
-                    Text(
-                        text = "$n",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (n == value) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable {
-                                onPick(n)
-                                expanded = false
-                            }
-                            .padding(8.dp),
-                    )
-                }
-            }
-        }
     }
 }
 

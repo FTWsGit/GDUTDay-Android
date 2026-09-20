@@ -1,5 +1,6 @@
 package com.gdutday.feature.toolbox
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +24,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.model.GdutException
+import com.gdutday.core.ui.InstantBottomSheet
 import com.gdutday.data.gdut.freeroom.FreeRoomBuilding
 import com.gdutday.data.repository.AppContainer
 import java.time.LocalDate
@@ -125,10 +126,11 @@ private fun BuildingListView(
     modifier: Modifier = Modifier,
     onBuildingClick: (FreeRoomBuilding) -> Unit,
 ) {
+    // 大学城放第一位并默认选中：它是主校区，绝大多数用户只关心这里。
     val campuses = remember(buildings) {
         buildings.groupBy { it.campusName }.map { (name, list) ->
             CampusGroup(name = name, code = list.first().campusCode, buildings = list)
-        }.sortedBy { it.name }
+        }.sortedWith(compareByDescending<CampusGroup> { it.name.contains("大学城") }.thenBy { it.name })
     }
     var selectedCampus by remember { mutableStateOf(0) }
 
@@ -218,6 +220,10 @@ private fun RoomTimelineScreen(
     var date by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
     var detail by remember { mutableStateOf<FreeRoomLogic.Slot?>(null) }
     var detailRoom by remember { mutableStateOf("") }
+
+    // 时间轴是空闲教室路由内嵌替换出来的（没进 NavHost 回退栈）：
+    // 接管返回键回到楼列表，而不是直接退回工具箱。
+    BackHandler(onBack = onBack)
 
     LaunchedEffect(date) {
         state = TimelineState.Loading
@@ -458,14 +464,13 @@ private fun UnassignedBorrowCard(
 }
 
 /** 节次详情：底部弹层，全部中文标签。 */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SlotDetailSheet(
     room: String,
     slot: FreeRoomLogic.Slot,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    InstantBottomSheet(onDismiss = onDismiss) {
         Column(
             Modifier
                 .fillMaxWidth()

@@ -14,19 +14,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.gdutday.core.common.CourseColors
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
+import com.gdutday.core.ui.InstantBottomSheet
 import com.gdutday.core.ui.TimePickerDialog
 import com.gdutday.core.ui.toComposeColor
 import java.time.LocalTime
@@ -57,7 +59,7 @@ import java.time.LocalTime
  *
  * 课程名称锁死不可编辑：名字是"同一门课"跨天/跨周聚合的身份标识（见
  * `AdvancedCourseEditScreen`），只有在那边一次性把所有同名行改掉才不会让身份错乱。
- * 想改名字或者批量改同一门课的多次上课时间，点名称下方的入口跳转过去。
+ * 想改名字或者批量改同一门课的多次上课时间，点名称下方的"高级编辑"按钮跳转过去。
  *
  * 时间有两种表达：
  * - 按节次（默认）：起止节次，沿用作息表换算；
@@ -74,7 +76,6 @@ internal fun CourseEditSheet(
     onOpenAdvancedEdit: (String) -> Unit = {},
 ) {
     val isSchool = course.source == CourseSource.SCHOOL
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var teacher by rememberSaveable { mutableStateOf(course.teacher) }
     var classroom by rememberSaveable { mutableStateOf(course.classroom) }
@@ -90,7 +91,7 @@ internal fun CourseEditSheet(
     }
     var colorKey by rememberSaveable { mutableStateOf(course.colorKey ?: CourseColors.DEFAULT.key) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    InstantBottomSheet(onDismiss = onDismiss) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -113,12 +114,23 @@ internal fun CourseEditSheet(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                TextButton(
+                OutlinedButton(
                     onClick = {
                         onDismiss()
                         onOpenAdvancedEdit(course.name)
                     },
-                ) { Text(stringResource(R.string.schedule_edit_rename_hint)) }
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.schedule_edit_rename_hint),
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
             }
             OutlinedTextField(
                 value = teacher,
@@ -171,22 +183,20 @@ internal fun CourseEditSheet(
                     )
                 }
                 if (useRealTime) {
-                    // picking：null=没开着；true=在选开始时间；false=在选结束时间。
-                    var picking by rememberSaveable { mutableStateOf<Boolean?>(null) }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        TimeField(
+                        TimePickerField(
                             label = stringResource(R.string.schedule_edit_start_time),
                             value = startTime,
-                            onClick = { picking = true },
+                            onValueChange = { startTime = it },
                             modifier = Modifier.weight(1f),
                         )
-                        TimeField(
+                        TimePickerField(
                             label = stringResource(R.string.schedule_edit_end_time),
                             value = endTime,
-                            onClick = { picking = false },
+                            onValueChange = { endTime = it },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -195,22 +205,6 @@ internal fun CourseEditSheet(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    // 系统时间选择器，不用再手敲 HH:mm、操心冒号和补零。
-                    picking?.let { isStart ->
-                        val currentText = if (isStart) startTime else endTime
-                        val initial = runCatching { LocalTime.parse(currentText) }.getOrDefault(LocalTime.of(8, 0))
-                        TimePickerDialog(
-                            initial = initial,
-                            confirmLabel = stringResource(R.string.schedule_confirm),
-                            dismissLabel = stringResource(R.string.schedule_cancel),
-                            onConfirm = { time ->
-                                val formatted = "%02d:%02d".format(time.hour, time.minute)
-                                if (isStart) startTime = formatted else endTime = formatted
-                                picking = null
-                            },
-                            onDismiss = { picking = null },
-                        )
-                    }
                 } else {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -318,10 +312,38 @@ private fun TimeField(label: String, value: String, onClick: () -> Unit, modifie
     }
 }
 
+/**
+ * 只读时间框 + 系统时间选择器。新增课程、批量编辑、单行编辑统一用它，
+ * 不再让用户手敲 `HH:mm`。取值格式固定 `HH:mm`。
+ */
+@Composable
+internal fun TimePickerField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var picking by rememberSaveable { mutableStateOf(false) }
+    TimeField(label = label, value = value, onClick = { picking = true }, modifier = modifier)
+    if (picking) {
+        val initial = runCatching { LocalTime.parse(value) }.getOrDefault(LocalTime.of(8, 0))
+        TimePickerDialog(
+            initial = initial,
+            confirmLabel = stringResource(R.string.schedule_confirm),
+            dismissLabel = stringResource(R.string.schedule_cancel),
+            onConfirm = { time ->
+                onValueChange("%02d:%02d".format(time.hour, time.minute))
+                picking = false
+            },
+            onDismiss = { picking = false },
+        )
+    }
+}
+
 /** 起始节次 / 节数的选择，标准下拉框——点开菜单选一个数字，不用再自己滑一排数字找。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SectionPicker(label: String, value: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
+internal fun SectionPicker(label: String, value: Int, onPick: (Int) -> Unit, modifier: Modifier = Modifier) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     ExposedDropdownMenuBox(
         expanded = expanded,

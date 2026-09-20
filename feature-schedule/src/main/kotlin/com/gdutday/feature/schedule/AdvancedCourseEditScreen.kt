@@ -1,5 +1,6 @@
 package com.gdutday.feature.schedule
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,13 +33,11 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -56,6 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gdutday.core.common.CourseColors
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
+import com.gdutday.core.ui.InstantBottomSheet
 import com.gdutday.core.ui.toComposeColor
 import com.gdutday.data.repository.AppContainer
 import java.time.LocalTime
@@ -84,6 +84,10 @@ internal fun AdvancedCourseEditScreen(
     val occurrences by viewModel.occurrences.collectAsStateWithLifecycle()
     val totalWeeks by viewModel.totalWeeks.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
+
+    // 高级编辑是课表页内嵌替换出来的，不在 NavHost 的回退栈里。
+    // 不接管返回键的话，系统会直接退出 App 而不是回到课表页。
+    BackHandler(onBack = onBack)
 
     var renameText by rememberSaveable(name) { mutableStateOf(name) }
     var expandedId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -270,10 +274,10 @@ private fun TemplatePanel(
     var sectionCount by rememberSaveable { mutableIntStateOf(2) }
     var startTime by rememberSaveable { mutableStateOf("08:00") }
     var endTime by rememberSaveable { mutableStateOf("09:30") }
-    var colorOn by rememberSaveable { mutableStateOf(false) }
-    var colorKey by rememberSaveable { mutableStateOf(CourseColors.DEFAULT.key) }
 
-    val anyFieldOn = teacherOn || classroomOn || dayOn || timeOn || colorOn
+    // 批量模板不提供"课程颜色"：颜色在一般编辑/单行编辑里就能改，
+    // 放进批量模板只会让人误以为"批量改颜色"是唯一入口。
+    val anyFieldOn = teacherOn || classroomOn || dayOn || timeOn
     val timeValid = !timeOn || !useRealTime || (isValidClock(startTime) && isValidClock(endTime))
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -332,60 +336,34 @@ private fun TemplatePanel(
                     }
                     if (useRealTime) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = startTime, onValueChange = { startTime = it }, singleLine = true,
-                                label = { Text(stringResource(R.string.schedule_edit_start_time)) },
+                            TimePickerField(
+                                label = stringResource(R.string.schedule_edit_start_time),
+                                value = startTime,
+                                onValueChange = { startTime = it },
                                 modifier = Modifier.weight(1f),
                             )
-                            OutlinedTextField(
-                                value = endTime, onValueChange = { endTime = it }, singleLine = true,
-                                label = { Text(stringResource(R.string.schedule_edit_end_time)) },
+                            TimePickerField(
+                                label = stringResource(R.string.schedule_edit_end_time),
+                                value = endTime,
+                                onValueChange = { endTime = it },
                                 modifier = Modifier.weight(1f),
                             )
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = startSection.toString(),
-                                onValueChange = { raw -> raw.toIntOrNull()?.let { startSection = it.coerceIn(1, Course.MAX_SECTION) } },
-                                singleLine = true,
-                                label = { Text(stringResource(R.string.schedule_edit_start_section)) },
+                            SectionPicker(
+                                label = stringResource(R.string.schedule_edit_start_section),
+                                value = startSection,
+                                onPick = { startSection = it },
                                 modifier = Modifier.weight(1f),
                             )
-                            OutlinedTextField(
-                                value = sectionCount.toString(),
-                                onValueChange = { raw -> raw.toIntOrNull()?.let { sectionCount = it.coerceIn(1, Course.MAX_SECTION) } },
-                                singleLine = true,
-                                label = { Text(stringResource(R.string.schedule_edit_section_count)) },
+                            SectionPicker(
+                                label = stringResource(R.string.schedule_edit_section_count),
+                                value = sectionCount,
+                                onPick = { sectionCount = it },
                                 modifier = Modifier.weight(1f),
                             )
                         }
-                    }
-                }
-            }
-            TemplateFieldRow(checked = colorOn, onCheckedChange = { colorOn = it }, label = stringResource(R.string.schedule_edit_color)) {
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    CourseColors.palette.forEach { color ->
-                        val colorSelected = color.key == colorKey
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(color.toComposeColor())
-                                .border(
-                                    width = if (colorSelected) 3.dp else 1.dp,
-                                    color = if (colorSelected) {
-                                        MaterialTheme.colorScheme.onSurface
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    },
-                                    shape = CircleShape,
-                                )
-                                .clickable { colorKey = color.key },
-                        )
                     }
                 }
             }
@@ -397,7 +375,6 @@ private fun TemplatePanel(
                         OccurrenceTemplate(
                             teacher = if (teacherOn) teacher.trim() else null,
                             classroom = if (classroomOn) classroom.trim() else null,
-                            colorKey = if (colorOn) colorKey else null,
                             dayOfWeek = if (dayOn) dayOfWeek else null,
                             startSection = if (timeOn && !useRealTime) startSection else null,
                             sectionCount = if (timeOn && !useRealTime) sectionCount else null,
@@ -410,7 +387,6 @@ private fun TemplatePanel(
                     classroomOn = false
                     dayOn = false
                     timeOn = false
-                    colorOn = false
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.schedule_advanced_apply_template, selectedCount)) }
@@ -494,35 +470,31 @@ private fun OccurrenceEditor(course: Course, totalWeeks: Int, onSave: (Course) -
         }
         if (useRealTime) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                TimePickerField(
+                    label = stringResource(R.string.schedule_edit_start_time),
                     value = startTime,
                     onValueChange = { startTime = it },
-                    label = { Text(stringResource(R.string.schedule_edit_start_time)) },
-                    singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedTextField(
+                TimePickerField(
+                    label = stringResource(R.string.schedule_edit_end_time),
                     value = endTime,
                     onValueChange = { endTime = it },
-                    label = { Text(stringResource(R.string.schedule_edit_end_time)) },
-                    singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = startSection.toString(),
-                    onValueChange = { raw -> raw.toIntOrNull()?.let { startSection = it.coerceIn(1, Course.MAX_SECTION) } },
-                    label = { Text(stringResource(R.string.schedule_edit_start_section)) },
-                    singleLine = true,
+                SectionPicker(
+                    label = stringResource(R.string.schedule_edit_start_section),
+                    value = startSection,
+                    onPick = { startSection = it },
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedTextField(
-                    value = sectionCount.toString(),
-                    onValueChange = { raw -> raw.toIntOrNull()?.let { sectionCount = it.coerceIn(1, Course.MAX_SECTION) } },
-                    label = { Text(stringResource(R.string.schedule_edit_section_count)) },
-                    singleLine = true,
+                SectionPicker(
+                    label = stringResource(R.string.schedule_edit_section_count),
+                    value = sectionCount,
+                    onPick = { sectionCount = it },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -584,7 +556,6 @@ private fun OccurrenceEditor(course: Course, totalWeeks: Int, onSave: (Course) -
  * 新增一次上课时间。星期允许多选——"新建课程可以批量"（调查结论）：
  * 先按同样的教室/老师/周次一次建出好几个星期的行，后面有差异再逐行改（[OccurrenceEditor]）。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddOccurrenceSheet(
     totalWeeks: Int,
@@ -599,7 +570,6 @@ private fun AddOccurrenceSheet(
         colorKey: String,
     ) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var days by rememberSaveable { mutableStateOf(setOf(1)) }
     var teacher by rememberSaveable { mutableStateOf("") }
     var classroom by rememberSaveable { mutableStateOf("") }
@@ -608,7 +578,7 @@ private fun AddOccurrenceSheet(
     var weeks by rememberSaveable { mutableStateOf((1..totalWeeks.coerceAtLeast(1)).toSet()) }
     var colorKey by rememberSaveable { mutableStateOf(CourseColors.DEFAULT.key) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    InstantBottomSheet(onDismiss = onDismiss) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -652,18 +622,16 @@ private fun AddOccurrenceSheet(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = startSection.toString(),
-                    onValueChange = { raw -> raw.toIntOrNull()?.let { startSection = it.coerceIn(1, Course.MAX_SECTION) } },
-                    label = { Text(stringResource(R.string.schedule_edit_start_section)) },
-                    singleLine = true,
+                SectionPicker(
+                    label = stringResource(R.string.schedule_edit_start_section),
+                    value = startSection,
+                    onPick = { startSection = it },
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedTextField(
-                    value = sectionCount.toString(),
-                    onValueChange = { raw -> raw.toIntOrNull()?.let { sectionCount = it.coerceIn(1, Course.MAX_SECTION) } },
-                    label = { Text(stringResource(R.string.schedule_edit_section_count)) },
-                    singleLine = true,
+                SectionPicker(
+                    label = stringResource(R.string.schedule_edit_section_count),
+                    value = sectionCount,
+                    onPick = { sectionCount = it },
                     modifier = Modifier.weight(1f),
                 )
             }

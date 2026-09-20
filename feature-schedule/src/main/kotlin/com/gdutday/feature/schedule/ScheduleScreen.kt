@@ -1,9 +1,5 @@
 package com.gdutday.feature.schedule
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -219,26 +215,16 @@ fun ScheduleScreen(
                                 // 稳定引用：onSwipeDay 是 pointerInput 的 key，
                                 // 每次重组都换新引用会让正在进行的滑动手势被重启。
                                 val onSwipeDay = remember(viewModel) { viewModel::selectDay }
-                                // 切天无淡入淡出：保留轻微横向滑动，方向按新旧日期的先后决定。
-                                AnimatedContent(
-                                    targetState = selectedDate,
-                                    transitionSpec = {
-                                        val direction = if (targetState > initialState) 1 else -1
-                                        slideInHorizontally { full -> full * direction } togetherWith
-                                            slideOutHorizontally { full -> -full * direction }
+                                // 切天无任何过渡动画：直接换内容，连续滑动不会互相卡住。
+                                DayScheduleView(
+                                    blocks = remember(state.grid, selectedDate) {
+                                        state.grid?.days?.find { it.date == selectedDate }?.blocks.orEmpty()
                                     },
-                                    label = "daySwitch",
-                                ) { date ->
-                                    DayScheduleView(
-                                        blocks = remember(state.grid, date) {
-                                            state.grid?.days?.find { it.date == date }?.blocks.orEmpty()
-                                        },
-                                        settings = settings,
-                                        date = date,
-                                        onBlockClick = viewModel::openBlock,
-                                        onSwipeDay = onSwipeDay,
-                                    )
-                                }
+                                    settings = settings,
+                                    date = selectedDate,
+                                    onBlockClick = viewModel::openBlock,
+                                    onSwipeDay = onSwipeDay,
+                                )
                             }
 
                             else -> {

@@ -9,19 +9,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gdutday.core.common.CourseBlock
+import com.gdutday.core.ui.InstantBottomSheet
 import com.gdutday.core.ui.toComposeColor
 
 /**
@@ -30,15 +28,13 @@ import com.gdutday.core.ui.toComposeColor
  * 从堆叠色块进入：色块只露出纸边、点开这层后这里是全部冲突课程的完整视图。
  * 点条目走普通的课程详情（[CourseBlockItem] 同一份点击语义）。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ConflictCourseListSheet(
     blocks: List<CourseBlock>,
     onDismiss: () -> Unit,
     onPick: (CourseBlock) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    InstantBottomSheet(onDismiss = onDismiss) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 text = stringResource(R.string.schedule_conflict_title, blocks.size),

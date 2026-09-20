@@ -28,6 +28,11 @@ alwaysApply: false
   显示导航栏会让返回语义混乱。
 - 所有页面用 `enableEdgeToEdge()` + `WindowInsets` 处理状态栏/手势区。
   Android 15（API 35）起 `targetSdk 35` 强制边到边。
+- 外层 `Scaffold`（`GdutDayNavHost`）的 `contentWindowInsets` 置 0：每个页面自己的
+  `Scaffold`/`TopAppBar` 已经处理状态栏 inset，外层再垫一次会让内容整体下移一个状态栏高度。
+- 弹层统一用 `InstantBottomSheet`（core-ui），不用 Material3 `ModalBottomSheet`：
+  后者的滑出动画会短暂保留一层遮罩，点空白收起后动画结束前再点其它色块会被遮罩吃掉。
+  `InstantBottomSheet` 条件渲染，出现/消失同一帧完成。
 
 ---
 
@@ -83,8 +88,9 @@ else                                        → WeekGridView(grid)
 
 在网格上**横向拖动**切换周次（`detectHorizontalSwipe`，阈值 64dp）：
 拖动时页面随手势平移（`graphicsLayer { translationX = drag.value }`），
-松手时位移不足阈值弹回原位（spring 动画），超过阈值则提交翻页
-（新旧页的滑动过渡由既有 `AnimatedContent` 承担）。
+松手时位移不足阈值直接归零，超过阈值立即提交翻页，**全程无动画**
+（归零用 `snapTo` 而非 `animateTo`）。早先用 spring/tween 做回弹与翻页过渡时，
+动画期间手势协程被占住，连续滑动要等动画跑完才响应，手感是"滑一次卡一下"。
 周次由 ViewModel 钳制到 `[1, totalWeeks]` 后调 `repository.selectWeek`。
 选中周是**纯内存状态**，不落盘（每次打开 App 回到"本周"更符合直觉）。
 
@@ -430,7 +436,7 @@ content URI 调用 `takePersistableUriPermission` 持久化授权（部分机型
 
 三层结构：
 
-1. **楼列表**：校区分 `PrimaryTabRow`（五校区），楼按类型分组（教学/实验/学院/公共/其他，
+1. **楼列表**：校区分 `PrimaryTabRow`（五校区，**大学城排第一并默认选中**），楼按类型分组（教学/实验/学院/公共/其他，
    `FreeRoomLogic.buildingKind` 按名称关键词归类，对不上的进"其他"不混入教学）；
 2. **教室时间轴**（`RoomTimelineScreen`）：**Excel 式固定 6 列网格**——列 = 大节
    （1-2 / 3-4 / 5 / 6-7 / 8-9 / 10-12，`FreeRoomLogic.Period`），行 = 教室，

@@ -17,13 +17,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.gdutday.core.common.CourseBlock
 import com.gdutday.core.common.CourseColors
 import com.gdutday.core.datastore.UserSettings
+import com.gdutday.core.ui.InstantBottomSheet
 import com.gdutday.core.ui.toComposeColor
 
 /**
@@ -45,7 +43,6 @@ import com.gdutday.core.ui.toComposeColor
  * 考试条目（`course.id == 0`，由考试安排派生）没有可删除的数据库记录，
  * 所以不显示删除入口；改色对它也没有意义（没有 Course 行可写），一并隐藏。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CourseDetailSheet(
     block: CourseBlock,
@@ -56,11 +53,10 @@ internal fun CourseDetailSheet(
     onEdit: () -> Unit = {},
 ) {
     val course = block.course
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isExam = block.isExam
     val editable = !isExam && course.id != 0L
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    InstantBottomSheet(onDismiss = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
