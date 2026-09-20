@@ -38,10 +38,11 @@ class MigrationContractTest {
     fun `schema 2 的 course 表包含全部五个新列且默认值正确`() {
         val schema = javaClass.classLoader
             ?.getResourceAsStream(
-                "com/gdutday/core/database/GdutDatabase/2.json",
+                "com.gdutday.core.database.GdutDatabase/2.json",
             )
-            ?: // 单测 classpath 不含 schemas 资源时跳过结构断言（真正的守护在编译期的 KSP 导出）
-            return
+            // 单测 classpath 不含 schemas 资源时直接失败：静默跳过会让资源接线回归
+            // （build.gradle 改动）时两个守卫同时失声，测试却仍然"通过"
+            ?: error("schemas 资源不在测试 classpath 上：检查 core-database 的 schemas 目录配置")
         val json = schema.bufferedReader().readText()
         val courseEntity = Regex("\"tableName\"\\s*:\\s*\"course\"").find(json) ?: error("schema 2 缺少 course 表")
         val blockStart = courseEntity.range.first
