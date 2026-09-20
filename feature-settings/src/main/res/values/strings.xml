@@ -83,6 +83,7 @@
     <string name="settings_my_courses_badge_override">修改补丁</string>
     <string name="settings_my_courses_restore">还原</string>
     <string name="settings_my_courses_delete">删除</string>
+    <string name="settings_my_courses_ineffective">⚠ 未生效：教务已找不到对应课程</string>
 
     <!-- 隐私 -->
     <string name="settings_section_privacy">隐私</string>

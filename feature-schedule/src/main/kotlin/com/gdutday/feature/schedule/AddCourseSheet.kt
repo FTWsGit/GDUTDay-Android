@@ -225,6 +225,13 @@ internal fun AddCourseSheet(
                         )
                     }
 
+                    WeekMode.CUSTOM -> WeekMultiSelectGrid(
+                        selectedWeeks = form.customWeeks,
+                        totalWeeks = totalWeeks,
+                        onWeeksChange = { onFormChange(form.copy(customWeeks = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
                     else -> Unit
                 }
             }
@@ -339,4 +346,5 @@ private fun weekModeLabel(mode: WeekMode, currentWeek: Int): String = when (mode
     WeekMode.SINGLE -> stringResource(R.string.schedule_add_week_single)
     WeekMode.RANGE -> stringResource(R.string.schedule_add_week_range)
     WeekMode.ALL -> stringResource(R.string.schedule_add_week_all)
+    WeekMode.CUSTOM -> stringResource(R.string.schedule_add_week_custom)
 }

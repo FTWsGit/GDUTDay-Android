@@ -173,6 +173,7 @@ fun SettingsScreen(
     if (showMyCourses) {
         MyCoursesScreen(
             coursesByTerm = viewModel.customAndOverrideCourses.collectAsStateWithLifecycle().value,
+            effectiveness = viewModel.overrideEffectiveness.collectAsStateWithLifecycle().value,
             onBack = { showMyCourses = false },
             onDelete = viewModel::deleteCourse,
             onRestore = viewModel::restoreOriginal,

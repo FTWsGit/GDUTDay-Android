@@ -3,11 +3,15 @@ package com.gdutday.feature.schedule
 import com.google.common.truth.Truth.assertThat
 import com.gdutday.core.model.Course
 import com.gdutday.core.model.CourseSource
-import com.gdutday.core.model.OverrideScope
 import com.gdutday.core.model.Term
 import org.junit.Test
 
-/** [buildEditedCourse] 与周次文本解析的纯函数测试。 */
+/**
+ * [buildEditedCourse] 的纯函数测试。
+ *
+ * 这个 sheet 只编辑用户点开的这一个色块（见文件顶部 KDoc）：不接受 name（名字锁死
+ * 不可改）、不接受作用范围（教务课程恒为"只覆盖当前这一周"）。
+ */
 class CourseEditSheetLogicTest {
 
     private val term = Term(2025, 1)
@@ -21,10 +25,10 @@ class CourseEditSheetLogicTest {
     @Test
     fun `按节次编辑不写绝对时间`() {
         val edited = buildEditedCourse(
-            original = school(), name = "高等数学", teacher = "", classroom = "教5-301",
+            original = school(), teacher = "", classroom = "教5-301",
             dayOfWeek = 1, useRealTime = false, startSection = 3, sectionCount = 2,
             startTime = "8:00", endTime = "9:30", colorKey = "red",
-            isSchool = true, scope = OverrideScope.THIS_WEEK, rangeWeeksText = "3", currentWeek = 3,
+            isSchool = true, currentWeek = 3,
         )
         assertThat(edited.startMinute).isEqualTo(-1)
         assertThat(edited.endMinute).isEqualTo(-1)
@@ -35,56 +39,58 @@ class CourseEditSheetLogicTest {
     @Test
     fun `按具体时间编辑写入绝对分钟`() {
         val edited = buildEditedCourse(
-            original = school(), name = "高等数学", teacher = "", classroom = "",
+            original = school(), teacher = "", classroom = "",
             dayOfWeek = 1, useRealTime = true, startSection = 1, sectionCount = 2,
             startTime = "08:30", endTime = "09:15", colorKey = "red",
-            isSchool = true, scope = OverrideScope.THIS_WEEK, rangeWeeksText = "3", currentWeek = 3,
+            isSchool = true, currentWeek = 3,
         )
         assertThat(edited.startMinute).isEqualTo(8 * 60 + 30)
         assertThat(edited.endMinute).isEqualTo(9 * 60 + 15)
     }
 
     @Test
-    fun `单周作用范围的周次是当前周`() {
+    fun `教务课程编辑只覆盖当前这一周`() {
+        // 回归：以前有 ALL 作用范围可选，一不小心就把"全部周次"都改了；
+        // 现在这个 sheet 恒定只编辑当前这一周，跨周批量改只能走高级编辑。
         val edited = buildEditedCourse(
-            original = school(), name = "高等数学", teacher = "", classroom = "",
+            original = school(), teacher = "", classroom = "",
             dayOfWeek = 1, useRealTime = false, startSection = 1, sectionCount = 2,
             startTime = "", endTime = "", colorKey = "red",
-            isSchool = true, scope = OverrideScope.THIS_WEEK, rangeWeeksText = "", currentWeek = 5,
+            isSchool = true, currentWeek = 5,
         )
         assertThat(edited.weeks).containsExactly(5)
-    }
-
-    @Test
-    fun `全部作用范围的周次是原课程全部周次`() {
-        val edited = buildEditedCourse(
-            original = school(), name = "高等数学", teacher = "", classroom = "",
-            dayOfWeek = 1, useRealTime = false, startSection = 1, sectionCount = 2,
-            startTime = "", endTime = "", colorKey = "red",
-            isSchool = true, scope = OverrideScope.ALL, rangeWeeksText = "", currentWeek = 5,
-        )
-        assertThat(edited.weeks).isEqualTo((1..8).toSet())
     }
 
     @Test
     fun `自定义课程保留全部周次`() {
         val custom = school().copy(id = 2L, source = CourseSource.CUSTOM)
         val edited = buildEditedCourse(
-            original = custom, name = "社团", teacher = "", classroom = "",
+            original = custom, teacher = "", classroom = "",
             dayOfWeek = 1, useRealTime = false, startSection = 1, sectionCount = 2,
             startTime = "", endTime = "", colorKey = "red",
-            isSchool = false, scope = OverrideScope.THIS_WEEK, rangeWeeksText = "3", currentWeek = 3,
+            isSchool = false, currentWeek = 3,
         )
         assertThat(edited.weeks).isEqualTo((1..8).toSet())
     }
 
     @Test
-    fun `补丁字段在编辑产物里总是清空 由仓库层填写`() {
+    fun `名字恒等于原课程 这个sheet从不改名字`() {
         val edited = buildEditedCourse(
-            original = school(), name = "X", teacher = "", classroom = "",
+            original = school(), teacher = "", classroom = "",
             dayOfWeek = 1, useRealTime = false, startSection = 1, sectionCount = 2,
             startTime = "", endTime = "", colorKey = "red",
-            isSchool = true, scope = OverrideScope.ALL, rangeWeeksText = "", currentWeek = 1,
+            isSchool = true, currentWeek = 1,
+        )
+        assertThat(edited.name).isEqualTo("高等数学")
+    }
+
+    @Test
+    fun `补丁字段在编辑产物里总是清空 由仓库层填写`() {
+        val edited = buildEditedCourse(
+            original = school(), teacher = "", classroom = "",
+            dayOfWeek = 1, useRealTime = false, startSection = 1, sectionCount = 2,
+            startTime = "", endTime = "", colorKey = "red",
+            isSchool = true, currentWeek = 1,
         )
         assertThat(edited.overrideScope).isNull()
         assertThat(edited.overrideTargetNaturalKey).isNull()
@@ -92,37 +98,15 @@ class CourseEditSheetLogicTest {
     }
 
     @Test
-    fun `周次文本解析容忍中文逗号与空白`() {
-        assertThat(parseWeeksText("3,4,5")).containsExactly(3, 4, 5)
-        assertThat(parseWeeksText("3，10")).containsExactly(3, 10)
-        assertThat(parseWeeksText(" 3 , abc ")).containsExactly(3)
-        assertThat(parseWeeksText("")).isEmpty()
-    }
-
-    @Test
-    fun `周次文本解析支持区间写法`() {
-        // 回归：曾经只认单个数字的逗号列表，"指定周范围"填区间会被整段过滤掉、静默不生效。
-        assertThat(parseWeeksText("3-6")).containsExactly(3, 4, 5, 6)
-        assertThat(parseWeeksText("3-4,9,11-13")).containsExactly(3, 4, 9, 11, 12, 13)
-    }
-
-    @Test
     fun `时间解析对缺前导零的输入宽容`() {
         val edited = buildEditedCourse(
-            original = school(), name = "X", teacher = "", classroom = "",
+            original = school(), teacher = "", classroom = "",
             dayOfWeek = 1, useRealTime = true, startSection = 1, sectionCount = 2,
             startTime = "8:30", endTime = "10:05", colorKey = "red",
-            isSchool = true, scope = OverrideScope.THIS_WEEK, rangeWeeksText = "", currentWeek = 1,
+            isSchool = true, currentWeek = 1,
         )
         assertThat(edited.startMinute).isEqualTo(8 * 60 + 30)
         assertThat(edited.endMinute).isEqualTo(10 * 60 + 5)
-    }
-
-    @Test
-    fun `默认作用周次优先取当前周`() {
-        assertThat(affectedWeeksText((1..16).toSet(), 5)).isEqualTo("5")
-        assertThat(affectedWeeksText(setOf(1, 3, 5), 2)).isEqualTo("1")
-        assertThat(affectedWeeksText(emptySet(), 5)).isEmpty()
     }
 
     @Test

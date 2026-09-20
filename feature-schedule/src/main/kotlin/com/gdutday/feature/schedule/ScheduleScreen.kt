@@ -82,6 +82,18 @@ fun ScheduleScreen(
     modifier: Modifier = Modifier,
 ) {
     val viewModel: ScheduleViewModel = viewModel(factory = ScheduleViewModel.factory(container))
+
+    // 高级编辑（按课程名批量改/改名字）是独立全屏页，不是弹层——见 AdvancedCourseEditScreen 的 KDoc。
+    val advancedEditCourseName by viewModel.advancedEditCourseName.collectAsStateWithLifecycle()
+    advancedEditCourseName?.let { name ->
+        AdvancedCourseEditScreen(
+            container = container,
+            courseName = name,
+            onBack = viewModel::closeAdvancedEdit,
+        )
+        return
+    }
+
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val selectedBlock by viewModel.selectedBlock.collectAsStateWithLifecycle()
@@ -269,7 +281,8 @@ fun ScheduleScreen(
             course = editing,
             currentWeek = state.selectedWeek,
             onDismiss = viewModel::closeEdit,
-            onSave = { edited, scope -> viewModel.saveEdit(edited, scope) },
+            onSave = viewModel::saveEdit,
+            onOpenAdvancedEdit = viewModel::openAdvancedEdit,
         )
     }
 

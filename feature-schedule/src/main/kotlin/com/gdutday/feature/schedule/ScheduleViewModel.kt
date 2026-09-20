@@ -96,6 +96,23 @@ public class ScheduleViewModel(
     /** 正在编辑的课程（详情页点了"编辑"）。非 null 时弹出 [CourseEditSheet]。 */
     public val editingCourse: StateFlow<Course?> = _editingCourse.asStateFlow()
 
+    private val _advancedEditCourseName = MutableStateFlow<String?>(null)
+
+    /**
+     * 正在"高级编辑"的课程名。非 null 时整页切到 `AdvancedCourseEditScreen`——
+     * 那里按名字聚合同一门课在所有天/周次的全部行（SCHOOL/OVERRIDE/CUSTOM），
+     * 支持批量改、改名字（[CourseEditSheet] 故意锁死了名字，见它的 KDoc）。
+     */
+    public val advancedEditCourseName: StateFlow<String?> = _advancedEditCourseName.asStateFlow()
+
+    public fun openAdvancedEdit(courseName: String) {
+        _advancedEditCourseName.value = courseName
+    }
+
+    public fun closeAdvancedEdit() {
+        _advancedEditCourseName.value = null
+    }
+
     private val _addCourseSheetVisible = MutableStateFlow(false)
 
     /** "新增课程" Sheet 是否打开。 */
@@ -175,8 +192,9 @@ public class ScheduleViewModel(
     }
 
     /**
-     * 保存编辑。CUSTOM 行直接更新；SCHOOL 行生成 OVERRIDE 补丁。
-     * [scope] 只对教务课程有意义，自定义课程一律直接 upsert。
+     * 保存编辑。CUSTOM/OVERRIDE 行直接更新；SCHOOL 行生成只接管当前这一周的 OVERRIDE 补丁
+     * （固定 [OverrideScope.THIS_WEEK]——[CourseEditSheet] 只编辑用户点开的这一个色块，
+     * 不再让用户选作用范围；跨周/跨天的批量修改走"高级编辑"，见 [openAdvancedEdit]）。
      *
      * 始终 `force = true`：这个 App 的课表网格本来就支持同一时段多门课并排渲染
      * （见 [com.gdutday.core.common.ConflictCluster]），冲突是被设计支持的正常状态，
@@ -185,11 +203,12 @@ public class ScheduleViewModel(
      * 结果是编辑只要撞上任何一门课（哪怕只是"全部周次"里某一周撞了一次）就整体不生效，
      * 界面上却什么提示都没有，看起来像"点了保存但没反应"。
      */
-    public fun saveEdit(course: Course, scope: OverrideScope) {
+    public fun saveEdit(course: Course) {
         val original = _editingCourse.value ?: return
         viewModelScope.launch {
             when (original.source) {
-                CourseSource.SCHOOL -> repository.saveSchoolOverride(original, course, scope, force = true)
+                CourseSource.SCHOOL ->
+                    repository.saveSchoolOverride(original, course, OverrideScope.THIS_WEEK, force = true)
                 else -> repository.updateCustomCourse(course, force = true)
             }
             _editingCourse.value = null

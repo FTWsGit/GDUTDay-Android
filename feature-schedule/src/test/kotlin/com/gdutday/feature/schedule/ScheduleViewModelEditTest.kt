@@ -28,9 +28,9 @@ import java.time.LocalDate
 /**
  * [ScheduleViewModel] 编辑事件的分流测试。
  *
- * 只验一件事：编辑保存按课程来源走对路径 ——
- * 教务课程 → `saveSchoolOverride`（生成补丁）；其它 → `updateCustomCourse`（直接更新）。
- * Repository 是假实现，只记录调用，不需要 Robolectric。
+ * 验两件事：编辑保存按课程来源走对路径——教务课程 → `saveSchoolOverride`（生成补丁，
+ * 恒为 `OverrideScope.THIS_WEEK`，[CourseEditSheet] 不再让用户选作用范围）；
+ * 其它 → `updateCustomCourse`（直接更新）。Repository 是假实现，只记录调用，不需要 Robolectric。
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScheduleViewModelEditTest {
@@ -138,7 +138,7 @@ class ScheduleViewModelEditTest {
         assertThat(vm.editingCourse.value).isEqualTo(original)
 
         val edited = original.copy(classroom = "教5-301", weeks = setOf(3))
-        vm.saveEdit(edited, OverrideScope.THIS_WEEK)
+        vm.saveEdit(edited)
         dispatcher.scheduler.advanceUntilIdle()
 
         val call = repository.savedOverride
@@ -158,7 +158,7 @@ class ScheduleViewModelEditTest {
         vm.openEdit(original)
 
         val edited = original.copy(teacher = "王五")
-        vm.saveEdit(edited, OverrideScope.ALL)
+        vm.saveEdit(edited)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertThat(repository.updatedCustom).isEqualTo(edited)
@@ -174,12 +174,12 @@ class ScheduleViewModelEditTest {
         val vm = viewModel()
 
         vm.openEdit(schoolCourse())
-        vm.saveEdit(schoolCourse().copy(classroom = "教5-301"), OverrideScope.ALL)
+        vm.saveEdit(schoolCourse().copy(classroom = "教5-301"))
         dispatcher.scheduler.advanceUntilIdle()
         assertThat(repository.lastSaveOverrideForce).isTrue()
 
         vm.openEdit(customCourse())
-        vm.saveEdit(customCourse().copy(teacher = "王五"), OverrideScope.ALL)
+        vm.saveEdit(customCourse().copy(teacher = "王五"))
         dispatcher.scheduler.advanceUntilIdle()
         assertThat(repository.lastUpdateCustomForce).isTrue()
     }
@@ -197,7 +197,7 @@ class ScheduleViewModelEditTest {
     @Test
     fun `没有打开编辑时保存是无操作`() = runTest(dispatcher) {
         val vm = viewModel()
-        vm.saveEdit(schoolCourse(), OverrideScope.ALL)
+        vm.saveEdit(schoolCourse())
         dispatcher.scheduler.advanceUntilIdle()
         assertThat(repository.savedOverride).isNull()
         assertThat(repository.updatedCustom).isNull()

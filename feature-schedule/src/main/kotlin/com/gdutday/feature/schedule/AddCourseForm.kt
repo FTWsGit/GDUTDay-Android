@@ -10,7 +10,7 @@ import java.time.LocalTime
  * 生效周次的选择方式。
  *
  * 自定义课程没有"作用范围拆分"的问题（见 `OverrideScope`），这里只是
- * "这门课在第几周上"的四种常见填法，保存时统一展开成 [Course.weeks]。
+ * "这门课在第几周上"的常见填法，保存时统一展开成 [Course.weeks]。
  */
 public enum class WeekMode {
     /** 只在当前浏览的周生效。 */
@@ -19,11 +19,17 @@ public enum class WeekMode {
     /** 只在指定的一周生效。 */
     SINGLE,
 
-    /** 在 [startWeek, endWeek] 的连续范围内生效。 */
+    /** 在 [AddCourseForm.rangeStart]、[AddCourseForm.rangeEnd] 的连续范围内生效。 */
     RANGE,
 
     /** 全学期每周都上。 */
     ALL,
+
+    /**
+     * 任意离散周次组合（[AddCourseForm.customWeeks]），比如只在奇数周上课。
+     * UI 用 `WeekMultiSelectGrid` 可视化多选，而不是让用户自己拼区间文本。
+     */
+    CUSTOM,
 }
 
 /**
@@ -48,14 +54,17 @@ public data class AddCourseForm(
     val singleWeek: Int = 1,
     val rangeStart: Int = 1,
     val rangeEnd: Int = 16,
+    /** [WeekMode.CUSTOM] 下用户在 `WeekMultiSelectGrid` 里勾选的任意周次组合。 */
+    val customWeeks: Set<Int> = emptySet(),
     val colorKey: String = CourseColors.DEFAULT.key,
 ) {
-    /** 展开后的生效周次。range 起止倒置时为空（保存按钮会因此禁用）。 */
+    /** 展开后的生效周次。range 起止倒置 / custom 未选任何周时为空（保存按钮会因此禁用）。 */
     public fun weeks(currentWeek: Int, totalWeeks: Int): Set<Int> = when (weekMode) {
         WeekMode.CURRENT -> setOf(currentWeek)
         WeekMode.SINGLE -> setOf(singleWeek)
         WeekMode.RANGE -> if (rangeStart <= rangeEnd) (rangeStart..rangeEnd).toSet() else emptySet()
         WeekMode.ALL -> (1..totalWeeks.coerceAtLeast(1)).toSet()
+        WeekMode.CUSTOM -> customWeeks
     }
 
     /** 表单是否能保存：名称非空、星期合法、周次展开后非空。 */

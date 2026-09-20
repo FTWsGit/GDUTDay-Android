@@ -17,6 +17,7 @@ import com.gdutday.core.datastore.StoredCredentials
 import com.gdutday.core.datastore.UserSettings
 import com.gdutday.core.model.Campus
 import com.gdutday.core.model.Course
+import com.gdutday.core.model.CourseSource
 import com.gdutday.core.model.Term
 import com.gdutday.data.repository.AppContainer
 import com.gdutday.data.repository.AuthRepository
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -257,6 +259,20 @@ public class SettingsViewModel(
         scheduleRepository.observeCustomAndOverrideCourses()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /**
+     * 每条 OVERRIDE 补丁当前是否还"打得上"教务课程，按课程 id 索引。
+     * `MyCoursesScreen` 拿这个给失效的补丁画红框——`isOverrideEffective` 本来就写好了，
+     * 但之前没有任何地方真的调用它，补丁变成孤儿之后界面上完全看不出来。
+     */
+    public val overrideEffectiveness: StateFlow<Map<Long, Boolean>> =
+        customAndOverrideCourses
+            .map { byTerm ->
+                byTerm.values.flatten()
+                    .filter { it.source == CourseSource.OVERRIDE }
+                    .associate { it.id to scheduleRepository.isOverrideEffective(it) }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     /** 删除一条自定义课程或补丁。补丁删除后还原为教务版本。 */
     public fun deleteCourse(id: Long) {
         viewModelScope.launch { scheduleRepository.deleteCourse(id) }
@@ -266,10 +282,6 @@ public class SettingsViewModel(
     public fun restoreOriginal(overrideId: Long) {
         viewModelScope.launch { scheduleRepository.restoreOriginal(overrideId) }
     }
-
-    /** 判断补丁是否仍匹配得到教务课程（false = 未生效，UI 标灰提示）。 */
-    public suspend fun isOverrideEffective(override: Course): Boolean =
-        scheduleRepository.isOverrideEffective(override)
 
     // ---------------------------------------------------------------- 工具
 

@@ -77,12 +77,8 @@
     <string name="schedule_edit_time_real_hint">非整节边界的时间按分钟比例绘制</string>
     <string name="schedule_edit_start_section">起始节次</string>
     <string name="schedule_edit_section_count">节数</string>
-    <string name="schedule_edit_scope">作用范围（教务课程）</string>
-    <string name="schedule_edit_scope_this_week">仅第 %1$d 周</string>
-    <string name="schedule_edit_scope_week_range">指定周范围</string>
-    <string name="schedule_edit_scope_weeks">作用的周次</string>
-    <string name="schedule_edit_scope_weeks_hint">支持范围与逗号，如 3-6,9,11-13</string>
-    <string name="schedule_edit_scope_all">全部周次</string>
+    <string name="schedule_edit_this_week_only">这次修改只影响第 %1$d 周，其它周的这门课不受影响</string>
+    <string name="schedule_edit_rename_hint">改名字 / 批量改这门课的多次上课时间 →</string>
     <string name="schedule_edit_color">课程颜色</string>
 
     <!-- 新增课程 -->
@@ -93,9 +89,38 @@
     <string name="schedule_add_week_single">指定单周</string>
     <string name="schedule_add_week_range">连续周范围</string>
     <string name="schedule_add_week_all">全学期每周</string>
+    <string name="schedule_add_week_custom">自定义（任意周次，如奇数周）</string>
     <string name="schedule_add_single_week">周次（1-%1$d）</string>
     <string name="schedule_add_range_start">起始周</string>
     <string name="schedule_add_range_end">结束周</string>
     <string name="schedule_add_conflict_toast">新增课程允许与已有课程冲突</string>
     <string name="schedule_conflict_title">该时段有 %1$d 门课重叠</string>
+
+    <!-- 周次可视化多选 -->
+    <string name="schedule_weeks_pick_all">全选</string>
+    <string name="schedule_weeks_pick_odd">奇数周</string>
+    <string name="schedule_weeks_pick_even">偶数周</string>
+    <string name="schedule_weeks_pick_clear">清空</string>
+
+    <!-- 高级编辑：按课程名批量改 -->
+    <string name="schedule_advanced_add">新增上课时间</string>
+    <string name="schedule_advanced_add_title">新增上课时间</string>
+    <string name="schedule_advanced_add_days_hint">可以多选星期，一次建好几行同样的排课，之后有差异再点开单独改</string>
+    <string name="schedule_advanced_rename_hint">改这里会把这门课在本学期出现过的所有行都一起改名</string>
+    <string name="schedule_advanced_empty">这门课本学期没有记录了</string>
+    <string name="schedule_advanced_badge_school">教务原始</string>
+    <string name="schedule_advanced_badge_override">已修改</string>
+    <string name="schedule_advanced_restore">还原</string>
+    <string name="schedule_advanced_delete">删除</string>
+
+    <!-- 高级编辑：模板批量改（只覆盖打勾的字段） -->
+    <string name="schedule_advanced_template_title">批量套用模板</string>
+    <string name="schedule_advanced_template_hint">只有打勾的字段会被套用，没打勾的字段每一行保留自己原来的值——比如老师每次课都不一样，只勾"上课时间"就不会把老师覆盖掉</string>
+    <string name="schedule_advanced_select_all">全选</string>
+    <string name="schedule_advanced_select_clear">取消全选</string>
+    <string name="schedule_advanced_selected_count">已选 %1$d 项</string>
+    <string name="schedule_advanced_field_day">星期</string>
+    <string name="schedule_advanced_field_time">上课时间</string>
+    <string name="schedule_advanced_field_weeks">周次</string>
+    <string name="schedule_advanced_apply_template">应用到选中的 %1$d 项</string>
 </resources>
