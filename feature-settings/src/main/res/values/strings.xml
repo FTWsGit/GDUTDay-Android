@@ -66,8 +66,8 @@
     <string name="settings_reset_colors_hint">清除自动分配的课程颜色（手选的保留）</string>
     <string name="settings_reset_colors_confirm">确定要重置自动配色吗？</string>
     <string name="settings_clear_custom_courses">清空自定义课程</string>
-    <string name="settings_clear_custom_courses_hint">只删除手动添加的课程，教务课表保留</string>
-    <string name="settings_clear_custom_courses_confirm">确定要清空全部自定义课程吗？此操作不可撤销。</string>
+    <string name="settings_clear_custom_courses_hint">删除手动添加的课程，并还原对教务课程的修改，教务课表保留</string>
+    <string name="settings_clear_custom_courses_confirm">确定要清空吗？将删除全部自定义课程，并还原所有对教务课程的修改（“我添加/修改的课程”里的修改项会一并移除）。此操作不可撤销。</string>
     <string name="settings_clear_all">清空全部本地数据</string>
     <string name="settings_clear_all_hint">删除课表、成绩与登录态，等同于注销</string>
     <string name="settings_clear_all_confirm">确定要清空全部本地数据吗？包括课表、成绩和登录状态，且不可撤销。</string>
