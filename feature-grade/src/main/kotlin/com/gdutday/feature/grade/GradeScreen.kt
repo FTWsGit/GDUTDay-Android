@@ -223,7 +223,9 @@ private fun ExamSection(
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
             }
-            items(group.exams, key = { "${group.term.shortCode}_${it.date}_${it.courseName}" }) { exam ->
+            // 同课程同日期可以合法地有多场考试（不同类别/时段/教室，fixture 即有），
+            // key 只用 date+name 会碰撞，LazyColumn 直接抛 IllegalArgumentException 崩掉整个 tab。
+            items(group.exams, key = { "${group.term.shortCode}_${it.date}_${it.startTime}_${it.category}_${it.arrangementType}_${it.courseName}" }) { exam ->
                 ExamRow(exam = exam, today = today)
             }
         }
