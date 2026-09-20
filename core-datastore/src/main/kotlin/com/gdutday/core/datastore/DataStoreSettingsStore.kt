@@ -173,7 +173,9 @@ internal object SettingsMapper {
             autoSyncOnLaunch = map.bool(SettingsKeys.AUTO_SYNC_ON_LAUNCH, defaults.autoSyncOnLaunch),
             autoSyncIntervalHours = map.int(SettingsKeys.AUTO_SYNC_INTERVAL_HOURS, defaults.autoSyncIntervalHours)
                 .coerceIn(0, MAX_SYNC_INTERVAL_HOURS),
-            libraryQrStudentId = map[SettingsKeys.LIBRARY_QR_STUDENT_ID] as? String ?: defaults.libraryQrStudentId,
+            // 读路径同样只留数字：写侧已过滤，这里兜住历史脏数据，保证二维码内容恒为数字
+            libraryQrStudentId = (map[SettingsKeys.LIBRARY_QR_STUDENT_ID] as? String)
+                ?.filter { it.isDigit() } ?: defaults.libraryQrStudentId,
         )
     }
 
