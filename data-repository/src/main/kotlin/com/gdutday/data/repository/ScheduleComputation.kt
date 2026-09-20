@@ -230,7 +230,9 @@ internal fun applyUserOverrides(
         // 同一门课（同自然键）可能被教务拆成多行（如 1-8 周教室 A、9-16 周教室 B），
         // 补丁的目标必须取"与补丁接管周次交集最大"的那一行，取错行会把周次
         // 还给/拆走别的教学班行，用户看到的就是"教室变了的别的课"。
-        val target = result.filter { it.naturalKey == targetNk }
+        // 目标必须是教务行：ALL 补丁追加的 OVERRIDE 行与目标同自然键，
+        // 不过滤 source 时后续补丁可能把先前的补丁行当成目标。
+        val target = result.filter { it.naturalKey == targetNk && it.source == CourseSource.SCHOOL }
             .maxByOrNull { it.weeks.intersect(patch.overrideWeeks).size }
             ?: continue
 
