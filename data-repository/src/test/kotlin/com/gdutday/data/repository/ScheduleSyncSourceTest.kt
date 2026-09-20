@@ -58,6 +58,7 @@ class ScheduleSyncSourceTest {
         const val TERM_LIST_PATH = "/xsksap!ksapList.action"
         const val PERSONAL_DATA_LIST_PATH = "/xsgrkbcx!getDataList.action"
         const val PERSONAL_ALL_KB_LIST_PATH = "/xsgrkbcx!xsAllKbList.action"
+        const val CLASS_ALL_KB_LIST_PATH = "/xsbjkbcx!xsAllKbList.action"
         const val CLASS_GET_KB_RQ_PATH = "/xsbjkbcx!getKbRq.action"
         const val EXAM_DATA_LIST_PATH = "/xsksap!getDataList.action"
     }
@@ -80,6 +81,10 @@ class ScheduleSyncSourceTest {
                     path.startsWith(TERM_LIST_PATH) -> ok(termListHtml())
                     path.startsWith(CLASS_GET_KB_RQ_PATH) -> ok(classGetKbRqBody())
                     path.startsWith(PERSONAL_DATA_LIST_PATH) -> ok(dataListBody())
+                    // AUTO 策略回退链会打到聚合端点（个人/班级两个 xsAllKbList），
+                    // 没有分支时回退死于 404 而不是真的测到回退逻辑
+                    path.startsWith(PERSONAL_ALL_KB_LIST_PATH) -> ok(allKbListHtml("个人聚合高等数学"))
+                    path.startsWith(CLASS_ALL_KB_LIST_PATH) -> ok(allKbListHtml("班级聚合高等数学"))
                     path.startsWith(EXAM_DATA_LIST_PATH) -> ok("""{"total":0,"rows":[]}""")
                     else -> MockResponse().setResponseCode(404).setBody("unexpected: $path")
                 }
@@ -112,6 +117,11 @@ class ScheduleSyncSourceTest {
     private fun dataListBody(): String =
         """{"total":1,"rows":[{"kcmc":"个人高等数学","jxcdmc":"教5-301","teaxms":"张三",""" +
             """"xq":"1","zc":"1","jcdm":"0102"}]}"""
+
+    /** xsAllKbList 聚合端点：内嵌 kbxx 数组的 HTML。 */
+    private fun allKbListHtml(courseName: String): String =
+        """<html><script>var kbxx = [{"kcmc":"$courseName","jxcdmc":"教5-301",""" +
+            """"zc":"1","jcdm":"0102","xq":"1"}];</script></html>"""
 
     private fun fakeSession() = GdutSession(
         cookies = listOf(
