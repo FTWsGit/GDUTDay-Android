@@ -31,11 +31,15 @@ BASE='https://jxfw.gdut.edu.cn'
 [[ -f "$COOKIES" ]] || { echo "FAIL cookie 文件不存在: $COOKIES(先跑 scripts/gdut-login.sh)" >&2; exit 2; }
 
 # ---------- 归一化接口路径 ----------
+# 严格校验:只接受 'action!method.action' / 'module/method' 两种简写。
+# 含 '?'/多余斜杠的输入会被 ${API##*/} 拼坏 URL,直接报错退出。
 case "$API" in
     http*)  URL="$API" ;;
     '!'*)   URL="$BASE$API" ;;                                   # 兼容 '!getDataList...'
+    *\?*)   echo "FAIL 接口路径含 '?':请把查询串放进表单体或用完整 URL" >&2; exit 2 ;;
     *\!*)   URL="$BASE/$API" ;;                                  # 'xsksap!getDataList.action'
-    */*)    URL="$BASE/${API%%/*}!${API##*/}" ;;                 # 'xsksap/getDataList'
+    */*)    [[ "$API" =~ ^[a-zA-Z]+/[a-zA-Z!._]+$ ]] || { echo "FAIL 接口路径不合法: $API(应为 'module/method')" >&2; exit 2; }
+            URL="$BASE/${API%%/*}!${API##*/}" ;;                 # 'xsksap/getDataList'
     *)      URL="$BASE/$API" ;;
 esac
 
