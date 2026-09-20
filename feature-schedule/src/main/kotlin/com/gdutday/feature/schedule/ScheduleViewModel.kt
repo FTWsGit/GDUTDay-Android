@@ -334,10 +334,14 @@ public class ScheduleViewModel(
             _classCascade.value = _classCascade.value.copy(majors = _classCascade.value.meta?.majors.orEmpty())
             return
         }
+        // 竞态防护：快速切换学院时，慢的旧响应可能晚于新请求发起，
+        // 把上一个学院的专业列表覆盖进来。只有"响应到达时学院仍是发起时的学院"才生效。
         viewModelScope.launch {
             try {
                 val majors = repository.fetchClassCascade(guid = GUID_MAJOR, collegeCode = college)
-                _classCascade.value = _classCascade.value.copy(majors = majors)
+                if (_classCascade.value.selectedCollege == college) {
+                    _classCascade.value = _classCascade.value.copy(majors = majors)
+                }
             } catch (_: GdutException) {
                 // 专业列表拉取失败不阻塞主流程：班级列表仍可按学院+年级过滤
             }
