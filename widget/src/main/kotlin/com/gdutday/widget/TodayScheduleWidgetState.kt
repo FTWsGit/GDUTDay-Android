@@ -79,7 +79,7 @@ public object TodayScheduleMapper {
     ): TodayScheduleWidgetState {
         if (ui == null) return TodayScheduleWidgetState.Loading
         val target = today.plusDays(dayOffset.toLong())
-        val dateLine = buildDateLine(ui, target)
+        val dateLine = buildDateLine(ui, target, today)
 
         // 有本地数据（换账号、断网）时即使 isLoggedIn=false 也照常显示，不要因为
         // 会话过期把用户已有的课表藏起来 —— 与 ScheduleUiState 的错误处理原则一致。
@@ -118,10 +118,13 @@ public object TodayScheduleMapper {
      * "9月10日 周三 · 第2周"。周次不在合法区间（放假/未开学）时省略周次。
      *
      * [date] 可以是明天：周次优先按学期历算该日期属于第几周，明天跨到下一周时
-     * 表头也要跟着变；没有学期历时回退到 `ui.todayWeek`。
+     * 表头也要跟着变；没有学期历时由 `ui.todayWeek` 推导 —— 明天仍是本周则不变，
+     * 跨到周一则 +1。直接沿用今天的周数才是误导。
      */
-    internal fun buildDateLine(ui: ScheduleUiState, date: LocalDate): String {
-        val week = ui.calendar?.weekOf(date) ?: ui.todayWeek
+    internal fun buildDateLine(ui: ScheduleUiState, date: LocalDate, today: LocalDate): String {
+        val week = ui.calendar?.weekOf(date)
+            ?: ui.todayWeek.takeIf { date == today }
+                ?: ui.todayWeek.takeIf { date > today }?.let { it + if (date.dayOfWeek.value == 1) 1 else 0 }
         val weekPart = if (week in 1..ui.totalWeeks) " · 第${week}周" else ""
         return "${date.monthValue}月${date.dayOfMonth}日 ${weekdayLabel(date.dayOfWeek.value)}$weekPart"
     }
