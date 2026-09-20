@@ -28,7 +28,6 @@ import okhttp3.OkHttpClient
 public class FreeRoomRepositoryImpl(
     private val sessionStore: SessionStore,
     private val okHttpClient: OkHttpClient,
-    private val reloginSilently: suspend () -> Unit = {},
 ) : FreeRoomRepository {
 
     /** 打通过程串行化：并发请求同时打通会产生两份互不知情的 cookie。 */
