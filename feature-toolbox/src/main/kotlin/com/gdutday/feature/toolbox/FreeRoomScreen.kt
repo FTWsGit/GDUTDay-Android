@@ -451,11 +451,13 @@ private fun UnassignedBorrowCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             rows.sortedBy { it.sectionCode }.forEach { row ->
+                val sections = FreeRoomLogic.sectionNumbers(row.sectionCode)
+                val reason = if (row.summary.isNotEmpty()) " · ${row.summary}" else ""
                 Text(
                     text = "第${FreeRoomLogic.sectionRangeLabel(
-                        FreeRoomLogic.sectionNumbers(row.sectionCode).firstOrNull() ?: 0,
-                        FreeRoomLogic.sectionNumbers(row.sectionCode).lastOrNull() ?: 0,
-                    )}节 · ${row.teacher}",
+                        sections.firstOrNull() ?: 0,
+                        sections.lastOrNull() ?: 0,
+                    )}节 · ${row.teacher}$reason",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -506,6 +508,9 @@ private fun SlotDetailSheet(
                 }
                 if (occ.teachingLink.isNotEmpty()) {
                     DetailRow(stringResource(R.string.toolbox_free_room_detail_link), occ.teachingLink)
+                }
+                if (occ.summary.isNotEmpty()) {
+                    DetailRow(stringResource(R.string.toolbox_free_room_detail_summary), occ.summary)
                 }
                 val attendees = occ.attendees
                 if (attendees != null) {

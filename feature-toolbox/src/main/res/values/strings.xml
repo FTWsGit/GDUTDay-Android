@@ -38,6 +38,7 @@
     <string name="toolbox_free_room_detail_teacher">教师</string>
     <string name="toolbox_free_room_detail_class">教学班</string>
     <string name="toolbox_free_room_detail_link">教学环节</string>
+    <string name="toolbox_free_room_detail_summary">事由</string>
     <string name="toolbox_free_room_detail_people">人数</string>
     <string name="toolbox_free_room_detail_week">周次</string>
     <string name="toolbox_free_room_detail_day">星期</string>
