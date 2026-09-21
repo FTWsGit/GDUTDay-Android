@@ -11,10 +11,10 @@ alwaysApply: false
 本文回答"项目为什么长成这样"。每条设计决策都写明**理由**与**被否决的替代方案**，
 因为替代方案往往才是后来者最想改回去的地方。
 
-相关文档：[协议逆向](../reference/spec/gdut-protocol.md) · [数据模型](../subsystems/data-model.md) ·
-[UI 规格](../subsystems/ui.md) · [插件规格](../subsystems/widget.md) ·
-[任务清单](../guides/agent-task-list.md) · [测试策略](../guides/testing-strategy.md) ·
-[登录验证](../guides/verify-login.md)
+相关文档：[协议逆向](../reference/spec/gdut-protocol.mdc) · [数据模型](../subsystems/data-model.mdc) ·
+[UI 规格](../subsystems/ui.mdc) · [插件规格](../subsystems/widget.mdc) ·
+[测试策略](../guides/testing-strategy.mdc) ·
+[登录验证](../guides/verify-login.mdc)
 
 ---
 
@@ -99,7 +99,7 @@ graph TD
 | 模块 | 职责 | 为什么单独成模块 |
 |---|---|---|
 | `core-model` | 纯领域模型：`Term` `Course` `Grade` `Exam` `Campus` `GdutException`。零第三方依赖。 | 所有模块共享的最小词汇表。把它做成零依赖，才能保证"业务概念"不会被任何框架污染。 |
-| `core-common` | 与 Android 无关的纯逻辑：作息表、学期历、节次切分、课表网格构建、配色。 | 与协议无关，但被 UI、Widget、Repository 三方共用。做成纯 JVM 才能穷举单测（见 [测试策略](../guides/testing-strategy.md)）。 |
+| `core-common` | 与 Android 无关的纯逻辑：作息表、学期历、节次切分、课表网格构建、配色。 | 与协议无关，但被 UI、Widget、Repository 三方共用。做成纯 JVM 才能穷举单测（见 [测试策略](../guides/testing-strategy.mdc)）。 |
 | `data-gdut` | **协议逆向层**：登录加密、表单构造、重定向跟随、HTML/JSON 解析、图书馆二维码。风险最高。 | 全部与 Android 无关；做成纯 JVM 后整个登录流程可以在 JVM 上用 MockWebServer 离线回归，不需要模拟器。学校改接口时只改这一个模块 + 补 fixture。 |
 | `core-network` | `OkHttpClient` 工厂 + 网络状态监听。极薄。 | 全 App 只能有一个根 `OkHttpClient`（连接池/线程池）。集中一处创建，供 Repository 与插件共享。 |
 | `core-database` | Room 数据库、实体、DAO、映射。 | 课表/成绩是关系型查询；Widget 需要只读快速取当天课程。 |
@@ -172,7 +172,7 @@ graph TD
 
 代价与对策：
 - 协议解析、加密、HTML 解析全部搬到端上 → 集中在 `data-gdut`，做成纯 JVM 可测（见下节）。
-- 没有服务端兜底 → 用 Room 做离线缓存，同步失败**不清空已有数据**（见 [数据模型](../subsystems/data-model.md)）。
+- 没有服务端兜底 → 用 Room 做离线缓存，同步失败**不清空已有数据**（见 [数据模型](../subsystems/data-model.mdc)）。
 
 ---
 
@@ -280,7 +280,7 @@ override fun onCreate() {
 派生实例共享连接池与线程池，因此廉价，**不需要也不应该手动关闭**。
 
 `ScheduleUiState` 的所有派生字段（`grid` / `todayBlocks` / `colorAssignment` / `calendar`）
-在 Repository 里算好，ViewModel 一行计算都不做。理由见 [UI 规格](../subsystems/ui.md)：
+在 Repository 里算好，ViewModel 一行计算都不做。理由见 [UI 规格](../subsystems/ui.mdc)：
 放进 ViewModel 会让 Widget 需要复制逻辑，还会拖慢旋转屏幕后的重建。
 
 ---
@@ -341,7 +341,7 @@ release {
 ⚠ `widget` 模块通过 `data-repository` 里的 `AppContainerHolder` 静态 holder 取 `AppContainer`，
 `GdutDayApplication.onCreate` 调用 `install()`，widget 直接读 `get()`。零反射，R8 安全。
 因此即使类名和方法名被重命名，类型身份依然一致，理论上不需要 keep 规则 ——
-但这一条**从未在 release 包上验证过**，见 [任务清单](../guides/agent-task-list.md)。
+但这一条**从未在 release 包上验证过**（[测试策略 · 缺什么](../guides/testing-strategy.mdc)）。
 
 ### versionCode / versionName
 
@@ -364,7 +364,7 @@ defaultConfig {
 `core-database` 用 `room.schemaLocation = $projectDir/schemas` 导出 schema JSON。
 **schema JSON 必须提交进仓库**，它是写 `MigrationTest` 的唯一依据。
 发布前必须把 `fallbackToDestructiveMigration` 从 release 移除，详见
-[数据模型 · 迁移策略](../subsystems/data-model.md)。
+[数据模型 · 迁移策略](../subsystems/data-model.mdc)。
 
 ### 其他发布前检查
 

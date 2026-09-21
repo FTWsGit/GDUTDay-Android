@@ -11,8 +11,8 @@ alwaysApply: false
 覆盖五个页面（课表 / 登录 / 考试与成绩 / 设置 / 工具箱）、课表网格渲染方案、并排冲突布局、
 自动字色，以及各种边界情况。
 
-相关文档：[架构](../architecture/architecture.md) · [数据模型](./data-model.md) ·
-[插件规格](./widget.md)
+相关文档：[架构](../architecture/architecture.mdc) · [数据模型](./data-model.mdc) ·
+[插件规格](./widget.mdc)
 
 ---
 
@@ -21,7 +21,7 @@ alwaysApply: false
 - **单 Activity + Compose Navigation**（`MainActivity` + `GdutDayNavHost`）。
   多 Activity 每次切换要走完整生命周期 + 窗口创建（约 100～300ms）；
   单 Activity 内 Compose 导航只是重组（几毫秒），且只需维护一个窗口的主题/insets。
-- **起始路由是课表，不是登录页**（理由见 [架构 · 冷启动](../architecture/architecture.md)）。
+- **起始路由是课表，不是登录页**（理由见 [架构 · 冷启动](../architecture/architecture.mdc)）。
 - 底部导航放**四个顶层 Tab**：**课表 / 考试 / 工具箱 / 设置**（见 `GdutDayNavHost` 的
   `TopLevelDestination`）。设置项已成体系（六个分组），作为常驻 Tab 比藏在"下钻"页更易发现。
 - 底部导航只在四个顶层目的地显示；登录页是"下钻"页面，
@@ -278,7 +278,7 @@ fun autoTextColor(argb: Int): Int = if (isLightBackground(argb)) BLACK else WHIT
 NOT_UNDERGRADUATE / VALID`。`canSubmit` 要求 `VALID`，直登路径还要求验证码与 token 都就绪。
 
 这样做的理由：把注定失败的请求打给学校服务器，每一次**都在累积风控计数**
-（见 [协议 · 滑块](../reference/spec/gdut-protocol.md)）。所以这些规则值得抽出来单独用 JVM 测试钉死。
+（见 [协议 · 滑块](../reference/spec/gdut-protocol.mdc)）。所以这些规则值得抽出来单独用 JVM 测试钉死。
 
 ### 5.3 滑块降级流程
 
@@ -446,12 +446,12 @@ content URI 调用 `takePersistableUriPermission` 持久化授权（部分机型
    每格一个大图标（22dp，等宽均分一行）：空闲=半透明圆、上课=红圆、借用=菱形
    （形状+颜色双编码，色弱可辨）；点格弹详情。占用节次与列区间有交集即命中该列
    （跨列占用出现在多列）；`jcdm` 按两位一组解析（`0307` = 第 3、7 节，
-   见 [gdut-protocol](../reference/spec/gdut-protocol.md) §4.8）；
+   见 [gdut-protocol](../reference/spec/gdut-protocol.mdc) §4.8）；
 3. **详情 BottomSheet**（`SlotDetailSheet`）：全部中文标签（`人数: 90` 而非 `studentCount: 90`），
    字段按有无动态展示。
 
 数据映射：`FreeRoomLogic.expandSlots` 把两位拼接节次展开成 1..12 节状态数组再合并相邻同状态段，
-占用行覆盖之外 = 空闲；`sytype` 语义见 [gdut-protocol](../reference/spec/gdut-protocol.md) §4.8。
+占用行覆盖之外 = 空闲；`sytype` 语义见 [gdut-protocol](../reference/spec/gdut-protocol.mdc) §4.8。
 学校接口不标注借用发生在哪间教室（`jxcdmc` 为 null 的行），归入 `unassigned` 单独展示成卡片。
 日期默认今天，顶栏"回到今天"按钮可归位。会话打通仍由 `FreeRoomRepositoryImpl` 收口。
 

@@ -8,8 +8,8 @@ alwaysApply: false
 
 # 测试策略
 
-相关文档：[架构](../architecture/architecture.md) · [协议](../reference/spec/gdut-protocol.md) ·
-[登录验证](./verify-login.md)
+相关文档：[架构](../architecture/architecture.mdc) · [协议](../reference/spec/gdut-protocol.mdc) ·
+[登录验证](./verify-login.mdc)
 
 ---
 
@@ -89,8 +89,8 @@ JS 右值扫描器，都是为了应对这些真实结构。
 
 jxfw 的 `jxfw_*.json` / `jxfw_*.html` 是照逆向字段**手工合成**的。
 它们能验证解析器的逻辑正确性，但**不能证明字段名在学校那边真的存在**。
-`fixtures/README.md` 里明确写了这点：用 [登录验证工具](./verify-login.md) 跑一次真实账号，
-把 dump 出来的响应替换掉合成 fixture，才算真正闭环（开放项见 `temp/agent-task-list-open.md`）。
+`fixtures/README.md` 里明确写了这点：用 [登录验证工具](./verify-login.mdc) 跑一次真实账号，
+把 dump 出来的响应替换掉合成 fixture，才算真正闭环。
 
 ---
 
@@ -181,7 +181,7 @@ private inner class Script(
 
 ## 6. 缺什么
 
-以下**没有被任何测试覆盖**（开放项清单见 `temp/agent-task-list-open.md`）：
+以下**没有被任何测试覆盖**：
 
 | 缺失 | 风险 |
 |---|---|
@@ -202,7 +202,7 @@ DAO SQL 在真实 SQLite 上跑）、KeyStore 不可用容错（`core-datastore`
 
 1. **定位症状**：同步失败的 `GdutException.Parse` 会带上原始响应片段（截前 500 字符）。
    用户可在"设置 → 诊断信息"复制出来。
-2. **跑验证脚本**：[`gradle :data-gdut:verifyLogin`](./verify-login.md)
+2. **跑验证脚本**：[`gradle :data-gdut:verifyLogin`](./verify-login.mdc)
    用真实账号逐步打印登录页、跳转链、课表/考试/成绩条数，定位在哪一步断。
 3. **抓真实响应**：把断点那一步的响应原文存成 `fixtures/<name>.real.*`。
 4. **改解析器**：`data-gdut` 的解析器只依赖 fixture，改完立刻能离线测。

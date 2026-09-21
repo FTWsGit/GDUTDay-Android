@@ -13,8 +13,8 @@ alwaysApply: false
 >
 > 配套脚本:`scripts/gdut-login.sh`(登录取会话)、`scripts/gdut-post.sh`(带会话探测接口)。
 >
-> 相关文档:[协议全集](../reference/spec/gdut-protocol.md) · [登录验证工具](./verify-login.md) ·
-> [测试策略](./testing-strategy.md)
+> 相关文档:[协议全集](../reference/spec/gdut-protocol.mdc) · [登录验证工具](./verify-login.mdc) ·
+> [测试策略](./testing-strategy.mdc)
 
 ---
 
@@ -26,7 +26,7 @@ alwaysApply: false
 1. **正向观察** —— 让浏览器替你发一次请求,在 DevTools 里看它发了什么、收到了什么;
 2. **逆向理解** —— 读页面 JS 源码,搞清浏览器在发请求前后对数据做了什么加工(加密、拼参数)。
 
-逆向产出的每一个结论都要标记可信度,与 [gdut-protocol 第 6 节](../reference/spec/gdut-protocol.md)
+逆向产出的每一个结论都要标记可信度,与 [gdut-protocol 第 6 节](../reference/spec/gdut-protocol.mdc)
 保持同一套三态标记:
 
 | 标记 | 含义 |
@@ -53,7 +53,7 @@ alwaysApply: false
 | 成绩 | `/xskccjxx!getDataList.action` | POST | 实测:35 条,劳动教育 bug 已处理 |
 | 会话探针 | `/` | GET | 实测:未登录 302 回 authserver |
 
-字段级对照表见 [gdut-protocol 第 4 节](../reference/spec/gdut-protocol.md),不在这里重复。
+字段级对照表见 [gdut-protocol 第 4 节](../reference/spec/gdut-protocol.mdc),不在这里重复。
 
 ### 1.2 登录体系(authserver.gdut.edu.cn)
 
@@ -66,7 +66,7 @@ alwaysApply: false
 
 以下接口**不在旧后端实现范围里**,文档没有记录,需要在浏览器里逐个探:
 
-- ~~空教室查询~~ —— 已实现（jwcwx,2026-09-17 探明并接入,见 [gdut-protocol](../reference/spec/gdut-protocol.md) §4.8）
+- ~~空教室查询~~ —— 已实现（jwcwx,2026-09-17 探明并接入,见 [gdut-protocol](../reference/spec/gdut-protocol.mdc) §4.8）
 - 等级考试报名(四六级 / 计算机)
 - 教学评价(评教)
 - 培养方案 / 选课
@@ -154,7 +154,7 @@ curl -b cookies.txt \
 
 返回 EasyUI DataGrid:`{"total":5,"rows":[...21 个字段...]}`。
 
-容易踩的坑(全部是 [gdut-protocol 常见陷阱](../reference/spec/gdut-protocol.md) 的实测复现):
+容易踩的坑(全部是 [gdut-protocol 常见陷阱](../reference/spec/gdut-protocol.mdc) 的实测复现):
 
 - 表单体编码:Base64 密文的 `+` 不编码会变空格 → "密码错误";
 - `execution` 是一次性、会话绑定的:每次登录重新抓登录页,不能复用上次的;

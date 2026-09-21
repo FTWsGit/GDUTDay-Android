@@ -13,10 +13,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *
  * ## 版本与迁移策略
  *
- * [VERSION] = 1，**尚未发布**，所以 debug 构建直接用 `fallbackToDestructiveMigration`
+ * [VERSION] = 2，**尚未发布**，所以 debug 构建直接用 `fallbackToDestructiveMigration`
  * （改 schema 就重建，开发期最省事）。
  *
- * ⚠ **正式发布前必须做的事**（见 `docs/02-data-model.md` 的迁移章节）：
+ * ⚠ **正式发布前必须做的事**（详见 docs/subsystems/data-model.mdc 的迁移章节）：
  * 1. 把 debug 的 destructive 回退去掉，改成 release 只允许显式 [Migration]
  * 2. 每次改 schema 都 `VERSION++` 并写一个 Migration
  * 3. `schemas/` 目录下的 JSON **必须提交进仓库** —— 它是写 MigrationTest 的唯一依据，
