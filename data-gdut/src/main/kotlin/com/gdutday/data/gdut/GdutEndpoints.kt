@@ -299,6 +299,15 @@ public object GdutEndpoints {
     public const val JWCWX_FREE_ROOM_USED_DATA: String =
         "$JWCWX_BASE/free-class-room/classroomUsedData"
 
+    /**
+     * 教室名册页（服务端渲染 HTML）。GET `/free-class-room/classroom/<jzwdm>?jwCode=`。
+     * 页面表格列出该楼**全部教室**，单元格 class `qk-<jxcddm>-<jcdm>` 提供
+     * jxcddm→jxcdmc 全量映射（实测 2026-09-21），用于回填借用行缺失的教室名。
+     * 页面上的占用状态是"当天"的快照，仅取名册，不取状态。
+     */
+    public const val JWCWX_FREE_ROOM_ROSTER: String =
+        "$JWCWX_BASE/free-class-room/classroom"
+
     // ------------------------------------------------------------------ 研究生（未实现，仅记录）
 
     /**

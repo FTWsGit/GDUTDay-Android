@@ -143,6 +143,13 @@ public data class GdutHosts(
     /** 教室占用查询：GET `jzwdm=<楼>&rq=<yyyy-MM-dd>`，返回该楼当天所有占用行。 */
     public val jwcwxFreeRoomUsedData: String get() = "$jwcwxBase/free-class-room/classroomUsedData"
 
+    /**
+     * 教室名册页（服务端渲染 HTML）：GET `/classroom/<jzwdm>`。
+     * 页面表格含**该楼全部教室**行，`qk-<jxcddm>-…` class 提供 jxcddm→jxcdmc 映射
+     * （实测 2026-09-21），用于回填借用行缺失的教室名。
+     */
+    public val jwcwxFreeRoomRoster: String get() = "$jwcwxBase/free-class-room/classroom"
+
     public companion object {
         /** 生产默认地址（与 `data-gdut` 的 `GdutEndpoints` 交叉校验，勿单边修改）。 */
         public const val DEFAULT_AUTHSERVER_BASE: String = "https://authserver.gdut.edu.cn"

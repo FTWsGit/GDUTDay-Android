@@ -37,11 +37,13 @@ class FreeClassroomClientTest {
     private companion object {
         const val BUILDINGS_PATH = "/free-class-room/buildingData"
         const val USED_DATA_PATH = "/free-class-room/classroomUsedData"
+        const val ROSTER_PATH = "/free-class-room/classroom"
     }
 
     private inner class Script(
         var buildings: () -> MockResponse = { ok(buildingsBody()) },
         var usedData: () -> MockResponse = { ok(usedDataBody()) },
+        var roster: () -> MockResponse = { ok(rosterBody()) },
     )
 
     @Before
@@ -58,6 +60,7 @@ class FreeClassroomClientTest {
                 return when {
                     path.startsWith(BUILDINGS_PATH) -> script.buildings()
                     path.startsWith(USED_DATA_PATH) -> script.usedData()
+                    path.startsWith(ROSTER_PATH) -> script.roster()
                     else -> MockResponse().setResponseCode(404).setBody("unexpected: ${request.method} $path")
                 }
             }
@@ -109,11 +112,21 @@ class FreeClassroomClientTest {
             """"xnxqdm":"202601","xq":"4","zc":"3","zxs":24}"""
 
     /** 借用行（实测 2026-09-17：sytype=2 无课程名/教学班/教室名，只有教师与节次）。 */
-    private fun borrowedRow(): String =
+    private fun borrowedRow(jxcddm: String? = null): String =
         """{"dm":"3403655","flfzmc":null,"jcdm":"09101112","jcdm2":"09,10,11,12","jxbmc":null,""" +
-            """"jxcddm":null,"jxcdmc":null,"jxhjmc":null,"kcmc":null,""" +
+            """"jxcddm":${jxcddm?.let { "\"$it\"" } ?: "null"},"jxcdmc":null,"jxhjmc":null,"kcmc":null,""" +
             """"kxh":0,"pkrs":null,"rs":null,"shztdm":"3","sknrjj":null,"sytype":"2","teaxms":"某老师",""" +
             """"xnxqdm":"202601","xq":"4","zc":"3","zxs":40}"""
+
+    /**
+     * 名册页（真实结构，抓取 2026-09-21，`fixtures/jwcwx_classroom_page.real.html` 脱敏节选）：
+     * `<th class="js">` 教室名 + 单元格 class `qk-<jxcddm>-<jcdm>`，含当天无课的教室。
+     */
+    private fun rosterBody(): String =
+        """<table id="js-table"><tr><th class="js">教室</th><th>0102</th></tr>""" +
+            """<tr><th class="js">教3-101</th><td class="qk-011030101-0102 qk-011030101-01"><i class="fa fa-check kx"></i></td></tr>""" +
+            """<tr><th class="js">教3-209</th><td class="qk-011030209-0102 qk-011030209-01"><i class="fa fa-check kx"></i></td></tr>""" +
+            """</table>"""
 
     // ================================================================== 教学楼列表
 
@@ -171,12 +184,12 @@ class FreeClassroomClientTest {
     }
 
     @Test
-    fun `借用行解析为 BORROWED 且缺失字段容错`() {
+    fun `借用行无教室代码且名册映射不到时归入unassigned`() {
         script.usedData = { ok(usedDataBody(borrowedRow())) }
 
         val result = newClient().fetchRoomUsage("0005", "2026-09-17")
 
-        // 借用行无教室名，归入 unassigned 而不是丢弃
+        // 借用行无教室名无代码，归入 unassigned 而不是丢弃
         val row = result.unassigned.single()
         assertThat(result.rows).isEmpty()
         assertThat(row.usageType).isEqualTo(UsageType.BORROWED)
@@ -184,6 +197,56 @@ class FreeClassroomClientTest {
         assertThat(row.teachingClass).isEmpty()
         assertThat(row.teacher).isEqualTo("某老师")
         assertThat(row.sectionCode).isEqualTo("09101112")
+    }
+
+    @Test
+    fun `借用行教室代码能从名册页回填教室名`() {
+        // 实测 2026-09-21：教3-209 当天完全没有课，只有借用行（jxcdmc=null, jxcddm=011030209）；
+        // 同楼占用行没有这间教室，靠名册页（列出该楼全部教室）回填教室名
+        script.usedData = { ok(usedDataBody(borrowedRow("011030209"))) }
+
+        val result = newClient().fetchRoomUsage("0005", "2026-09-21")
+
+        assertThat(result.unassigned).isEmpty()
+        val row = result.rows.single()
+        assertThat(row.room).isEqualTo("教3-209")
+        assertThat(row.roomCode).isEqualTo("011030209")
+        assertThat(row.usageType).isEqualTo(UsageType.BORROWED)
+        // 名册请求带楼代码
+        assertThat(recorded.last().path).isEqualTo("$ROSTER_PATH/0005?jwCode=")
+    }
+
+    @Test
+    fun `占用行已覆盖教室代码时不再请求名册页`() {
+        // defaultRow 的上课行 jxcddm=011030109；借用行同代码，应直接用占用行映射
+        script.usedData = { ok(usedDataBody(defaultRow(), borrowedRow("011030109"))) }
+
+        val result = newClient().fetchRoomUsage("0005", "2026-09-17")
+
+        assertThat(result.unassigned).isEmpty()
+        assertThat(result.rows.last().room).isEqualTo("教3-101")
+        assertThat(recorded.none { it.path!!.contains("$ROSTER_PATH/") }).isTrue()
+    }
+
+    @Test
+    fun `名册页请求失败不影响占用数据只失去借用归属`() {
+        script.usedData = { ok(usedDataBody(borrowedRow("011030209"))) }
+        script.roster = { MockResponse().setResponseCode(500) }
+
+        val result = newClient().fetchRoomUsage("0005", "2026-09-21")
+
+        assertThat(result.rows).isEmpty()
+        assertThat(result.unassigned).hasSize(1)
+    }
+
+    @Test
+    fun `名册页结构变化时解析为空映射不抛异常`() {
+        script.usedData = { ok(usedDataBody(borrowedRow("011030209"))) }
+        script.roster = { ok("<div>页面改版了</div>") }
+
+        val result = newClient().fetchRoomUsage("0005", "2026-09-21")
+
+        assertThat(result.unassigned).hasSize(1)
     }
 
     @Test

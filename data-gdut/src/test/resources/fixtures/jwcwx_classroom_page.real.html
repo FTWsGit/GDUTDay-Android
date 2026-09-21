@@ -1,0 +1,1149 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="ctxPath" content="">
+    <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <title>广东工业大学</title>
+
+    <!-- CSS file -->
+    
+    <link rel="stylesheet" href="/static/cdn/css/weui.min.css?v=1">
+
+    <link rel="stylesheet" href="/static/cdn/css/jquery-weui.min.css">
+    <link rel="stylesheet" href="/static/cdn/css/font-awesome.min.css">
+
+    <link rel="stylesheet" href="/static/raty/jquery.raty.css">
+    <link rel="stylesheet" href="/static/css/common.css?v=20220823">
+    <link rel="stylesheet" href="/static/comment/comment.css?v=1.6">
+<style>
+
+    table {
+        width: 100%;
+        text-align: center;
+        /*border: 0;*/
+        border-collapse: collapse;
+        border-top: 1px solid #ccc;
+    }
+
+    th {
+        font-weight: 300;
+        background-color: #d6d5d5;
+        border-color: #d9d9d9;
+        font-size: 0.8em;
+    }
+
+    th.js {
+        width: 20%;
+        border-right: 1px solid #ddd;
+        font-weight: 300;
+        font-size: .8em;
+        padding: 6px 2px;
+    }
+
+    tr {
+        border-bottom: 3px solid #ccc;
+        min-height: 32px;
+    }
+
+    td {
+        position: relative;
+    }
+
+    .kx {
+        color: #3aad3a;
+    }
+
+    .zy {
+        color: blue;
+        border: 1px solid red;
+        border-radius: 50%;
+        padding: 1px;
+        font-style: normal;
+    }
+
+    .zy-warn{
+        color: red;
+    }
+
+    .zyyy {
+        text-align: left;
+    }
+
+    .zyyy span {
+        width: 72px;
+        display: inline-block;
+    }
+
+</style>
+
+</head>
+<body>
+
+<header class='header'>
+    <h3 class="title">教学三号楼使用情况</h3>
+    <p class="sub-title">
+        <i class="fa fa-check kx"></i>:空闲
+        <!--<i class="fa fa-remove zy"></i>:占用-->
+    </p>
+</header>
+<div class="weui-cells weui-cells_form">
+      <div class="weui-cell">
+        <div class="weui-cell__hd"><label for="date" class="weui-label">日期</label></div>
+        <div class="weui-cell__bd">
+          <input class="weui-input" id="rq" type="text" value="2026-09-21">
+        </div>
+      </div>
+</div>
+<table id="js-table">
+    <tr>
+        <th class="js">教室</th>
+        <th style="width: 13%">0102</th>
+
+        <th style="width: 13%">0304</th>
+
+        <th style="width: 13%">05</th>
+
+        <th style="width: 13%">0607</th>
+
+        <th style="width: 13%">0809</th>
+
+        <th style="width: 13%">101112</th>
+
+    </tr>
+    <tr>
+        <th class="js">教3-101</th>
+        <td data-rnrs="223" 
+        class="qk-011030101-0102 qk-011030101-01 qk-011030101-02 qk-011030101-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030101-0304 qk-011030101-03 qk-011030101-04 qk-011030101-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030101-05 qk-011030101-05 qk-011030101- qk-011030101-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030101-0607 qk-011030101-06 qk-011030101-07 qk-011030101-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030101-0809 qk-011030101-08 qk-011030101-09 qk-011030101-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030101-101112 qk-011030101-10 qk-011030101-11 qk-011030101-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-102</th>
+        <td data-rnrs="223" 
+        class="qk-011030102-0102 qk-011030102-01 qk-011030102-02 qk-011030102-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030102-0304 qk-011030102-03 qk-011030102-04 qk-011030102-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030102-05 qk-011030102-05 qk-011030102- qk-011030102-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030102-0607 qk-011030102-06 qk-011030102-07 qk-011030102-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030102-0809 qk-011030102-08 qk-011030102-09 qk-011030102-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030102-101112 qk-011030102-10 qk-011030102-11 qk-011030102-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-103</th>
+        <td data-rnrs="223" 
+        class="qk-011030103-0102 qk-011030103-01 qk-011030103-02 qk-011030103-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030103-0304 qk-011030103-03 qk-011030103-04 qk-011030103-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030103-05 qk-011030103-05 qk-011030103- qk-011030103-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030103-0607 qk-011030103-06 qk-011030103-07 qk-011030103-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030103-0809 qk-011030103-08 qk-011030103-09 qk-011030103-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030103-101112 qk-011030103-10 qk-011030103-11 qk-011030103-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-104</th>
+        <td data-rnrs="223" 
+        class="qk-011030104-0102 qk-011030104-01 qk-011030104-02 qk-011030104-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030104-0304 qk-011030104-03 qk-011030104-04 qk-011030104-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030104-05 qk-011030104-05 qk-011030104- qk-011030104-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030104-0607 qk-011030104-06 qk-011030104-07 qk-011030104-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030104-0809 qk-011030104-08 qk-011030104-09 qk-011030104-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030104-101112 qk-011030104-10 qk-011030104-11 qk-011030104-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-105</th>
+        <td data-rnrs="223" 
+        class="qk-011030105-0102 qk-011030105-01 qk-011030105-02 qk-011030105-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030105-0304 qk-011030105-03 qk-011030105-04 qk-011030105-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030105-05 qk-011030105-05 qk-011030105- qk-011030105-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030105-0607 qk-011030105-06 qk-011030105-07 qk-011030105-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030105-0809 qk-011030105-08 qk-011030105-09 qk-011030105-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030105-101112 qk-011030105-10 qk-011030105-11 qk-011030105-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-106</th>
+        <td data-rnrs="223" 
+        class="qk-011030106-0102 qk-011030106-01 qk-011030106-02 qk-011030106-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030106-0304 qk-011030106-03 qk-011030106-04 qk-011030106-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030106-05 qk-011030106-05 qk-011030106- qk-011030106-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030106-0607 qk-011030106-06 qk-011030106-07 qk-011030106-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030106-0809 qk-011030106-08 qk-011030106-09 qk-011030106-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030106-101112 qk-011030106-10 qk-011030106-11 qk-011030106-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-107</th>
+        <td data-rnrs="223" 
+        class="qk-011030107-0102 qk-011030107-01 qk-011030107-02 qk-011030107-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030107-0304 qk-011030107-03 qk-011030107-04 qk-011030107-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030107-05 qk-011030107-05 qk-011030107- qk-011030107-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030107-0607 qk-011030107-06 qk-011030107-07 qk-011030107-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030107-0809 qk-011030107-08 qk-011030107-09 qk-011030107-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030107-101112 qk-011030107-10 qk-011030107-11 qk-011030107-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-109</th>
+        <td data-rnrs="223" 
+        class="qk-011030109-0102 qk-011030109-01 qk-011030109-02 qk-011030109-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030109-0304 qk-011030109-03 qk-011030109-04 qk-011030109-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030109-05 qk-011030109-05 qk-011030109- qk-011030109-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030109-0607 qk-011030109-06 qk-011030109-07 qk-011030109-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030109-0809 qk-011030109-08 qk-011030109-09 qk-011030109-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030109-101112 qk-011030109-10 qk-011030109-11 qk-011030109-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-110</th>
+        <td data-rnrs="223" 
+        class="qk-011030110-0102 qk-011030110-01 qk-011030110-02 qk-011030110-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030110-0304 qk-011030110-03 qk-011030110-04 qk-011030110-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030110-05 qk-011030110-05 qk-011030110- qk-011030110-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030110-0607 qk-011030110-06 qk-011030110-07 qk-011030110-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030110-0809 qk-011030110-08 qk-011030110-09 qk-011030110-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030110-101112 qk-011030110-10 qk-011030110-11 qk-011030110-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-112</th>
+        <td data-rnrs="223" 
+        class="qk-011030112-0102 qk-011030112-01 qk-011030112-02 qk-011030112-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030112-0304 qk-011030112-03 qk-011030112-04 qk-011030112-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030112-05 qk-011030112-05 qk-011030112- qk-011030112-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030112-0607 qk-011030112-06 qk-011030112-07 qk-011030112-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030112-0809 qk-011030112-08 qk-011030112-09 qk-011030112-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030112-101112 qk-011030112-10 qk-011030112-11 qk-011030112-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-201</th>
+        <td data-rnrs="223" 
+        class="qk-011030201-0102 qk-011030201-01 qk-011030201-02 qk-011030201-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030201-0304 qk-011030201-03 qk-011030201-04 qk-011030201-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030201-05 qk-011030201-05 qk-011030201- qk-011030201-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030201-0607 qk-011030201-06 qk-011030201-07 qk-011030201-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030201-0809 qk-011030201-08 qk-011030201-09 qk-011030201-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030201-101112 qk-011030201-10 qk-011030201-11 qk-011030201-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-202</th>
+        <td data-rnrs="223" 
+        class="qk-011030202-0102 qk-011030202-01 qk-011030202-02 qk-011030202-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030202-0304 qk-011030202-03 qk-011030202-04 qk-011030202-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030202-05 qk-011030202-05 qk-011030202- qk-011030202-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030202-0607 qk-011030202-06 qk-011030202-07 qk-011030202-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030202-0809 qk-011030202-08 qk-011030202-09 qk-011030202-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030202-101112 qk-011030202-10 qk-011030202-11 qk-011030202-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-203</th>
+        <td data-rnrs="223" 
+        class="qk-011030203-0102 qk-011030203-01 qk-011030203-02 qk-011030203-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030203-0304 qk-011030203-03 qk-011030203-04 qk-011030203-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030203-05 qk-011030203-05 qk-011030203- qk-011030203-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030203-0607 qk-011030203-06 qk-011030203-07 qk-011030203-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030203-0809 qk-011030203-08 qk-011030203-09 qk-011030203-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030203-101112 qk-011030203-10 qk-011030203-11 qk-011030203-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-204</th>
+        <td data-rnrs="223" 
+        class="qk-011030204-0102 qk-011030204-01 qk-011030204-02 qk-011030204-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030204-0304 qk-011030204-03 qk-011030204-04 qk-011030204-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030204-05 qk-011030204-05 qk-011030204- qk-011030204-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030204-0607 qk-011030204-06 qk-011030204-07 qk-011030204-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030204-0809 qk-011030204-08 qk-011030204-09 qk-011030204-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030204-101112 qk-011030204-10 qk-011030204-11 qk-011030204-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-205</th>
+        <td data-rnrs="223" 
+        class="qk-011030205-0102 qk-011030205-01 qk-011030205-02 qk-011030205-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030205-0304 qk-011030205-03 qk-011030205-04 qk-011030205-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030205-05 qk-011030205-05 qk-011030205- qk-011030205-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030205-0607 qk-011030205-06 qk-011030205-07 qk-011030205-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030205-0809 qk-011030205-08 qk-011030205-09 qk-011030205-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030205-101112 qk-011030205-10 qk-011030205-11 qk-011030205-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-206</th>
+        <td data-rnrs="223" 
+        class="qk-011030206-0102 qk-011030206-01 qk-011030206-02 qk-011030206-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030206-0304 qk-011030206-03 qk-011030206-04 qk-011030206-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030206-05 qk-011030206-05 qk-011030206- qk-011030206-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030206-0607 qk-011030206-06 qk-011030206-07 qk-011030206-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030206-0809 qk-011030206-08 qk-011030206-09 qk-011030206-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030206-101112 qk-011030206-10 qk-011030206-11 qk-011030206-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-207</th>
+        <td data-rnrs="223" 
+        class="qk-011030207-0102 qk-011030207-01 qk-011030207-02 qk-011030207-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030207-0304 qk-011030207-03 qk-011030207-04 qk-011030207-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030207-05 qk-011030207-05 qk-011030207- qk-011030207-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030207-0607 qk-011030207-06 qk-011030207-07 qk-011030207-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030207-0809 qk-011030207-08 qk-011030207-09 qk-011030207-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030207-101112 qk-011030207-10 qk-011030207-11 qk-011030207-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-209</th>
+        <td data-rnrs="223" 
+        class="qk-011030209-0102 qk-011030209-01 qk-011030209-02 qk-011030209-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030209-0304 qk-011030209-03 qk-011030209-04 qk-011030209-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030209-05 qk-011030209-05 qk-011030209- qk-011030209-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030209-0607 qk-011030209-06 qk-011030209-07 qk-011030209-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030209-0809 qk-011030209-08 qk-011030209-09 qk-011030209-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030209-101112 qk-011030209-10 qk-011030209-11 qk-011030209-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-210</th>
+        <td data-rnrs="223" 
+        class="qk-011030210-0102 qk-011030210-01 qk-011030210-02 qk-011030210-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030210-0304 qk-011030210-03 qk-011030210-04 qk-011030210-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030210-05 qk-011030210-05 qk-011030210- qk-011030210-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030210-0607 qk-011030210-06 qk-011030210-07 qk-011030210-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030210-0809 qk-011030210-08 qk-011030210-09 qk-011030210-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030210-101112 qk-011030210-10 qk-011030210-11 qk-011030210-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-212</th>
+        <td data-rnrs="223" 
+        class="qk-011030212-0102 qk-011030212-01 qk-011030212-02 qk-011030212-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030212-0304 qk-011030212-03 qk-011030212-04 qk-011030212-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030212-05 qk-011030212-05 qk-011030212- qk-011030212-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030212-0607 qk-011030212-06 qk-011030212-07 qk-011030212-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030212-0809 qk-011030212-08 qk-011030212-09 qk-011030212-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030212-101112 qk-011030212-10 qk-011030212-11 qk-011030212-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-301</th>
+        <td data-rnrs="223" 
+        class="qk-011030301-0102 qk-011030301-01 qk-011030301-02 qk-011030301-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030301-0304 qk-011030301-03 qk-011030301-04 qk-011030301-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030301-05 qk-011030301-05 qk-011030301- qk-011030301-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030301-0607 qk-011030301-06 qk-011030301-07 qk-011030301-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030301-0809 qk-011030301-08 qk-011030301-09 qk-011030301-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030301-101112 qk-011030301-10 qk-011030301-11 qk-011030301-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-302</th>
+        <td data-rnrs="223" 
+        class="qk-011030302-0102 qk-011030302-01 qk-011030302-02 qk-011030302-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030302-0304 qk-011030302-03 qk-011030302-04 qk-011030302-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030302-05 qk-011030302-05 qk-011030302- qk-011030302-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030302-0607 qk-011030302-06 qk-011030302-07 qk-011030302-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030302-0809 qk-011030302-08 qk-011030302-09 qk-011030302-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030302-101112 qk-011030302-10 qk-011030302-11 qk-011030302-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-303</th>
+        <td data-rnrs="223" 
+        class="qk-011030303-0102 qk-011030303-01 qk-011030303-02 qk-011030303-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030303-0304 qk-011030303-03 qk-011030303-04 qk-011030303-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030303-05 qk-011030303-05 qk-011030303- qk-011030303-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030303-0607 qk-011030303-06 qk-011030303-07 qk-011030303-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030303-0809 qk-011030303-08 qk-011030303-09 qk-011030303-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030303-101112 qk-011030303-10 qk-011030303-11 qk-011030303-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-304</th>
+        <td data-rnrs="223" 
+        class="qk-011030304-0102 qk-011030304-01 qk-011030304-02 qk-011030304-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030304-0304 qk-011030304-03 qk-011030304-04 qk-011030304-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030304-05 qk-011030304-05 qk-011030304- qk-011030304-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030304-0607 qk-011030304-06 qk-011030304-07 qk-011030304-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030304-0809 qk-011030304-08 qk-011030304-09 qk-011030304-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030304-101112 qk-011030304-10 qk-011030304-11 qk-011030304-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-305</th>
+        <td data-rnrs="223" 
+        class="qk-011030305-0102 qk-011030305-01 qk-011030305-02 qk-011030305-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030305-0304 qk-011030305-03 qk-011030305-04 qk-011030305-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030305-05 qk-011030305-05 qk-011030305- qk-011030305-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030305-0607 qk-011030305-06 qk-011030305-07 qk-011030305-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030305-0809 qk-011030305-08 qk-011030305-09 qk-011030305-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030305-101112 qk-011030305-10 qk-011030305-11 qk-011030305-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-306</th>
+        <td data-rnrs="223" 
+        class="qk-011030306-0102 qk-011030306-01 qk-011030306-02 qk-011030306-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030306-0304 qk-011030306-03 qk-011030306-04 qk-011030306-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030306-05 qk-011030306-05 qk-011030306- qk-011030306-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030306-0607 qk-011030306-06 qk-011030306-07 qk-011030306-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030306-0809 qk-011030306-08 qk-011030306-09 qk-011030306-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030306-101112 qk-011030306-10 qk-011030306-11 qk-011030306-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-307</th>
+        <td data-rnrs="223" 
+        class="qk-011030307-0102 qk-011030307-01 qk-011030307-02 qk-011030307-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030307-0304 qk-011030307-03 qk-011030307-04 qk-011030307-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030307-05 qk-011030307-05 qk-011030307- qk-011030307-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030307-0607 qk-011030307-06 qk-011030307-07 qk-011030307-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030307-0809 qk-011030307-08 qk-011030307-09 qk-011030307-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030307-101112 qk-011030307-10 qk-011030307-11 qk-011030307-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-309</th>
+        <td data-rnrs="223" 
+        class="qk-011030309-0102 qk-011030309-01 qk-011030309-02 qk-011030309-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030309-0304 qk-011030309-03 qk-011030309-04 qk-011030309-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030309-05 qk-011030309-05 qk-011030309- qk-011030309-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030309-0607 qk-011030309-06 qk-011030309-07 qk-011030309-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030309-0809 qk-011030309-08 qk-011030309-09 qk-011030309-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030309-101112 qk-011030309-10 qk-011030309-11 qk-011030309-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-310</th>
+        <td data-rnrs="223" 
+        class="qk-011030310-0102 qk-011030310-01 qk-011030310-02 qk-011030310-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030310-0304 qk-011030310-03 qk-011030310-04 qk-011030310-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030310-05 qk-011030310-05 qk-011030310- qk-011030310-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030310-0607 qk-011030310-06 qk-011030310-07 qk-011030310-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030310-0809 qk-011030310-08 qk-011030310-09 qk-011030310-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030310-101112 qk-011030310-10 qk-011030310-11 qk-011030310-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+    <tr>
+        <th class="js">教3-312</th>
+        <td data-rnrs="223" 
+        class="qk-011030312-0102 qk-011030312-01 qk-011030312-02 qk-011030312-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030312-0304 qk-011030312-03 qk-011030312-04 qk-011030312-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030312-05 qk-011030312-05 qk-011030312- qk-011030312-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030312-0607 qk-011030312-06 qk-011030312-07 qk-011030312-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030312-0809 qk-011030312-08 qk-011030312-09 qk-011030312-">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+        <td data-rnrs="223" 
+        class="qk-011030312-101112 qk-011030312-10 qk-011030312-11 qk-011030312-12">
+            <i class="fa fa-check kx" data-rnrs="223"></i>
+            </td>
+    </tr>
+
+
+</table>
+
+<div class="weui-footer">
+    <p>&nbsp;</p>
+    <p class="weui-footer__text">&copy; 广东工业大学</p>
+</div>
+
+<!-- JS file -->
+<!--<script src="//cdn.bootcss.com/jquery/1.11.0/jquery.min.js"></script>-->
+<script src="/static/cdn/js/jquery.min.js?v=3.7.1"></script>
+<script src="/static/cdn/js/jquery-weui.min.js"></script>
+<script src="/static/cdn/js/fastclick.min.js"></script>
+<script src="/static/js/laytpl.js"></script>
+<script src="/static/js/base64.js?v=20180510"></script>
+<script src="/static/js/util.js?v=20200922"></script>
+<script type="text/javascript" src="/static/raty/jquery.raty.js"></script>
+
+<script type="text/javascript" src="/static/webuploader/webuploader.min.js"></script>
+
+
+<script>
+
+    $(function () {
+        FastClick.attach(document.body);
+        androidInputBugFix();
+    });
+</script>
+
+<script>
+
+    $(function () {
+
+    	var today = '2026-09-21';
+    	var firstLoad = true;
+    	getClassUsed(today)
+        // 初始化日期组件
+        $("#rq").calendar({
+        	value:[today],
+        	dateFormat: 'yyyy-mm-dd',
+        	onChange: function(p, values, displayValues){
+            	if(today != values[0] || !firstLoad){
+            		initClass();
+        			getClassUsed(values[0]);
+        			firstLoad = false;
+            	}
+            }	
+        });
+
+
+        $('table td').on('click', 'i', function (e) {
+            e.stopPropagation();
+
+            if ($(this).hasClass('kx')) {
+                // 空闲
+                $.alert('可容纳 ' + $(this).attr('data-rnrs') + ' 人', '教室空闲');
+
+            } else {
+                var zyxx = $(this).data('info');
+                var sytype = zyxx.sytype;
+                if (sytype == '1') {
+                    var dHtml = '<span>类型:</span>上课占用<br>';
+                    dHtml += '<span>课程:</span>' + zyxx.kcmc + '<br>';
+                    dHtml += '<span>授课教师:</span>' + zyxx.teaxms + '<br>';
+                    dHtml += '<span>节次:</span>' + zyxx.jcdm2 + '<br>';
+                    dHtml += '<span>教学班:</span>' + zyxx.jxbmc + '<br>';
+                    dHtml += '<span>上课人数:</span>' + zyxx.rs + '<br>';
+                    dHtml += '<span>授课内容:</span>' + (zyxx.sknrjj||'');
+
+                    $.alert('<p class="zyyy">' + dHtml + '</p>', '教室被占用');
+
+                } else if (sytype == '2') {
+                    var dHtml = '<span>类型:</span>教室被借用<br>';
+                    dHtml += '<span>借用人:</span>' + zyxx.teaxms + '<br>';
+                    dHtml += '<span>节次:</span>' + zyxx.jcdm2 + '<br>';
+                    dHtml += '<span>人数:</span>' + zyxx.rs + '<br>';
+                    dHtml += '<span>借用原因:</span>' + zyxx.sknrjj.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+
+                    $.alert('<p class="zyyy">' + dHtml + '</p>', '教室被占用');
+
+                } else if (sytype == '3') {
+
+                    $.alert('教室被锁定<br>锁定节次：'+zyxx.jcdm2 );
+                } else if (sytype == '4') {
+
+                    $.alert('原因：考试占用<br>占用节次：'+zyxx.jcdm2+'<br>考试人数：'+zyxx.rs, '教室被占用');
+                } else {
+                    $.alert('原因不明<br>占用节次：'+zyxx.jcdm2, '教室被占用');
+                }
+            }
+
+        });
+
+        // 初始化教室占用表格
+        function initClass() {
+			$('#js-table').find('td[data-rnrs]').each(function(){
+
+				$(this).html('<i class="fa fa-check kx" data-rnrs="'+$(this).data('rnrs')+'"></i>');
+			});
+			
+        }
+
+        // 查询教室占用
+        function getClassUsed(rq) {
+	        utils.get(
+	            '/free-class-room/classroomUsedData?jwCode=',
+	            {
+		            jzwdm: '0005',
+					rq: rq
+			     },
+	            function (res) {
+	                utils.dealRes({
+	                    result: res,
+	                    success: function (data) {
+	                        renderUse(data);
+	                    }
+	                });
+	            }
+	        );
+        }
+        
+        // 渲染使用情况
+        function renderUse(data) {
+            if (!data || data.length == 0) {
+                return;
+            }
+
+            $.each(data, function (i, item) {
+                var $zcjObj = $('.qk-' + item.jxcddm + '-' + item.jcdm); // 总的节次匹配
+
+                // 匹配到直接渲染，匹配不到分开节次渲染
+                if ($zcjObj.length > 0) {
+                    writeUsed($zcjObj, item);
+                } else {
+
+                    var jcdm2 = item.jcdm2;
+                    if (jcdm2) {
+                        $.each(jcdm2.split(','), function (i, jc) {
+
+                            $zcjObj = $('.qk-' + item.jxcddm + '-' + jc);
+
+                            writeUsed($zcjObj, item);
+                        });
+                    }
+
+                }
+
+            });
+
+        }
+
+
+        function writeUsed(obj, zyxx) {
+            var sytype = zyxx.sytype;
+            
+            var zhHtml;
+
+            // 判断是否有占用了
+            if(obj.find('.kx').length === 1 ){
+            	zhHtml = '';
+             }else {
+
+                 // 判断是否为同一次的占用
+                 if(obj.find('i[data-dm="'+zyxx.dm+'"]').length === 1) {
+					return false;
+                 }
+            	 zhHtml = obj.html();
+             }
+            
+            if (sytype == '1') {
+                zhHtml += '<i class="zy" data-dm=\''+zyxx.dm+'\' data-info=\'' + JSON.stringify(zyxx) + '\'>课</i>';
+            } else if (sytype == '2') {
+                zhHtml += '<i class="zy zy-warn" data-dm=\''+zyxx.dm+'\' data-info=\'' + JSON.stringify(zyxx) + '\'>借</i>';
+            } else if (sytype == '3') {
+                zhHtml = '<i class="fa fa-lock zy" data-dm=\''+zyxx.dm+'\' data-info=\'' + JSON.stringify(zyxx) + '\'></i>';
+            } else if (sytype == '4') {
+                zhHtml += '<i class="zy" data-dm=\''+zyxx.dm+'\' data-info=\'' + JSON.stringify(zyxx) + '\'>考</i>';
+            } else {
+                zhHtml += '<i class="fa fa-remove zy-warn" data-dm=\''+zyxx.dm+'\' data-info=\'' + JSON.stringify(zyxx) + '\'></i>';
+            }
+
+            obj.html(zhHtml);
+        }
+
+    });
+
+</script>
+
+</body>
+</html>
+
+
+
+

@@ -134,6 +134,7 @@ public class FreeClassroomClient(
     private val base: String = hosts.jwcwxBase
     private val buildingsUrl: String = hosts.jwcwxFreeRoomBuildings
     private val usedDataUrl: String = hosts.jwcwxFreeRoomUsedData
+    private val rosterUrl: String = hosts.jwcwxFreeRoomRoster
 
     /** 取出当前全部 cookie（含服务端新下发的），用于回写持久化。 */
     public fun currentCookies(): List<StoredCookie> = cookieJar.snapshot()
@@ -204,33 +205,71 @@ public class FreeClassroomClient(
                 summary = obj.str("sknrjj"),
                 teachingLink = obj.str("jxhjmc"),
             )
-            // 借用行可能没有教室名（jxcdmc 为 null）——归入 unassigned，
-            // 由 collectRoomRows 用同楼上课行的 jxcddm→jxcdmc 映射回填。
+            // 借用行可能没有教室名（jxcdmc 为 null）——先收集，
+            // 由 resolveRoomNames 用名册页的全量 jxcddm→jxcdmc 映射回填。
             if (row.room.isBlank()) unassigned += row else assigned += row
         }
-        return collectRoomRows(assigned, unassigned)
+        return resolveRoomNames(assigned, unassigned, buildingCode)
     }
 
     /**
-     * 用教室代码（`jxcddm`）→ 教室名（`jxcdmc`）映射回填借用行的教室名。
+     * 回填借用行缺失的教室名。
      *
-     * 实测（2026-09-17）：借用行 `jxcdmc` 为 null 但 `jxcddm` 有值（如 `011030209`），
-     * 与同楼上课行的代码同一编码体系（`011 03 0 209` = 校区+楼号+层+房间号）。
-     * 上课行数据齐全时借用行可完全归属到教室；映射不到的才留在 unassigned。
+     * 教室代码（`jxcddm`）→ 教室名（`jxcdmc`）映射有两个来源：
+     * 1. 同楼占用行的 `jxcddm`/`jxcdmc` 对（零成本，但只覆盖当天有课的教室）；
+     * 2. 名册页（`/free-class-room/classroom/<jzwdm>`，服务端渲染 HTML），
+     *    列出该楼**全部**教室 —— 覆盖完全没有课、只有借用的教室。
+     *    实测 2026-09-21：借用行 `jxcddm=011030209` 在占用行无名字、
+     *    名册页 `qk-011030209-…` 可解析出"教3-209"。
+     *
+     * 两级都映射不到的才留在 unassigned。名册页解析失败不抛异常（占用数据仍可用），
+     * 只影响借用行的教室归属。
      */
-    private fun collectRoomRows(
+    private fun resolveRoomNames(
         assigned: List<RoomOccupancy>,
         unassigned: List<RoomOccupancy>,
+        buildingCode: String,
     ): RoomUsageResult {
         if (unassigned.isEmpty()) return RoomUsageResult(rows = assigned)
         val codeToName = assigned.associate { it.roomCode to it.room }
+        val needsRoster = unassigned.any { it.roomCode !in codeToName }
+        val roster = if (needsRoster) fetchRosterCodeToName(buildingCode) else emptyMap()
         val resolved = mutableListOf<RoomOccupancy>()
         val stillUnassigned = mutableListOf<RoomOccupancy>()
         for (row in unassigned) {
-            val name = codeToName[row.roomCode]
+            val name = codeToName[row.roomCode] ?: roster[row.roomCode]
             if (name != null) resolved += row.copy(room = name) else stillUnassigned += row
         }
         return RoomUsageResult(rows = assigned + resolved, unassigned = stillUnassigned)
+    }
+
+    /**
+     * 抓名册页，解析 `qk-<jxcddm>-<jcdm>` class 与表头 `<th class="js">教3-101</th>`
+     * 得到该楼全部教室的 jxcddm→jxcdmc 映射。
+     *
+     * 页面的占用状态是"当天"快照，只取名册不取状态。
+     * 任何结构变化都返回空映射，不抛异常 —— 名册只是借用行归属的增强信息。
+     */
+    private fun fetchRosterCodeToName(buildingCode: String): Map<String, String> {
+        val html = try {
+            get("$rosterUrl/${enc(buildingCode)}?jwCode=", "教室名册")
+        } catch (e: GdutException) {
+            return emptyMap()
+        }
+        return parseRoster(html)
+    }
+
+    /** 名册页解析：按 `<th class="js">` 切行，行内首个 `qk-<9位数字>-` 即该教室代码。 */
+    internal fun parseRoster(html: String): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+        for (segment in html.split("""<th class="js">""")) {
+            // 首段是表头前的 HTML，无教室名；跳过名为"教室"的表头列
+            val name = segment.substringBefore('<').trim()
+            if (name.isBlank() || name == "教室") continue
+            val code = ROOM_CODE_REGEX.find(segment)?.groupValues?.get(1) ?: continue
+            if (code !in result) result[code] = name
+        }
+        return result
     }
 
     // ------------------------------------------------------------------ 内部
@@ -279,5 +318,8 @@ public class FreeClassroomClient(
 
     private companion object {
         val DATE_REGEX = Regex("""\d{4}-\d{2}-\d{2}""")
+
+        /** 名册页单元格 class 里的教室代码，如 `qk-011030209-0102` 的 `011030209`。 */
+        val ROOM_CODE_REGEX = Regex("""qk-(\d{9})-""")
     }
 }
