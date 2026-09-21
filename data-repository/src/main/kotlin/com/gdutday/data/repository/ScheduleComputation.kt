@@ -96,8 +96,18 @@ internal fun buildScheduleUiState(input: ScheduleInputs): ScheduleUiState {
     val grid = builder?.buildWeek(input.courses, input.exams, selectedWeek, input.now)
     // 相邻周网格与 grid 同源（同 builder/配色/作息表），周视图三页预渲染直接消费；
     // 越界（首尾周）时为 null，UI 渲染空白占位页。
-    val prevWeekGrid = builder.buildNeighborOrNull(input.courses, input.exams, selectedWeek - 1, totalWeeks, input.now)
-    val nextWeekGrid = builder.buildNeighborOrNull(input.courses, input.exams, selectedWeek + 1, totalWeeks, input.now)
+    // 列表视图/插件进程不消费这两个字段，跳过计算（每次状态变更省两张全网格）。
+    val wantNeighbors = input.settings.scheduleView == com.gdutday.core.datastore.ScheduleView.WEEK
+    val prevWeekGrid = if (wantNeighbors) {
+        builder.buildNeighborOrNull(input.courses, input.exams, selectedWeek - 1, totalWeeks, input.now)
+    } else {
+        null
+    }
+    val nextWeekGrid = if (wantNeighbors) {
+        builder.buildNeighborOrNull(input.courses, input.exams, selectedWeek + 1, totalWeeks, input.now)
+    } else {
+        null
+    }
     // todayBlocks 始终按"真实今天"算，而不是选中周 —— 首页卡片与 Widget 要的是今天，
     // 与用户在周视图里翻到第 12 周无关。
     val todayBlocks = builder?.buildDay(input.courses, input.exams, today, input.now)?.blocks.orEmpty()
