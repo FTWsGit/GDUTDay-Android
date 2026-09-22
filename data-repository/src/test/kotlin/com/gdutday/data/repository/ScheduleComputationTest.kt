@@ -345,6 +345,50 @@ class ScheduleComputationTest {
     }
 
     @Test
+    fun `全部范围补丁清退同自然键的所有教务行`() {
+        // 教务把同一门课拆成两行：1-4 周与 5-8 周
+        val first = schoolCourse(id = 1L, weeks = setOf(1, 2, 3, 4))
+        val second = schoolCourse(id = 2L, weeks = setOf(5, 6, 7, 8))
+        val p = patch(target = first, scope = com.gdutday.core.model.OverrideScope.ALL, classroom = "教5-999")
+
+        val result = applyUserOverrides(listOf(first, second), listOf(p))
+
+        assertThat(result).hasSize(1)
+        assertThat(result.single().source).isEqualTo(com.gdutday.core.model.CourseSource.OVERRIDE)
+        assertThat(result.single().classroom).isEqualTo("教5-999")
+    }
+
+    @Test
+    fun `接管全部周次的补丁不吞掉后续同目标的补丁`() {
+        val school = listOf(schoolCourse(id = 1L, weeks = setOf(1, 2, 3, 4)))
+        val first = patch(
+            id = 101L,
+            target = school.first(),
+            scope = com.gdutday.core.model.OverrideScope.WEEK_RANGE,
+            weeks = setOf(1, 2),
+            classroom = "A",
+        )
+        val second = patch(
+            id = 102L,
+            target = school.first(),
+            scope = com.gdutday.core.model.OverrideScope.WEEK_RANGE,
+            weeks = setOf(3, 4),
+            classroom = "B",
+        )
+
+        val result = applyUserOverrides(school, listOf(first, second))
+
+        // 两条补丁都要生效，各自接管自己的周次，教务行被拆空后退出
+        assertThat(result).hasSize(2)
+        val a = result.first { it.id == 101L }
+        val b = result.first { it.id == 102L }
+        assertThat(a.weeks).containsExactly(1, 2)
+        assertThat(a.classroom).isEqualTo("A")
+        assertThat(b.weeks).containsExactly(3, 4)
+        assertThat(b.classroom).isEqualTo("B")
+    }
+
+    @Test
     fun `多条补丁按顺序应用`() {
         val school = listOf(schoolCourse(id = 1L))
         val all = patch(

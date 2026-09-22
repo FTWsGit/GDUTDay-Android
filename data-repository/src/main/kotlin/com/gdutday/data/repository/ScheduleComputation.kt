@@ -233,44 +233,51 @@ internal fun applyUserOverrides(
     school: List<Course>,
     overrides: List<Course>,
 ): List<Course> {
-    val result = school.toMutableList()
+    // 补丁行收进独立列表，不混入 slots：后续补丁只在教务行里找目标，
+    // 不会把先前的补丁行当成目标；周次被拆空的教务行留作空占位，
+    // 让后续同自然键的补丁仍能命中"交集为空 → 仅追加补丁"的分支，
+    // 否则该补丁会因找不到目标被整体丢弃，它负责的周次从课表消失。
+    val slots = school.toMutableList()
+    val patches = mutableListOf<Course>()
     for (patch in overrides) {
         if (patch.source != CourseSource.OVERRIDE) continue
         val targetNk = patch.overrideTargetNaturalKey ?: continue
         // 同一门课（同自然键）可能被教务拆成多行（如 1-8 周教室 A、9-16 周教室 B），
         // 补丁的目标必须取"与补丁接管周次交集最大"的那一行，取错行会把周次
         // 还给/拆走别的教学班行，用户看到的就是"教室变了的别的课"。
-        // 目标必须是教务行：ALL 补丁追加的 OVERRIDE 行与目标同自然键，
-        // 不过滤 source 时后续补丁可能把先前的补丁行当成目标。
-        val target = result.filter { it.naturalKey == targetNk && it.source == CourseSource.SCHOOL }
-            .maxByOrNull { it.weeks.intersect(patch.overrideWeeks).size }
+        val target = slots.withIndex()
+            .filter { it.value.naturalKey == targetNk }
+            .maxByOrNull { it.value.weeks.intersect(patch.overrideWeeks).size }
             ?: continue
 
         when (patch.overrideScope) {
             OverrideScope.ALL -> {
-                result.remove(target)
-                result += patch
+                // "所有同自然键的教务行退场"：拆成多行时每一行都要退场，
+                // 只移除一行会让残留行与补丁同屏，用户看到重复课程。
+                for ((i, _) in slots.withIndex().filter { it.value.naturalKey == targetNk }) {
+                    slots[i] = slots[i].copy(weeks = emptySet())
+                }
+                patches += patch
             }
 
             OverrideScope.THIS_WEEK, OverrideScope.WEEK_RANGE -> {
-                val taken = patch.overrideWeeks intersect target.weeks
+                val taken = patch.overrideWeeks intersect target.value.weeks
                 // 交集为空说明目标行的这些周次已经被（旧版破坏式写入或另一条补丁）拆走：
                 // 补丁自身仍然要显示，否则那一周的课程会从课表上消失。
                 if (taken.isEmpty()) {
-                    result += patch
+                    patches += patch
                     continue
                 }
-                val remaining = target.weeks - taken
-                result[result.indexOf(target)] =
-                    if (remaining.isEmpty()) patch.copy(weeks = taken)
-                    else target.copy(weeks = remaining)
-                if (remaining.isNotEmpty()) result += patch.copy(weeks = taken)
+                val remaining = target.value.weeks - taken
+                slots[target.index] = target.value.copy(weeks = remaining)
+                patches += patch.copy(weeks = taken)
             }
 
             null -> {}
         }
     }
-    return result
+    // 空周占位行不参与输出，只服务于补丁定位。
+    return slots.filter { it.weeks.isNotEmpty() } + patches
 }
 
 /**
