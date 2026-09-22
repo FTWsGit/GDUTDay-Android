@@ -160,10 +160,13 @@ public data class Course(
          */
         public fun parseWeeks(raw: String?): Set<Int> {
             if (raw.isNullOrBlank()) return emptySet()
-            // 只保留数字、区间/列表分隔符和单双周标记，其余（"周"、"第"、空格、单位名等）全部剥掉。
+            // 先把其它常见分隔写法（顿号、空白、点号）归一化成逗号：
+            // 白名单过滤会把它们剥掉，导致 "1、3、5" 粘成 "135" 被整段丢弃。
+            val normalized = raw.replace(ALT_WEEK_SEPARATOR, ",")
+            // 只保留数字、区间/列表分隔符和单双周标记，其余（"周"、"第"、单位名等）全部剥掉。
             // 实测本科生的 zcs 是纯数字列表，研究生的 ZCMC 是 "1-16周"/"1-11单周" 这类文本，
             // 而教务处历史上还出现过 "第1-16周" 的写法 —— 用白名单过滤比逐个 replace 更稳。
-            val text = raw.replace(NON_WEEK_CHAR, "")
+            val text = normalized.replace(NON_WEEK_CHAR, "")
             if (text.isEmpty()) return emptySet()
             val result = LinkedHashSet<Int>()
             for (token in text.split(',', '，', ';', '；').filter { it.isNotBlank() }) {
@@ -206,5 +209,8 @@ public data class Course(
          * 保留 `0-9`、`-`（区间）、`,` `，` `;` `；`（列表分隔）、`单` `双`（单双周标记）。
          */
         private val NON_WEEK_CHAR: Regex = Regex("[^0-9\\-,，;；单双]")
+
+        /** 其它常见分隔写法，归一化成 `,` 后再走白名单过滤。 */
+        private val ALT_WEEK_SEPARATOR: Regex = Regex("[、\\s.．]")
     }
 }

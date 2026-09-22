@@ -97,6 +97,15 @@ class CourseTest {
     }
 
     @Test
+    fun `parseWeeks 把顿号空格点号分隔归一化而不是粘成一个数字`() {
+        // 白名单过滤会剥掉这些分隔符，不归一化的话 "1、3、5" 粘成 "135" 被整段丢弃
+        assertThat(Course.parseWeeks("1、3、5")).containsExactly(1, 3, 5)
+        assertThat(Course.parseWeeks("1 3 5")).containsExactly(1, 3, 5)
+        assertThat(Course.parseWeeks("1.3.5")).containsExactly(1, 3, 5)
+        assertThat(Course.parseWeeks("1-8、11-16")).containsExactlyElementsIn((1..8) + (11..16))
+    }
+
+    @Test
     fun `parseWeeks 认得区间`() {
         assertThat(Course.parseWeeks("1-16")).containsExactlyElementsIn(1..16)
         assertThat(Course.parseWeeks("1-8,11-16")).containsExactlyElementsIn((1..8) + (11..16))
