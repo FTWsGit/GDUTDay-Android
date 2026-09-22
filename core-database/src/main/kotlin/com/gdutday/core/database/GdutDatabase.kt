@@ -53,7 +53,7 @@ public abstract class GdutDatabase : RoomDatabase() {
     public abstract fun syncStateDao(): SyncStateDao
 
     public companion object {
-        public const val VERSION: Int = 2
+        public const val VERSION: Int = 3
 
         /** 1 → 2：`course` 表新增补丁相关列（绝对时间 + OVERRIDE 元数据）。 */
         public val MIGRATION_1_2: Migration = object : Migration(1, 2) {
@@ -66,8 +66,15 @@ public abstract class GdutDatabase : RoomDatabase() {
             }
         }
 
+        /** 2 → 3：`course` 表新增每周授课内容列。 */
+        public val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE course ADD COLUMN weekly_descriptions TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         /** 全部迁移。构建时按顺序注册。 */
-        public val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        public val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 
         /** 数据库文件名。改名等于让所有老用户的数据消失，**不要轻易动**。 */
         public const val FILE_NAME: String = "gdutday.db"

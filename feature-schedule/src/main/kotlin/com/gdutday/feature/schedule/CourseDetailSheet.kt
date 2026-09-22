@@ -47,6 +47,7 @@ import com.gdutday.core.ui.toComposeColor
 internal fun CourseDetailSheet(
     block: CourseBlock,
     settings: UserSettings,
+    currentWeek: Int,
     onDismiss: () -> Unit,
     onPickColor: (String) -> Unit,
     onDelete: () -> Unit,
@@ -102,7 +103,8 @@ internal fun CourseDetailSheet(
                 DetailRow(label = label, value = value)
             }
 
-            if (course.description.isNotBlank()) {
+            val weeklyDesc = course.descriptionForWeek(currentWeek)
+            if (weeklyDesc.isNotBlank()) {
                 Text(
                     text = stringResource(R.string.schedule_detail_content),
                     style = MaterialTheme.typography.labelLarge,
@@ -110,7 +112,7 @@ internal fun CourseDetailSheet(
                     modifier = Modifier.padding(top = 16.dp),
                 )
                 Text(
-                    text = course.description,
+                    text = weeklyDesc,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 4.dp),
                 )

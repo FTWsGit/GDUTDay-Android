@@ -48,6 +48,7 @@ alwaysApply: false
 | `override_scope` | String? | `CourseSource.OVERRIDE` 行的作用范围（`OverrideScope` 名字），非 OVERRIDE 为 null |
 | `override_target_nk` | String? | OVERRIDE 行覆盖的目标课程自然键，同步后按它把补丁重新覆盖到教务课程上 |
 | `override_weeks` | String? | OVERRIDE 行接管的周次（逗号分隔），非 OVERRIDE 为 null |
+| `weekly_descriptions` | String | 每周各自的授课内容，`\u0001` 分隔的 `"周次=内容"` 条目 |
 
 索引：
 
@@ -309,7 +310,7 @@ UI 走 `CourseColors.assign(courses, colorKeys)`，以 `course_color` 表为准�
 
 ### 当前状态
 
-`GdutDatabase.VERSION = 2`，**尚未发布**，所以 debug 构建直接用
+`GdutDatabase.VERSION = 3`，**尚未发布**，所以 debug 构建直接用
 `fallbackToDestructiveMigration(dropAllTables = true)`（改 schema 就重建，开发期最省事）。
 
 已有迁移：
@@ -317,6 +318,7 @@ UI 走 `CourseColors.assign(courses, colorKeys)`，以 `course_color` 表为准�
 - **1 → 2**（`MIGRATION_1_2`）：`course` 表新增补丁相关列 ——
   `start_minute` / `end_minute`（绝对时刻，默认 -1）与
   `override_scope` / `override_target_nk` / `override_weeks`（OVERRIDE 元数据，可空）。
+- **2 → 3**（`MIGRATION_2_3`）：`course` 表新增 `weekly_descriptions`（每周授课内容，默认空串）。
 
 ```kotlin
 val builder = Room.databaseBuilder(context, GdutDatabase::class.java, FILE_NAME)
@@ -332,7 +334,7 @@ if (destructiveMigrationFallback) {
 ### schema 导出
 
 `core-database/build.gradle.kts` 配置了 `room.schemaLocation = $projectDir/schemas`，
-导出的 JSON 在 `core-database/schemas/com.gdutday.core.database.GdutDatabase/`（当前有 `1.json`、`2.json`）。
+导出的 JSON 在 `core-database/schemas/com.gdutday.core.database.GdutDatabase/`（当前有 `1.json`、`2.json`、`3.json`）。
 
 **schema JSON 必须提交进仓库**：它是写 `MigrationTest` 的唯一依据，
 也是将来 review 迁移正确性的凭据。Room 只在配置了 `room.schemaLocation` 时才导出；

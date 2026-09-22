@@ -81,6 +81,12 @@ public data class Course(
     public val overrideTargetNaturalKey: String? = null,
     /** 该补丁接管的周次（THIS_WEEK / WEEK_RANGE 时写入）。 */
     public val overrideWeeks: Set<Int> = emptySet(),
+    /**
+     * 每周各自的授课内容（`sknrjj`）。键为周次。
+     * 教务系统按周下发内容，同一门课每周不同；聚合时按周分别收集到这里，
+     * [description] 仍保留整门课的兜底值（全部周内容一致时即该值）。
+     */
+    public val weeklyDescriptions: Map<Int, String> = emptyMap(),
 ) {
     init {
         require(dayOfWeek in 1..7) { "dayOfWeek 必须在 1..7，收到 $dayOfWeek" }
@@ -108,6 +114,13 @@ public data class Course(
 
     /** 该课程在指定周次是否上课。 */
     public fun occursInWeek(week: Int): Boolean = week in weeks
+
+    /**
+     * 指定周次的授课内容。优先取该周专属的 [weeklyDescriptions]，
+     * 没有按周记录（如 `xsAllKbList` 来源）时回退到整门课的 [description]。
+     */
+    public fun descriptionForWeek(week: Int): String =
+        weeklyDescriptions[week] ?: description
 
     /** 周次的紧凑显示，如 `"1-16周"`、`"1-8,11-16周"`、`"1,3,5周"`。 */
     public val weeksDisplay: String get() = formatWeekRanges(weeks)

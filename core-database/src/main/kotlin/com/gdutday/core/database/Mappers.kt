@@ -57,7 +57,31 @@ public object Mappers {
         overrideScope = overrideScope?.name,
         overrideTargetNaturalKey = overrideTargetNaturalKey,
         overrideWeeks = encodeWeeks(overrideWeeks).ifEmpty { null },
+        weeklyDescriptions = encodeWeeklyDescriptions(weeklyDescriptions),
     )
+
+    /**
+     * 每周授课内容 → 存储串。条目用 `\u0001` 分隔（内容里可能出现任何可见字符，逗号不安全），
+     * 每条形如 `"周次=内容"`；内容里的换行被替换为空格，避免条目结构被破坏。
+     */
+    private fun encodeWeeklyDescriptions(map: Map<Int, String>): String =
+        map.entries.joinToString("\u0001") { (week, desc) ->
+            "$week=${desc.replace('\n', ' ').replace('\r', ' ')}"
+        }
+
+    /** [encodeWeeklyDescriptions] 的逆操作，任何一条解析失败都整条跳过，绝不抛异常。 */
+    private fun decodeWeeklyDescriptions(raw: String): Map<Int, String> =
+        if (raw.isEmpty()) {
+            emptyMap()
+        } else {
+            raw.split('\u0001').mapNotNull { entry ->
+                val idx = entry.indexOf('=')
+                if (idx <= 0) return@mapNotNull null
+                val week = entry.substring(0, idx).trim().toIntOrNull() ?: return@mapNotNull null
+                val desc = entry.substring(idx + 1)
+                if (desc.isBlank()) null else week to desc
+            }.toMap()
+        }
 
     /**
      * @return 反序列化失败（星期/节次越界、学期码非法）时返回 null，该行被跳过。
@@ -94,6 +118,7 @@ public object Mappers {
             },
             overrideTargetNaturalKey = overrideTargetNaturalKey,
             overrideWeeks = overrideWeeks?.let { decodeWeeks(it) }.orEmpty(),
+            weeklyDescriptions = decodeWeeklyDescriptions(weeklyDescriptions),
         )
     }
 

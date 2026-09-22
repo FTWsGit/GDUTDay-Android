@@ -23,15 +23,17 @@ class MigrationContractTest {
     private val term = Term(2025, 1)
 
     @Test
-    fun `数据库版本已升到 2`() {
-        assertThat(GdutDatabase.VERSION).isEqualTo(2)
+    fun `数据库版本已升到 3`() {
+        assertThat(GdutDatabase.VERSION).isEqualTo(3)
     }
 
     @Test
-    fun `MIGRATION_1_2 的目标版本`() {
+    fun `MIGRATION_1_2 与 MIGRATION_2_3 的目标版本`() {
         assertThat(GdutDatabase.MIGRATION_1_2.startVersion).isEqualTo(1)
         assertThat(GdutDatabase.MIGRATION_1_2.endVersion).isEqualTo(2)
-        assertThat(GdutDatabase.ALL_MIGRATIONS).hasLength(1)
+        assertThat(GdutDatabase.MIGRATION_2_3.startVersion).isEqualTo(2)
+        assertThat(GdutDatabase.MIGRATION_2_3.endVersion).isEqualTo(3)
+        assertThat(GdutDatabase.ALL_MIGRATIONS).hasLength(2)
     }
 
     @Test
@@ -82,6 +84,37 @@ class MigrationContractTest {
         assertThat(roundTrip.overrideScope).isEqualTo(OverrideScope.WEEK_RANGE)
         assertThat(roundTrip.overrideTargetNaturalKey).isEqualTo("高等数学|||1|1|2")
         assertThat(roundTrip.overrideWeeks).containsExactly(3, 4, 5)
+    }
+
+    @Test
+    fun `每周授课内容在实体与领域模型之间往返一致`() {
+        val course = Course(
+            term = term,
+            name = "高等数学",
+            dayOfWeek = 1,
+            startSection = 1,
+            sectionCount = 2,
+            weeks = setOf(1, 2),
+            description = "极限与连续",
+            weeklyDescriptions = mapOf(1 to "极限与连续", 2 to "导数=微分\n第二行"),
+        )
+        val roundTrip = with(Mappers) { course.toEntity().toDomain() }!!
+        assertThat(roundTrip.weeklyDescriptions).containsExactly(1, "极限与连续", 2, "导数=微分 第二行")
+        assertThat(roundTrip.descriptionForWeek(2)).isEqualTo("导数=微分 第二行")
+        // 没有按周记录的周次回退到 description
+        assertThat(roundTrip.descriptionForWeek(99)).isEqualTo("极限与连续")
+    }
+
+    @Test
+    fun `脏数据里的损坏条目被跳过而不是抛异常`() {
+        val entity = with(Mappers) {
+            Course(
+                term = term, name = "X", dayOfWeek = 1, startSection = 1, sectionCount = 1,
+                weeklyDescriptions = mapOf(1 to "正常"),
+            ).toEntity()
+        }.copy(weeklyDescriptions = "abc=没有周次\u0001\u00012=正常")
+        val domain = with(Mappers) { entity.toDomain() }!!
+        assertThat(domain.weeklyDescriptions).containsExactly(2, "正常")
     }
 
     @Test

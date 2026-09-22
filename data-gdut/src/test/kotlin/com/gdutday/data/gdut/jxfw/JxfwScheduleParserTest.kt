@@ -210,6 +210,49 @@ class JxfwScheduleParserTest {
     }
 
     @Test
+    fun `getDataList 每周不同的授课内容按周分别保留`() {
+        // 教务系统按周下发 sknrjj，同一门课每周内容不同；
+        // 聚合后必须保留每周各自的，而不是只留第一条。
+        val json = buildString {
+            append("""{"total":2,"rows":[""")
+            append("""{"kcmc":"高等数学","xq":"1","zc":"1","jcdm":"0102","jxcdmc":"教5-301","sknrjj":"极限与连续"},""")
+            append("""{"kcmc":"高等数学","xq":"1","zc":"2","jcdm":"0102","jxcdmc":"教5-301","sknrjj":"导数与微分"}""")
+            append("]}")
+        }
+        val outcome = CourseNormalizer.normalize(JxfwScheduleParser.parseDataListPage(json, term).rows, term)
+
+        val course = outcome.courses.single()
+        assertThat(course.description).isEqualTo("极限与连续") // 兜底值 = 第一条
+        assertThat(course.weeklyDescriptions[1]).isEqualTo("极限与连续")
+        assertThat(course.weeklyDescriptions[2]).isEqualTo("导数与微分")
+        assertThat(course.descriptionForWeek(1)).isEqualTo("极限与连续")
+        assertThat(course.descriptionForWeek(2)).isEqualTo("导数与微分")
+    }
+
+    @Test
+    fun `无按周差异时 descriptionForWeek 与整门课的 description 一致`() {
+        // xsAllKbList 一行带全部周次：每周围定同一内容，聚合后逐周填充，
+        // descriptionForWeek 任意周次都应与 description 一致。
+        val rows = listOf(
+            RawScheduleRow(
+                courseName = "高等数学",
+                dayOfWeek = 1,
+                sectionsRaw = "1,2",
+                weeks = (1..8).toSet(),
+                description = "全校统一大纲",
+            ),
+        )
+        val outcome = CourseNormalizer.normalize(rows, term)
+
+        val course = outcome.courses.single()
+        assertThat(course.description).isEqualTo("全校统一大纲")
+        assertThat(course.descriptionForWeek(1)).isEqualTo("全校统一大纲")
+        assertThat(course.descriptionForWeek(8)).isEqualTo("全校统一大纲")
+        // 未上课的周次回退到 description
+        assertThat(course.descriptionForWeek(99)).isEqualTo("全校统一大纲")
+    }
+
+    @Test
     fun `getDataList 的两位拼接节次能正确解析含第 10 节以上的情况`() {
         // "08091011" = 第 8,9,10,11 节。旧小程序的字符串戏法在这里会算错：
         // 它用 parseInt(time[0]+time[1]) 取起始节，但 length/2 当节数，

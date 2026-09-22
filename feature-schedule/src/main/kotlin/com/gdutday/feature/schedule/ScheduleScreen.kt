@@ -262,6 +262,7 @@ fun ScheduleScreen(
         CourseDetailSheet(
             block = gridBlock,
             settings = settings,
+            currentWeek = state.selectedWeek,
             onDismiss = viewModel::closeBlockDetail,
             onPickColor = { key -> viewModel.setCourseColor(gridBlock.course.name, key) },
             onDelete = { viewModel.deleteCourse(gridBlock.course.id) },

@@ -159,8 +159,14 @@ public object CourseNormalizer {
                 }
                 acc.weeks += row.weeks
                 row.classDate?.let { acc.dates += it }
-                if (acc.description.isBlank() && row.description.isNotBlank()) {
-                    acc.description = row.description.trim()
+                if (row.description.isNotBlank()) {
+                    val desc = row.description.trim()
+                    if (acc.description.isBlank()) {
+                        acc.description = desc
+                    }
+                    for (week in row.weeks) {
+                        acc.weeklyDescriptions[week] = desc
+                    }
                 }
             }
         }
@@ -185,6 +191,7 @@ public object CourseNormalizer {
                 sectionCount = acc.sectionCount,
                 weeks = sortedWeeks.toSet(),
                 description = acc.description,
+                weeklyDescriptions = acc.weeklyDescriptions,
                 teachingClass = acc.teachingClass,
                 courseCode = acc.courseCode,
                 source = CourseSource.SCHOOL,
@@ -219,6 +226,7 @@ public object CourseNormalizer {
         val weeks = LinkedHashSet<Int>()
         val dates = mutableListOf<LocalDate>()
         var description: String = ""
+        val weeklyDescriptions = LinkedHashMap<Int, String>()
     }
 
     /**

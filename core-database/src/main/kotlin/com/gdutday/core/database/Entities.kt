@@ -140,6 +140,12 @@ public data class CourseEntity(
      */
     @ColumnInfo(name = "override_weeks")
     public val overrideWeeks: String? = null,
+
+    /**
+     * 每周各自的授课内容，条目以 `\u0001` 分隔、每条为 `"周次=内容"`（内容可含 `=`，取首个分隔）。
+     */
+    @ColumnInfo(name = "weekly_descriptions", defaultValue = "")
+    public val weeklyDescriptions: String = "",
 )
 
 /**
