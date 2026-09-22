@@ -18,7 +18,7 @@ package com.gdutday.core.ui
  *
  * 注意：这里**刻意不使用** WCAG 的对比度比值阈值 `(L1+0.05)/(L2+0.05) > 4.5`。
  * 课程块面积小、字号只有 11sp，黑/白两个极值里选哪个本来就只是二选一；
- * 用单一的相对亮度阈值 0.5 更简单，且与旧小程序 `isLightColor` 的观感一致。
+ * 用单一的相对亮度阈值取二者的最优交叉点（见 [LIGHT_BACKGROUND_THRESHOLD]）。
  *
  * 透明度被忽略：`AUTO` 判据用的是调色板里的**不透明** `argb`。
  * 真实背景还叠了用户可调的 alpha，但把 alpha 也算进去会让同一门课在不同
@@ -29,10 +29,12 @@ public object ColorContrast {
     /**
      * 相对亮度判定阈值。大于它视为"浅色背景"，文字用黑；否则用白。
      *
-     * 0.5 是主观值：绝对中灰（#808080）的线性亮度约 0.216，落在"深色"一侧，
-     * 也就是说只有相当明亮的颜色才会被判定为浅色。
+     * 0.179 是黑/白二选一的数学最优交叉点：令黑字对比度 `(L+0.05)/1.05`
+     * 等于白字对比度 `1.05/(L+0.05)` 解得 `L ≈ 0.179`。任何比它更亮的背景
+     * 用黑字更清晰，更暗的用白字更清晰；取 0.5 这类主观值会让中亮色
+     * （如调色板里的 green/grey）选到对比度仅约 2:1 的白字。
      */
-    public const val LIGHT_BACKGROUND_THRESHOLD: Double = 0.5
+    public const val LIGHT_BACKGROUND_THRESHOLD: Double = 0.179
 
     /** 计算不透明 ARGB 颜色的 WCAG 相对亮度，范围 `[0.0, 1.0]`。 */
     public fun relativeLuminance(argb: Int): Double {
