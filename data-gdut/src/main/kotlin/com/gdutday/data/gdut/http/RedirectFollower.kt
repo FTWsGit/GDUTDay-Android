@@ -154,26 +154,30 @@ public class RedirectFollower(
 
             val preserveMethod = previousCode == 307 || previousCode == 308
             val referer = refererForHops ?: previousUrl
+            // 307/308 保留的是**当前这一跳**的方法与 body，不是链条第一跳的：
+            // POST→302 降级成 GET 后再遇 307，复活最初的 POST body 是错误的。
+            val method = if (preserveMethod) current.method else "GET"
+            val body = if (preserveMethod) current.body else null
+            // 307/308 复用当前请求头时也要按跨主机过滤：原始请求的自定义头
+            // （Origin/Content-Type 等）不能泄给另一个主机。
+            val sameHost = nextUrl.host == current.url.host
 
             current = Request.Builder()
                 .url(nextUrl)
-                // 跨主机时不携带上一跳的自定义头，避免把 authserver 的头泄给 jxfw
                 .apply {
-                    if (preserveMethod) {
-                        method(request.method, request.body)
-                        request.headers.forEach { (name, value) -> header(name, value) }
-                    } else {
-                        get()
-                        header("User-Agent", BrowserHeaders.USER_AGENT)
-                        header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                        header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                        header("Upgrade-Insecure-Requests", "1")
-                        header("sec-ch-ua", BrowserHeaders.SEC_CH_UA)
-                        header("sec-ch-ua-mobile", BrowserHeaders.SEC_CH_UA_MOBILE)
-                        header("sec-ch-ua-platform", BrowserHeaders.SEC_CH_UA_PLATFORM)
-                        header("sec-fetch-dest", "document")
-                        header("sec-fetch-mode", "navigate")
-                        header("sec-fetch-user", "?1")
+                    when {
+                        // 307/308 且同一主机：沿用当前请求的方法、body 与头
+                        preserveMethod && sameHost -> {
+                            method(method, body)
+                            current.headers.forEach { (name, value) -> header(name, value) }
+                        }
+                        // 307/308 跨主机：保留方法与 body，但只带浏览器基础头
+                        preserveMethod -> {
+                            method(method, body)
+                            asBrowserNavigation()
+                        }
+                        // 301/302/303：降级 GET，只带浏览器基础头
+                        else -> asBrowserNavigation()
                     }
                     header("Referer", referer)
                     // same-origin / same-site / cross-site：浏览器会区分，这里照做
