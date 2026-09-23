@@ -316,16 +316,21 @@ public class ScheduleRepositoryImpl(
 
         // 兜底：目标学期不在下拉框里时补一行，保证它有 meta 行，UI 不会因为缺行而拿不到日历。
         if (entities.none { it.termCode == target.shortCode }) {
-            termMetaDao.upsert(
-                TermMetaEntity(
-                    termCode = target.shortCode,
-                    xnxqdm = target.xnxqdm,
-                    displayName = target.displayName,
-                    semesterStart = TermCalendar.guessSemesterStart(target.year, target.semester).toString(),
-                    startSource = SemesterStartSource.GUESSED.name,
-                    updatedAt = updatedAt,
-                ),
-            )
+            // 已有行（尤其 USER 来源的手填日期）不能被 GUESSED 整行覆盖：
+            // SemesterStartResolver 保证用户手填跨同步存活，这里同样只补缺失字段。
+            val existingTarget = termMetaDao.getByCode(target.shortCode)
+            if (existingTarget == null) {
+                termMetaDao.upsert(
+                    TermMetaEntity(
+                        termCode = target.shortCode,
+                        xnxqdm = target.xnxqdm,
+                        displayName = target.displayName,
+                        semesterStart = TermCalendar.guessSemesterStart(target.year, target.semester).toString(),
+                        startSource = SemesterStartSource.GUESSED.name,
+                        updatedAt = updatedAt,
+                    ),
+                )
+            }
         }
         termList.current?.let { termMetaDao.setCurrentTerm(it.shortCode) }
     }
