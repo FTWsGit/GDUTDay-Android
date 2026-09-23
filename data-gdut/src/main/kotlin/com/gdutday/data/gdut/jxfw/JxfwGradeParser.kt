@@ -177,8 +177,13 @@ public object JxfwGradeParser {
         if (patch.scoreText.isEmpty() && patch.gpa == null) return base
 
         val merged = base.grades.map { g ->
+            // term 缺失的行不能无条件命中：任何学期的兜底重查都会把它当目标，
+            // 把 A 学期的分数补到 B 学期的行上。termName（xnxqmc，实测一直有值）
+            // 是文档认可的分组键，用它与 patch 行比对；两者都缺才允许兜底。
+            val termMatches = g.term?.xnxqdm == termCode ||
+                (g.term == null && (g.termName.isEmpty() || g.termName == patch.termName))
             val isTarget = g.courseName == LABOR_EDUCATION_COURSE &&
-                (g.term?.xnxqdm == termCode || g.term == null) &&
+                termMatches &&
                 (g.scoreText.isEmpty() || g.gpa == null)
             if (!isTarget) g
             else g.copy(

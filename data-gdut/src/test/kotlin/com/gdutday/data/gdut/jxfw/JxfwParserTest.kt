@@ -275,6 +275,31 @@ class JxfwParserTest {
     }
 
     @Test
+    fun `劳动教育兜底合并不会把分数补到其它学期的 term缺失行上`() {
+        // 主查询里劳动教育的 xnxqdm 缺失（这正是触发兜底的原因之一），
+        // 但 xnxqmc 显示它属于另一学期 —— 该行不能被 202401 的兜底重查污染
+        val base = JxfwGradeParser.parse(
+            """{"total":1,"rows":[
+               {"kcmc":"劳动教育","xnxqmc":"2023-2024学年第二学期","xnxqdm":"","zcj":"","cjjd":"","xf":"0.5"}
+             ]}""",
+        )
+
+        // 202401 的兜底重查拿到了分数
+        val patch = JxfwGradeParser.parse(
+            """{"total":1,"rows":[
+               {"kcmc":"劳动教育","xnxqmc":"2024-2025学年第一学期","xnxqdm":"202401","zcj":"合格","cjjd":"","xf":"0.5","kcdlmc":"劳育"}
+             ]}""",
+        )
+
+        val merged = JxfwGradeParser.mergeLaborEducationPatch(base, patch.grades, "202401")
+
+        // 学期对不上（termName 不同），合并后仍为空，等真正的 202302 兜底来补
+        val labor = merged.grades.single()
+        assertThat(labor.scoreText).isEmpty()
+        assertThat(labor.gpa).isNull()
+    }
+
+    @Test
     fun `兜底查询也没拿到成绩时保持原样`() {
         val base = JxfwGradeParser.parse(gradeJson)
         val emptyPatch = JxfwGradeParser.parse(
