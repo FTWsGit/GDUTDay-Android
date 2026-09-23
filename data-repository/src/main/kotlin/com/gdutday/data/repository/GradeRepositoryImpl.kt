@@ -16,6 +16,7 @@ import com.gdutday.data.gdut.session.GdutSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Instant
 
@@ -40,7 +41,13 @@ public class GradeRepositoryImpl(
     private val sessionStore: SessionStore,
     private val authRepository: AuthRepository,
     private val jxfwClientFactory: (GdutSession) -> JxfwClient,
+    // 与课表同步共享同一把锁：两个同步写同一张 sync_state 单行，
+    // 并发时会互相覆盖 lastSuccess/lastError 造成假成功或假失败；
+    // 锁同时串行化"读会话 → 请求 → cookie 回写"，防止旧会话快照覆盖新会话。
+    syncMutexParam: kotlinx.coroutines.sync.Mutex = kotlinx.coroutines.sync.Mutex(),
 ) : GradeRepository {
+
+    private val syncMutex = syncMutexParam
 
     override fun observeGrades(): Flow<List<Grade>> =
         gradeDao.observeAll().map { rows -> with(Mappers) { rows.map { it.toDomain() } } }
@@ -54,43 +61,45 @@ public class GradeRepositoryImpl(
         examDao.observeAll().map { rows -> with(Mappers) { rows.mapNotNull { it.toDomain() } } }
 
     override suspend fun sync(): SyncInfo = withContext(Dispatchers.IO) {
-        var session = sessionStore.current()
-            ?: throw GdutException.SessionExpired("本地没有可用会话，请先登录")
-        var client = jxfwClientFactory(session)
-        if (!client.isSessionValid()) {
-            session = authRepository.reloginSilently()
-                ?: throw GdutException.SessionExpired("登录状态已失效，请重新登录")
-            client = jxfwClientFactory(session)
-        }
+        syncMutex.withLock {
+            var session = sessionStore.current()
+                ?: throw GdutException.SessionExpired("本地没有可用会话，请先登录")
+            var client = jxfwClientFactory(session)
+            if (!client.isSessionValid()) {
+                session = authRepository.reloginSilently()
+                    ?: throw GdutException.SessionExpired("登录状态已失效，请重新登录")
+                client = jxfwClientFactory(session)
+            }
 
-        try {
-            // term = null：一次拉全部学期。旧后端的默认行为，也是成绩页想要的。
-            val outcome = client.fetchGrades(term = null)
-            gradeDao.replaceAll(with(Mappers) { outcome.grades.map { it.toEntity() } })
+            try {
+                // term = null：一次拉全部学期。旧后端的默认行为，也是成绩页想要的。
+                val outcome = client.fetchGrades(term = null)
+                gradeDao.replaceAll(with(Mappers) { outcome.grades.map { it.toEntity() } })
 
-            // 会话可能在请求过程中被服务端轮换 cookie。
-            sessionStore.save(session.copy(cookies = client.currentCookies()))
+                // 会话可能在请求过程中被服务端轮换 cookie。
+                sessionStore.save(session.copy(cookies = client.currentCookies()))
 
-            val now = Instant.now()
-            val prev = syncStateDao.get()
-            syncStateDao.upsert(
-                (prev ?: SyncStateEntity()).copy(lastSyncAt = now, lastSuccess = true, lastError = ""),
-            )
-            SyncInfo(at = now, success = true, courseCount = outcome.grades.size)
-        } catch (e: GdutException) {
-            runCatching {
+                val now = Instant.now()
                 val prev = syncStateDao.get()
                 syncStateDao.upsert(
-                    (prev ?: SyncStateEntity()).copy(
-                        lastSyncAt = Instant.now(),
-                        lastSuccess = false,
-                        // 成绩与课表共用 sync_state 单行，并发时 lastError 后写胜：
-                        // 带上来源前缀，避免错误信息张冠李戴（诊断页能看到是谁失败的）。
-                        lastError = "成绩同步失败：${e.userMessage}",
-                    ),
+                    (prev ?: SyncStateEntity()).copy(lastSyncAt = now, lastSuccess = true, lastError = ""),
                 )
+                SyncInfo(at = now, success = true, courseCount = outcome.grades.size)
+            } catch (e: GdutException) {
+                runCatching {
+                    val prev = syncStateDao.get()
+                    syncStateDao.upsert(
+                        (prev ?: SyncStateEntity()).copy(
+                            lastSyncAt = Instant.now(),
+                            lastSuccess = false,
+                            // 成绩与课表共用 sync_state 单行，并发时 lastError 后写胜：
+                            // 带上来源前缀，避免错误信息张冠李戴（诊断页能看到是谁失败的）。
+                            lastError = "成绩同步失败：${e.userMessage}",
+                        ),
+                    )
+                }
+                throw e
             }
-            throw e
         }
     }
 }

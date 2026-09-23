@@ -76,6 +76,9 @@ public class ScheduleRepositoryImpl(
     private val sessionStore: SessionStore,
     private val authRepository: AuthRepository,
     private val jxfwClientFactory: (GdutSession, JxfwConfig) -> JxfwClient,
+    // 与成绩同步共享同一把锁：两个同步写同一张 sync_state 单行，
+    // 各自持锁会出现"假成功/假失败"互相覆盖；cookie 回写也随之串行化。
+    syncMutexParam: Mutex = Mutex(),
 ) : ScheduleRepository {
 
     /** 选中的周次。纯内存：每次打开 App 回到"本周"比记住上次翻到第几周更符合直觉。 */
@@ -91,7 +94,7 @@ public class ScheduleRepositoryImpl(
     private val colorsLoaded = AtomicBoolean(false)
 
     /** 串行化同步，避免用户连点刷新 / Worker 与手动同步同时跑导致重复写库。 */
-    private val syncMutex = Mutex()
+    private val syncMutex: Mutex = syncMutexParam
 
     override fun observeScheduleUiState(): Flow<ScheduleUiState> {
         val colors = flow {

@@ -14,6 +14,7 @@ import com.gdutday.data.gdut.jxfw.JxfwClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.OkHttpClient
 
 /**
@@ -101,6 +102,10 @@ public class DefaultAppContainer(
 
     // ---------------------------------------------------------------- 业务层
 
+    // 课表与成绩同步共享同一把锁：两个同步写同一张 sync_state 单行，
+    // 并发会互相覆盖成功标志造成假成功/假失败，cookie 回写也需要串行化。
+    private val syncMutex = Mutex()
+
     override val authRepository: AuthRepository by lazy {
         AuthRepositoryImpl(
             sessionStore = sessionStore,
@@ -127,6 +132,7 @@ public class DefaultAppContainer(
             jxfwClientFactory = { session, config ->
                 JxfwClient(okHttpClient, session, config)
             },
+            syncMutexParam = syncMutex,
         )
     }
 
@@ -140,6 +146,7 @@ public class DefaultAppContainer(
             sessionStore = sessionStore,
             authRepository = authRepository,
             jxfwClientFactory = { session -> JxfwClient(okHttpClient, session) },
+            syncMutexParam = syncMutex,
         )
     }
 
