@@ -19,6 +19,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -140,6 +142,9 @@ public fun WeekGridView(
     val touchSlop = LocalViewConfiguration.current.touchSlop
     val drag = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    // 手势回调读最新周次：手势提交到状态回流之间有窗口，
+    // 直接闭包 grid.week 是组合期快照，快速连滑会丢一次翻页。
+    val latestWeek by rememberUpdatedState(grid.week)
     // 纵向滚动状态提升到这里，三页周视图与左侧节次栏共享同一份偏移：
     // 节次栏对同一个 ScrollState 再挂一次 verticalScroll(enabled = false) 跟着走，
     // 两侧用的是同一套 Compose 滚动机制，而不是分别测量后手动换算。
@@ -169,13 +174,13 @@ public fun WeekGridView(
                     .weight(1f)
                     .fillMaxHeight()
                     .clipToBounds()
-                    .pointerInput(grid.week) {
+                    .pointerInput(Unit) {
                         detectHorizontalSwipe(
                             drag = drag,
                             scope = scope,
                             touchSlop = touchSlop,
                             threshold = 64.dp.toPx(),
-                            onSwipe = { delta -> onSwipeWeek(grid.week + delta) },
+                            onSwipe = { delta -> onSwipeWeek(latestWeek + delta) },
                         )
                     },
             ) {

@@ -150,6 +150,13 @@ public class ScheduleViewModel(
     public val selectedDayOffset: StateFlow<Int> = _selectedDayOffset.asStateFlow()
 
     /**
+     * 最近一次请求的选中周次（同步镜像）。selectWeek 走协程异步回流，
+     * uiState.value.selectedWeek 有回流延迟；连续快速切天/切周时若读
+     * uiState 旧帧，跨周判断会脱节，所以写路径同步记一份。
+     */
+    private var requestedWeek: Int? = null
+
+    /**
      * 左右滑动切天。如果目标日期跨入另一个周次，同时把周次也切过去，让网格数据同步更新。
      */
     public fun selectDay(delta: Int) {
@@ -159,18 +166,26 @@ public class ScheduleViewModel(
         val calendar = uiState.value.calendar ?: return
         val selectedDate = uiState.value.today.plusDays(newOffset.toLong())
         val targetWeek = calendar.weekOf(selectedDate)
-        if (targetWeek != uiState.value.selectedWeek && targetWeek in 1..uiState.value.totalWeeks) {
+        val currentWeek = requestedWeek ?: uiState.value.selectedWeek
+        if (targetWeek != currentWeek && targetWeek in 1..uiState.value.totalWeeks) {
             selectWeek(targetWeek)
         }
     }
 
-    /** 回到今天的快捷入口。 */
+    /** 回到今天的快捷入口：天偏移归零，周次也切回本周，与日/周两个视图的语义对齐。 */
     public fun backToToday() {
         _selectedDayOffset.value = 0
+        val calendar = uiState.value.calendar ?: return
+        val todayWeek = calendar.weekOf(uiState.value.today)
+        val currentWeek = requestedWeek ?: uiState.value.selectedWeek
+        if (todayWeek != currentWeek && todayWeek in 1..uiState.value.totalWeeks) {
+            selectWeek(todayWeek)
+        }
     }
 
     public fun selectWeek(week: Int) {
         val clamped = ScheduleGridMath.clampWeek(week, uiState.value.totalWeeks)
+        requestedWeek = clamped
         viewModelScope.launch { repository.selectWeek(clamped) }
     }
 
