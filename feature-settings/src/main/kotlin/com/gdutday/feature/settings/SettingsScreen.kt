@@ -163,8 +163,11 @@ fun SettingsScreen(
     }
 
     if (showDiagnostics) {
+        // 进入诊断页时计算一次即可：诊断文本拼装较重，
+        // 放组合里会随父级任何设置变化重组而反复重算。
+        val diagnostics = remember { viewModel.diagnostics() }
         DiagnosticsScreen(
-            diagnostics = viewModel.diagnostics(),
+            diagnostics = diagnostics,
             onBack = { showDiagnostics = false },
         )
         return

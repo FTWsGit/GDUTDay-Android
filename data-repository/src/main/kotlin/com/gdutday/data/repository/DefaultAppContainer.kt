@@ -11,6 +11,7 @@ import com.gdutday.core.network.HttpConfig
 import com.gdutday.core.network.NetworkMonitor
 import com.gdutday.data.gdut.auth.AuthServerClient
 import com.gdutday.data.gdut.jxfw.JxfwClient
+import androidx.room.withTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -133,6 +134,10 @@ public class DefaultAppContainer(
                 JxfwClient(okHttpClient, session, config)
             },
             syncMutexParam = syncMutex,
+            // 落库段的大事务：Room 的 withTransaction 保证"数据 + 同步状态"同生共死
+            transactionRunner = { block ->
+                database.withTransaction { block() }
+            },
         )
     }
 

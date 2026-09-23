@@ -61,6 +61,8 @@ public object JxfwGradeParser {
         public val summaries: List<TermGradeSummary>,
         public val total: Int = -1,
         public val needsLaborEducationPatch: Set<String> = emptySet(),
+        /** 非致命提示（如分页中断截断），供上层展示"数据可能不完整"。 */
+        public val warnings: List<String> = emptyList(),
         public val dropped: Int = 0,
     )
 

@@ -28,15 +28,19 @@ import com.gdutday.data.gdut.jxfw.JxfwExamParser
 import com.gdutday.data.gdut.jxfw.JxfwTermParser
 import com.gdutday.data.gdut.jxfw.ScheduleEndpoint
 import com.gdutday.data.gdut.session.GdutSession
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -79,7 +83,14 @@ public class ScheduleRepositoryImpl(
     // 与成绩同步共享同一把锁：两个同步写同一张 sync_state 单行，
     // 各自持锁会出现"假成功/假失败"互相覆盖；cookie 回写也随之串行化。
     syncMutexParam: Mutex = Mutex(),
+    // 承载 observeNextClass 共享上游状态流的作用域（与容器同生命周期）。
+    sharedScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    // 把多个 DAO 写入包进一个事务。容器注入 Room 的 withTransaction；
+    // 默认直接执行（单测的 Fake DAO 没有事务语义也不需要）。
+    private val transactionRunner: suspend (suspend () -> Unit) -> Unit = { block -> block() },
 ) : ScheduleRepository {
+
+    private val appScope = sharedScope
 
     /** 选中的周次。纯内存：每次打开 App 回到"本周"比记住上次翻到第几周更符合直觉。 */
     private val selectedWeek = MutableStateFlow<Int?>(null)
@@ -95,6 +106,13 @@ public class ScheduleRepositoryImpl(
 
     /** 串行化同步，避免用户连点刷新 / Worker 与手动同步同时跑导致重复写库。 */
     private val syncMutex: Mutex = syncMutexParam
+
+    // 与课表页共享同一份上游状态流：observeNextClass 若各自新建一条完整流水线，
+    // Room 订阅、三张全周网格会全部双份执行，任何上游抖动都重算一遍。
+    // WhileSubscribed：没有订阅者（页面不可见/插件已更新完）时自动停掉。
+    private val sharedUiState: Flow<ScheduleUiState> by lazy {
+        observeScheduleUiState().shareIn(appScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+    }
 
     override fun observeScheduleUiState(): Flow<ScheduleUiState> {
         val colors = flow {
@@ -116,7 +134,7 @@ public class ScheduleRepositoryImpl(
     }
 
     override fun observeNextClass(): Flow<NextClass?> =
-        observeScheduleUiState()
+        sharedUiState
             .map { state -> computeNextClass(state, LocalDateTime.now()) }
             .distinctUntilChanged()
 
@@ -225,54 +243,58 @@ public class ScheduleRepositoryImpl(
             startSource = resolved.source.name,
             updatedAt = updatedAt,
         )
-        termMetaDao.upsert(startEntity)
 
         // 校区只能从考试安排的 xqmc 探测；探测不到就保持用户当前选择（默认 UNKNOWN）。
         val detectedCampus = examOutcome.campusHint
-        if (detectedCampus != Campus.UNKNOWN && detectedCampus != settings.campus) {
-            settingsStore.setCampus(detectedCampus)
-        }
 
         // 配色：老课程名原样保留颜色，只有全新课程参与分配并落盘。
         val plan = CourseColorPolicy.plan(
             courseNames = fetch.courses.map { it.name }.distinct(),
             existing = courseColorDao.getAll(),
         )
-        if (plan.toPersist.isNotEmpty()) courseColorDao.insertIfAbsent(plan.toPersist)
 
         val schoolCourses = fetch.courses.map { it.copy(colorKey = plan.assignment[it.name]) }
+        val examEntities = with(Mappers) { examOutcome.exams.map { it.toEntity() } }
+        val now = Instant.now()
+        val warningsForState = warnings
+
         // 关键：replaceSchoolCourses 是"只删 source=SCHOOL、保留 CUSTOM"的事务，
         // 用户的社团/实验课不会因为一次同步消失。
-        courseDao.replaceSchoolCourses(
-            targetTerm.shortCode,
-            with(Mappers) { schoolCourses.map { it.toEntity() } },
-        )
-        // 补丁（OVERRIDE）是非破坏性覆盖层，读取时才覆盖到教务行上
-        // （见 ScheduleUiStateBuilder），同步这里不需要也不能重放——
-        // 写路径重放会把教务行删掉，读路径的补丁就匹配不到目标了。
-        // 只有成功拿到考试数据才替换；失败时保留上一次的考试安排（存量数据不动）。
-        if (!examFetchFailed) {
-            examDao.replaceByTerm(
+        // 整个落库段（学期元信息 + 配色 + 课表 + 考试 + 同步状态）包在一个大事务里：
+        // 中途失败时数据与状态同生共死，不会出现"数据已更新但状态标失败"的矛盾。
+        transactionRunner {
+            termMetaDao.upsert(startEntity)
+            if (plan.toPersist.isNotEmpty()) courseColorDao.insertIfAbsent(plan.toPersist)
+            courseDao.replaceSchoolCourses(
                 targetTerm.shortCode,
-                with(Mappers) { examOutcome.exams.map { it.toEntity() } },
+                with(Mappers) { schoolCourses.map { it.toEntity() } },
             )
+            // 补丁（OVERRIDE）是非破坏性覆盖层，读取时才覆盖到教务行上
+            // （见 ScheduleUiStateBuilder），同步这里不需要也不能重放——
+            // 写路径重放会把教务行删掉，读路径的补丁就匹配不到目标了。
+            // 只有成功拿到考试数据才替换；失败时保留上一次的考试安排（存量数据不动）。
+            if (!examFetchFailed) {
+                examDao.replaceByTerm(targetTerm.shortCode, examEntities)
+            }
+            syncStateDao.upsert(
+                SyncStateEntity(
+                    lastSyncAt = now,
+                    lastTermCode = targetTerm.shortCode,
+                    lastSuccess = true,
+                    lastError = "",
+                    lastScheduleSource = fetch.endpoint.name,
+                    lastWarnings = Mappers.encodeStrings(warningsForState),
+                ),
+            )
+        }
+
+        if (detectedCampus != Campus.UNKNOWN && detectedCampus != settings.campus) {
+            settingsStore.setCampus(detectedCampus)
         }
         refreshColors()
 
         // 服务端会轮换 JSESSIONID，不回写的话下次冷启动就得重新登录。
         sessionStore.save(session.copy(cookies = client.currentCookies()))
-
-        val now = Instant.now()
-        syncStateDao.upsert(
-            SyncStateEntity(
-                lastSyncAt = now,
-                lastTermCode = targetTerm.shortCode,
-                lastSuccess = true,
-                lastError = "",
-                lastScheduleSource = fetch.endpoint.name,
-                lastWarnings = Mappers.encodeStrings(warnings),
-            ),
-        )
 
         return SyncInfo(
             at = now,

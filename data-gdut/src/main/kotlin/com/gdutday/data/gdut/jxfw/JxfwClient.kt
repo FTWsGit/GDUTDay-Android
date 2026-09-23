@@ -219,7 +219,10 @@ public class JxfwClient(
         if (config.scheduleEndpoint != ScheduleEndpoint.ALL_KB_LIST) {
             try {
                 val result = fetchViaDataList(term)
-                if (result.rows.isNotEmpty()) return result
+                // 回退判据用归一化后的课程数，不是原始行数：
+                // 服务端返回了行但全部因字段格式变化被丢弃时，
+                // rows.isNotEmpty() 会阻止回退，用户只看到空课表 + warning
+                if (result.courses.isNotEmpty()) return result
                 firstError = GdutException.EmptySchedule(term)
             } catch (e: GdutException) {
                 // 会话失效不该被回退逻辑吞掉 —— 换接口也一样会失效，直接抛出去让上层重登
@@ -512,11 +515,24 @@ public class JxfwClient(
             var page = 2
             while (all.size < outcome.total && page <= config.maxPages) {
                 val more = requestGrades(term, page)
-                if (more.grades.isEmpty()) break
+                if (more.grades.isEmpty()) {
+                    // total 声明了还有数据但中间页返回空：服务端抖动。
+                    // 静默截断会让剩余成绩无声丢失，记 warning 而不是直接放弃。
+                    break
+                }
                 all += more.grades
                 page++
             }
-            outcome = outcome.copy(grades = all, summaries = JxfwGradeParser.summarize(all))
+            val truncated = all.size < outcome.total
+            outcome = outcome.copy(
+                grades = all,
+                summaries = JxfwGradeParser.summarize(all),
+                warnings = if (truncated) {
+                    listOf("成绩只取到 ${all.size}/${outcome.total} 条（分页中断），请重新同步")
+                } else {
+                    emptyList()
+                },
+            )
         }
 
         // 「劳动教育」兜底重查
@@ -827,6 +843,14 @@ public object JxfwDirectLogin {
 
         val code = json.int("code")
         val message = json.str("message").trim()
+        // code 缺失/非数字说明接口改版了，不能归为"账号或密码错误"——
+        // 误报会让用户去改一个本来正确的密码
+        if (code == null) {
+            throw GdutException.Parse(
+                what = "教务系统直登响应",
+                snippet = "缺少 code 字段。body=${LenientJson.snippet(body, 300)}",
+            )
+        }
         if (code != 0) {
             val detail = "code=$code message='$message' body=${LenientJson.snippet(body, 200)}"
             if (message.contains("验证码")) throw GdutException.BadCaptcha(message.ifEmpty { null })

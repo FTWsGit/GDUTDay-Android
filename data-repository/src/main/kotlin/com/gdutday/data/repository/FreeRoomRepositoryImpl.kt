@@ -5,6 +5,7 @@ import com.gdutday.data.gdut.freeroom.FreeClassroomClient
 import com.gdutday.data.gdut.freeroom.FreeRoomBuilding
 import com.gdutday.data.gdut.freeroom.JwcwxSso
 import com.gdutday.data.gdut.freeroom.RoomUsageResult
+import com.gdutday.data.gdut.session.GdutSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -33,6 +34,11 @@ public class FreeRoomRepositoryImpl(
     /** 打通过程串行化：并发请求同时打通会产生两份互不知情的 cookie。 */
     private val ensureMutex = Mutex()
 
+    /** 打通后的 jwcwx 会话缓存。TGT 有效时打通只是一条 302 链，但连续查询教学楼/日期
+     *  时每次都重跑仍是无谓流量；缓存 10 分钟，冷启动失效语义不变。 */
+    @Volatile
+    private var cachedSession: Pair<GdutSession, Long>? = null
+
     override suspend fun fetchBuildings(): List<FreeRoomBuilding> = withContext(Dispatchers.IO) {
         client().fetchBuildings()
     }
@@ -45,9 +51,26 @@ public class FreeRoomRepositoryImpl(
     private suspend fun client(): FreeClassroomClient {
         val session = sessionStore.current()
             ?: throw com.gdutday.core.model.GdutException.SessionExpired(detail = "未登录")
+        val now = System.currentTimeMillis()
+        cachedSession?.let { (cached, at) ->
+            if (now - at < CACHE_TTL_MS && cached.cookies.isNotEmpty()) {
+                return FreeClassroomClient(okHttpClient, cached)
+            }
+        }
         return ensureMutex.withLock {
+            // 双检：等锁期间另一个请求可能已完成打通
+            cachedSession?.let { (cached, at) ->
+                if (System.currentTimeMillis() - at < CACHE_TTL_MS && cached.cookies.isNotEmpty()) {
+                    return FreeClassroomClient(okHttpClient, cached)
+                }
+            }
             val ensured = JwcwxSso.ensureSession(okHttpClient, session)
+            cachedSession = ensured to System.currentTimeMillis()
             FreeClassroomClient(okHttpClient, ensured)
         }
+    }
+
+    private companion object {
+        private const val CACHE_TTL_MS = 10 * 60 * 1000L
     }
 }
