@@ -80,9 +80,11 @@ public object CourseColors {
     ): Map<String, CourseColor> {
         val result = LinkedHashMap<String, CourseColor>()
 
-        // 1. 已持久化的优先，原样保留
+        // 1. 已持久化的优先，原样保留；未知 key（旧版本/拼错）不保留，
+        //    否则多门课同时退化为 DEFAULT 粉色且不再参与重分配，冲突永久固化
         for ((name, key) in alreadyAssigned) {
-            if (name in courseNames || courseNames.isEmpty()) result[name] = byKey(key)
+            val color = key?.let { byKeyMap[it] } ?: continue
+            if (name in courseNames || courseNames.isEmpty()) result[name] = color
         }
 
         // 2. 新课程按排序位次分配，避开已占用的颜色（尽可能不重色）

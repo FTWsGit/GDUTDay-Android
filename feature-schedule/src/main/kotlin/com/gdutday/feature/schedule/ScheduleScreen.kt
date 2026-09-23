@@ -115,9 +115,10 @@ fun ScheduleScreen(
         }
     }
 
-    // 同步失败的提示。state.errorMessage 在下次同步前一直存在，
-    // 但这里以它为 key，只在值变化时弹一次，不会反复打扰。
-    LaunchedEffect(state.errorMessage) {
+    // 同步失败的提示。以 errorMessage + lastSync 时间戳联合为 key：
+    // 只用文案做 key 时，两次失败文案相同（如同一网络错误重试再失败）
+    // 不会重启 effect，第二次失败静默无提示；时间戳每次同步必变。
+    LaunchedEffect(state.errorMessage, state.lastSync?.at) {
         state.errorMessage?.let { snackbarHostState.showSnackbar(it) }
     }
 

@@ -210,9 +210,10 @@ public class ScheduleGridBuilder(
             if (!c.occursInWeek(week)) continue
             if (c.dayOfWeek !in 1..7) continue
             // 绝对时间（用户改到非整节边界）优先；否则按节次查作息表。
-            val startMin = if (c.startMinute >= 0) c.startMinute
+            // 哨兵是 -1，判断必须用 != -1：>= 0 会把合法的 0（00:00 开始）当成未设置。
+            val startMin = if (c.startMinute != -1) c.startMinute
             else CourseBlock.clockToMinute(timetable.periodOf(c.startSection).start)
-            val endMin = if (c.endMinute >= 0) c.endMinute
+            val endMin = if (c.endMinute != -1) c.endMinute
             else CourseBlock.clockToMinute(timetable.periodOf(c.endSection).end)
             byDay[c.dayOfWeek] += RawBlock(c, startMin, endMin)
         }

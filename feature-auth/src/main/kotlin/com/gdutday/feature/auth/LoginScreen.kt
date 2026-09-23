@@ -108,17 +108,20 @@ fun LoginScreen(
         ) {
             Text(stringResource(R.string.login_title), style = MaterialTheme.typography.headlineMedium)
 
-            // 两条登录路径的切换入口。
+            // 两条登录路径的切换入口。busy 期间禁用：submit 捕获的是旧 method，
+            // 切 Tab 只会让 UI 显示与实际请求不一致的登录方式。
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = state.method == LoginMethodTab.UNIFIED_AUTH,
                     onClick = { viewModel.onMethodChange(LoginMethodTab.UNIFIED_AUTH) },
                     label = { Text(stringResource(R.string.login_tab_unified)) },
+                    enabled = !state.busy,
                 )
                 FilterChip(
                     selected = state.method == LoginMethodTab.JXFW_DIRECT,
                     onClick = { viewModel.onMethodChange(LoginMethodTab.JXFW_DIRECT) },
                     label = { Text(stringResource(R.string.login_tab_jxfw)) },
+                    enabled = !state.busy,
                 )
             }
 
