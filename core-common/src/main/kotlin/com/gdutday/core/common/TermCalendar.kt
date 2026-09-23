@@ -167,12 +167,15 @@ public class TermCalendar(
         /**
          * 把课程自带的 [Course.classDates] 转成反推样本。
          *
-         * 一门 [Course] 的 `classDates` 与它的 `weeks` 一一对应（都是升序），
+         * 一门 [Course] 的 `classDates` 与它的 `weeks` 一一对应（**双方都按升序**配对，
+         * 写入端 CourseNormalizer/Mappers 保证；这里再排一次序防御旧数据），
          * 若长度不等说明存在调课/合并行，此时**跳过该课程**而不是硬凑。
          */
         public fun samplesFrom(course: Course): List<SemesterStartSample> {
             val weeks = course.weeks.sorted()
-            val dates = course.classDates
+            // dates 也按升序配对：只检查等长不排序的话，乱序历史数据会把
+            // week↔date 错配，反推出的开学日期整体偏移数周。
+            val dates = course.classDates.sorted()
             if (weeks.size != dates.size) return emptyList()
             return weeks.zip(dates).map { (w, d) ->
                 SemesterStartSample(classDate = d, week = w, dayOfWeek = course.dayOfWeek)

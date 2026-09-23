@@ -153,6 +153,16 @@ class TermCalendarTest {
         // 数量不一致说明有调课/合并行，硬凑会算出错误的开学日期，所以整门课跳过
         val mismatched = aligned.copy(classDates = listOf(LocalDate.of(2025, 9, 1)))
         assertThat(TermCalendar.samplesFrom(mismatched)).isEmpty()
+
+        // 等长但乱序的历史数据也要按升序配对：第 1 周必须对应 9/1，第 2 周对应 9/8
+        val shuffled = aligned.copy(
+            weeks = setOf(2, 1),
+            classDates = listOf(LocalDate.of(2025, 9, 8), LocalDate.of(2025, 9, 1)),
+        )
+        val samples = TermCalendar.samplesFrom(shuffled)
+        assertThat(samples).hasSize(2)
+        assertThat(samples.first { it.week == 1 }.classDate).isEqualTo(LocalDate.of(2025, 9, 1))
+        assertThat(samples.first { it.week == 2 }.classDate).isEqualTo(LocalDate.of(2025, 9, 8))
     }
 
     @Test
